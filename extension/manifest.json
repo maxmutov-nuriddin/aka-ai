@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Aka — o'quv yordamchisi",
+  "short_name": "Aka",
+  "version": "1.0.0",
+  "description": "Ko'rayotgan sahifangni oddiy, jaydari tilda tushuntirib beradigan aka.",
+  "action": { "default_title": "Aka'ni ochish" },
+  "side_panel": { "default_path": "sidepanel.html" },
+  "background": { "service_worker": "background.js" },
+  "options_page": "options.html",
+  "permissions": ["sidePanel", "scripting", "storage", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}

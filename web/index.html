@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aka — o'quv yordamchisi</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="top">
+      <div class="brand">
+        <span class="logo" aria-hidden="true">A</span>
+        <div>
+          <h1>Aka</h1>
+          <p class="tagline">Sahifani oddiy qilib tushuntiradigan akang</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button type="button" class="ghost" id="newChat">Yangi suhbat</button>
+        <button type="button" class="ghost" id="endLesson" disabled>Darsni tugatish</button>
+      </div>
+    </header>
+
+    <!-- Faqat veb-rejimda: sahifa matnini qo'lda kiritish -->
+    <details class="page-panel" id="pagePanel" open>
+      <summary>Sahifa <span class="muted" id="pageStatus">— matnni shu yerga qo'y</span></summary>
+      <label class="field">
+        <span>Sarlavha (ixtiyoriy)</span>
+        <input id="pageTitle" type="text" maxlength="300" placeholder="Masalan: Fotosintez">
+      </label>
+      <label class="field">
+        <span>Sahifa matni</span>
+        <textarea id="pageText" rows="7" placeholder="Darslik yoki sayt matnini shu yerga nusxalab qo'y..."></textarea>
+      </label>
+    </details>
+
+    <div class="page-chip" id="pageChip" hidden></div>
+
+    <main class="chat" id="chat" aria-live="polite">
+      <div class="empty" id="empty">
+        <p class="big">Salom, aka! 👋</p>
+        <p>Sahifani ochib, "Tushuntir" tugmasini bos yoki savolingni yoz. Men oddiy qilib, misollar bilan tushuntiraman.</p>
+      </div>
+    </main>
+
+    <form class="composer" id="composer">
+      <div class="selection" id="selectionBox" hidden>
+        <span class="muted">Tanlangan qism:</span>
+        <span id="selectionText"></span>
+        <button type="button" class="link" id="clearSelection" aria-label="Tanlovni olib tashlash">×</button>
+      </div>
+      <div class="row">
+        <textarea id="input" rows="1" maxlength="4000" placeholder="Savolingni yoz (bo'sh qoldirsang, sahifani tushuntiraman)"></textarea>
+        <button type="submit" class="primary" id="send">Tushuntir</button>
+      </div>
+      <p class="error" id="error" role="alert" hidden></p>
+    </form>
+  </div>
+
+  <script src="vendor/mermaid.min.js"></script>
+  <script src="host-web.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

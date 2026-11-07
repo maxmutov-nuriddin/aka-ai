@@ -1,0 +1,21 @@
+{
+  "name": "aka-ai",
+  "version": "1.0.0",
+  "description": "Aka — maktab o'quvchilari uchun sahifani tushuntirib beradigan o'quv yordamchisi",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node --test test/*.test.js",
+    "build:extension": "node scripts/build-extension.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0",
+    "express": "^5.1.0",
+    "mermaid": "^12.3.0"
+  }
+}
