@@ -27,6 +27,30 @@ test("tizim prompti fayldan to'liq o'qiladi", () => {
   assert.match(SYSTEM_PROMPT, /XULOSA_SO'ROVI/);
 });
 
+const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
+test("normalizePage: skrinshot (Figma kabi matnsiz sahifa) qabul qilinadi; noto'g'ri yoki katta rasm — xato", () => {
+  const p = normalizePage({ title: "", text: "", image: `data:image/png;base64,${PNG}` });
+  assert.deepEqual(p.image, { mediaType: "image/png", data: PNG });
+  assert.equal(normalizePage({ title: "Figma", text: "", image: `data:image/jpeg;base64,${PNG}` }).image.mediaType, "image/jpeg");
+  assert.throws(() => normalizePage({ title: "T", image: "data:image/gif;base64,AAAA" }), ValidationError);
+  assert.throws(() => normalizePage({ title: "T", image: "https://evil.example/x.png" }), ValidationError);
+  assert.throws(() => normalizePage({ title: "T", image: `data:image/png;base64,${"A".repeat(LIMITS.imageBase64Chars + 4)}` }), ValidationError);
+});
+
+test("buildMessages: skrinshot birinchi xabarda image bloki bo'lib boradi, matn undan keyin", () => {
+  const page = normalizePage({ title: "Figma", url: "https://figma.com/x", text: "", image: `data:image/png;base64,${PNG}` });
+  const msgs = buildMessages({ page, history: [{ role: "user", content: "Bu dizaynni tushuntir" }] });
+  const [image, text] = msgs[0].content;
+  assert.deepEqual(image, { type: "image", source: { type: "base64", media_type: "image/png", data: PNG } });
+  assert.equal(text.type, "text");
+  assert.match(text.text, /skrinshot/i);
+  assert.match(text.text, /Bu dizaynni tushuntir/);
+  // rasm yo'q — avvalgidek oddiy matn
+  const plain = buildMessages({ page: normalizePage({ title: "T", text: "abc" }), history: [{ role: "user", content: "x" }] });
+  assert.equal(typeof plain[0].content, "string");
+});
+
 test("normalizePage: uzun sahifani kesadi va belgilaydi", () => {
   const p = normalizePage({ title: "T", text: "a".repeat(LIMITS.pageChars + 10) });
   assert.equal(p.text.length, LIMITS.pageChars);

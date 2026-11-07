@@ -12,7 +12,7 @@ export function cors(allowed) {
       if (ok) {
         res.set("Access-Control-Allow-Origin", origin);
         res.set("Vary", "Origin");
-        res.set("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+        res.set("Access-Control-Allow-Methods", "POST, GET, PUT, OPTIONS"); // PUT — support sozlamalari
         res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
         res.set("Access-Control-Expose-Headers", "X-Word-Starts");
       }

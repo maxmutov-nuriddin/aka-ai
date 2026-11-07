@@ -313,8 +313,11 @@ function showError(msg) {
 async function ensurePage() {
   if (state.page) return state.page;
   const page = await host.getPage();
-  const hasText = page && (page.text?.trim() || page.title?.trim());
-  state.page = hasText ? { title: page.title || "", url: page.url || "", text: page.text || "" } : null;
+  // Kengaytma skrinshot ham yuboradi (Figma, rasm, diagramma — matnsiz sahifalarni Jigar ko'radi).
+  const hasContent = page && (page.text?.trim() || page.title?.trim() || page.image);
+  state.page = hasContent
+    ? { title: page.title || "", url: page.url || "", text: page.text || "", ...(page.image ? { image: page.image } : {}) }
+    : null;
   if (!state.selection && page?.selection) setSelection(page.selection);
   updatePageUi();
   return state.page;
@@ -335,7 +338,7 @@ function updatePageUi() {
     el.pageBtn.hidden = true;
     const p = state.page;
     el.pageChip.hidden = !p;
-    if (p) el.pageChip.textContent = `📄 ${p.title || p.url || t("page.current")}`;
+    if (p) el.pageChip.textContent = `${p.image ? "🖼" : "📄"} ${p.title || p.url || t("page.current")}`;
   }
 }
 

@@ -108,7 +108,7 @@ export function createApp({ jigar = createJigar(), env = process.env, tts, stt, 
 
   app.use(authenticate(store));
   app.use("/api", cors(allowed));
-  app.use("/api", express.json({ limit: "1mb" }));
+  app.use("/api", express.json({ limit: "3mb" })); // sahifa skrinshoti (kengaytma) uchun
   app.use(
     "/api/auth",
     createAuthRouter({

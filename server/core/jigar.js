@@ -127,7 +127,19 @@ export const LIMITS = {
   selectionChars: 4_000,
   historyTurns: 40, // jami xabarlar soni (user + assistant)
   summaryItems: 60,
+  imageBase64Chars: 1_500_000, // sahifa skrinshoti (~1.1 MB) — kengaytma 1568 px JPEG yuboradi (~200-400 KB)
 };
+
+// Sahifa skrinshoti (kengaytma): Figma, rasm, diagramma kabi matnsiz sahifalarni Claude ko'radi.
+const IMAGE_DATA_URL_RE = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/;
+
+function normalizeImage(image) {
+  if (image == null || image === "") return null;
+  const match = typeof image === "string" ? IMAGE_DATA_URL_RE.exec(image) : null;
+  if (!match) throw new ValidationError("page.image: data:image/(jpeg|png|webp);base64,... bo'lishi kerak");
+  if (match[2].length > LIMITS.imageBase64Chars) throw new ValidationError("page.image juda katta");
+  return { mediaType: match[1], data: match[2] };
+}
 
 
 export function getConfig(env = process.env) {
@@ -150,12 +162,14 @@ export function normalizePage(page) {
   const text = str(page.text).replace(/\s+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
   const title = clip(str(page.title).trim(), 300);
   const url = clip(str(page.url).trim(), 1000);
-  if (!text && !title) return null;
+  const image = normalizeImage(page.image);
+  if (!text && !title && !image) return null;
   return {
     title,
     url,
     text: clip(text, LIMITS.pageChars),
     truncated: text.length > LIMITS.pageChars,
+    ...(image ? { image } : {}),
   };
 }
 
@@ -188,6 +202,10 @@ function pageBlock(page) {
   if (page.title) lines.push(`Sarlavha: ${page.title}`);
   if (page.url) lines.push(`Manzil: ${page.url}`);
   if (page.truncated) lines.push("(Eslatma: sahifa juda uzun, quyida faqat uning boshlang'ich qismi berilgan.)");
+  if (page.image) {
+    lines.push("(Yuqorida — o'quvchi ekranida ko'rinib turgan sahifaning skrinshoti. Rasm, dizayn (Figma), diagramma, formula yoki "
+      + "jadval bo'lsa — skrinshotga qarab tushuntir. Matn bilan farq qilsa, skrinshot ustun.)");
+  }
   lines.push("Matn:", page.text || "(matn yo'q)", "</sahifa>");
   return lines.join("\n");
 }
@@ -203,7 +221,14 @@ export function buildMessages({ page, history, selection }) {
   const last = msgs[msgs.length - 1];
   const question = last.content || "Shu sahifani tushuntirib ber.";
   last.content = sel ? `O'quvchi sahifadan shu qismni tanladi:\n"""\n${sel}\n"""\n\n${question}` : question;
-  msgs[0].content = `${pageBlock(page)}\n\n${msgs[0].content || "Shu sahifani tushuntirib ber."}`;
+  const firstText = `${pageBlock(page)}\n\n${msgs[0].content || "Shu sahifani tushuntirib ber."}`;
+  // Skrinshot bo'lsa — birinchi xabar: rasm + matn (Claude ko'radi). Har so'rovda bir xil — kesh buzilmaydi.
+  msgs[0].content = page?.image
+    ? [
+        { type: "image", source: { type: "base64", media_type: page.image.mediaType, data: page.image.data } },
+        { type: "text", text: firstText },
+      ]
+    : firstText;
   return msgs;
 }
 

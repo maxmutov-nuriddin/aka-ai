@@ -102,6 +102,7 @@ test("CORS: kengaytmaga ruxsat (Authorization bilan), boshqa saytga yo'q", async
   assert.equal(ok.status, 204);
   assert.equal(ok.headers.get("access-control-allow-origin"), "chrome-extension://abc");
   assert.match(ok.headers.get("access-control-allow-headers"), /Authorization/);
+  assert.match(ok.headers.get("access-control-allow-methods"), /PUT/); // support sozlamalari kengaytmadan ham
   const bad = await fetch(srv.base + "/api/chat", { method: "OPTIONS", headers: { Origin: "https://evil.example" } });
   assert.equal(bad.headers.get("access-control-allow-origin"), null);
 });

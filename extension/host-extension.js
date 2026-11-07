@@ -26,17 +26,47 @@ function readSelection() {
   return String(getSelection() || "");
 }
 
+// Skrinshot: Figma, rasm, diagramma, canvas kabi matnsiz sahifalarni Jigar ko'rishi uchun.
+// Claude uchun tavsiya etilgan eng katta o'lcham — 1568 px; JPEG ~200–400 KB.
+const SHOT_MAX_SIDE = 1568;
+const SHOT_QUALITY = 0.75;
+
+async function shrinkImage(dataUrl) {
+  const bitmap = await createImageBitmap(await (await fetch(dataUrl)).blob());
+  const scale = Math.min(1, SHOT_MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+  const canvas = new OffscreenCanvas(Math.round(bitmap.width * scale), Math.round(bitmap.height * scale));
+  canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  const blob = await canvas.convertToBlob({ type: "image/jpeg", quality: SHOT_QUALITY });
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
+/** Ochiq tabning ko'rinib turgan qismi. Olib bo'lmasa (chrome:// sahifalar va h.k.) — "" (matn bilan davom etadi). */
+async function captureTab(windowId) {
+  try {
+    return await shrinkImage(await chrome.tabs.captureVisibleTab(windowId, { format: "jpeg", quality: 90 }));
+  } catch (err) {
+    console.warn("[jigar] skrinshot olinmadi:", err?.message || err);
+    return "";
+  }
+}
+
 window.JIGAR_HOST = {
   mode: "extension",
   apiBase: DEFAULT_API,
   async getPage() {
     const tab = await activeTab();
     if (!tab?.id) throw new Error("Faol tab topilmadi.");
+    const image = await captureTab(tab.windowId);
     try {
-      return await runInTab(tab.id, readPage);
+      return { ...(await runInTab(tab.id, readPage)), image };
     } catch {
       // chrome:// yoki do'kon sahifalarida skript ishlamaydi
-      return { title: tab.title || "", url: tab.url || "", text: "", selection: "" };
+      return { title: tab.title || "", url: tab.url || "", text: "", selection: "", image };
     }
   },
   async getSelection() {
