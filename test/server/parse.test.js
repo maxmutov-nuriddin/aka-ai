@@ -1,9 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseAkaResponse, parseQuiz, parseVisual, variantLetter } from "../server/parse.js";
+import { parseAkaResponse, parseQuiz, parseVisual, variantLetter, stripAudioTags } from "../../server/core/parse.js";
 
 const SAMPLE = `[TUSHUNTIRISH]
-Eshit, aka, fotosintez — bu o'simlikning oshxonasi.
+Eshit, jigar, fotosintez — bu o'simlikning oshxonasi.
 Quyosh nuri energiya beradi, shuning uchun o'simlik shakar yasaydi.
 
 [ESDA QOLSIN]
@@ -21,7 +21,7 @@ graph LR
 test("to'liq javobni bo'limlarga ajratadi", () => {
   const r = parseAkaResponse(SAMPLE);
   assert.equal(r.structured, true);
-  assert.match(r.tushuntirish, /^Eshit, aka/);
+  assert.match(r.tushuntirish, /^Eshit, jigar/);
   assert.match(r.tushuntirish, /shakar yasaydi\.$/);
   assert.equal(r.esdaQolsin, "O'simlik quyosh nuridan ovqat tayyorlaydi.");
   assert.equal(r.vizual, "graph LR\n  A[Quyosh] --> B[Barg]");
@@ -79,4 +79,11 @@ test("QUIZ: kirill variantlar", () => {
 test("variantLetter: harfsiz variantga tartib bo'yicha harf beradi", () => {
   assert.equal(variantLetter("Quyosh", 2), "C");
   assert.equal(variantLetter("d. Tosh", 0), "D");
+});
+
+test("stripAudioTags ovoz teglarini olib tashlaydi, oddiy matnga tegmaydi", () => {
+  assert.equal(stripAudioTags("[laughs] Eshit, jigar! [excited] Zo'r."), "Eshit, jigar! Zo'r.");
+  assert.equal(stripAudioTags("Bu [low, gravelly voice] gap"), "Bu gap");
+  assert.equal(stripAudioTags("Massiv [1, 2] va [A] harf"), "Massiv [1, 2] va [A] harf");
+  assert.equal(stripAudioTags(""), "");
 });

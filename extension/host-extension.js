@@ -26,7 +26,7 @@ function readSelection() {
   return String(getSelection() || "");
 }
 
-window.AKA_HOST = {
+window.JIGAR_HOST = {
   mode: "extension",
   apiBase: DEFAULT_API,
   async getPage() {
@@ -48,6 +48,10 @@ window.AKA_HOST = {
       return "";
     }
   },
+  // Yon panel mikrofon ruxsatini so'ray olmaydi — sozlamalar sahifasida bir marta ruxsat beriladi.
+  requestMicPermission() {
+    chrome.runtime.openOptionsPage();
+  },
   onPageChange(cb) {
     let lastUrl = null;
     const check = async () => {
@@ -64,7 +68,32 @@ window.AKA_HOST = {
   },
 };
 
-// Server manzilini sozlamalardan o'qiymiz (app.js so'rov yuborishdan oldin tayyor bo'ladi).
-chrome.storage.sync.get({ apiBase: DEFAULT_API }).then(({ apiBase }) => {
-  window.AKA_HOST.apiBase = String(apiBase || DEFAULT_API).replace(/\/+$/, "");
+// ---------- Hisob: kengaytma Bearer token bilan ishlaydi (sozlamalar sahifasida kiriladi) ----------
+let authToken = "";
+
+window.JIGAR_HOST.authHeaders = () => (authToken ? { Authorization: `Bearer ${authToken}` } : {});
+
+/** Sessiya yo'q yoki tugagan — tokenni o'chirib, kirish uchun sozlamalarni ochamiz. */
+window.JIGAR_HOST.onUnauthorized = () => {
+  authToken = "";
+  chrome.storage.local.remove(["token", "user"]);
+  chrome.runtime.openOptionsPage();
+};
+window.JIGAR_HOST.logout = () => window.JIGAR_HOST.onUnauthorized();
+
+const tokenLoaded = chrome.storage.local.get({ token: "" }).then(({ token }) => {
+  authToken = token;
 });
+// Sozlamalarda kirilsa yoki chiqilsa — yon panel yangi holat bilan qayta yuklanadi.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== "local" || !changes.token) return;
+  authToken = changes.token.newValue || "";
+  if (authToken) window.location.reload();
+});
+
+// Server manzilini sozlamalardan o'qiymiz (app.js so'rov yuborishdan oldin tayyor bo'ladi).
+const apiLoaded = chrome.storage.sync.get({ apiBase: DEFAULT_API }).then(({ apiBase }) => {
+  window.JIGAR_HOST.apiBase = String(apiBase || DEFAULT_API).replace(/\/+$/, "");
+});
+// Ilova birinchi so'rovdan oldin shuni kutadi — token va manzil o'qilmasdan so'rov ketmasin.
+window.JIGAR_HOST.ready = Promise.all([tokenLoaded, apiLoaded]);

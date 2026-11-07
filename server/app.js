@@ -1,0 +1,216 @@
+// Express ilova: API yo'llari va sahifalar. Ishga tushirish — server/index.js.
+//   /          landing      /login  kirish va ro'yxatdan o'tish      /app/  Jigar (faqat kirganlarga)
+//   /api/auth  sessiyalar   /api/chat, /api/summary, /api/tts, /api/stt — faqat kirganlarga
+import express from "express";
+import Anthropic from "@anthropic-ai/sdk";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+import { createJigar, normalizeLang, normalizeLevel, normalizePersona, ValidationError } from "./core/jigar.js";
+import { TtsNotConfiguredError } from "./core/errors.js";
+import { createTts } from "./voice/azure.js";
+import { createElevenLabs } from "./voice/elevenlabs.js";
+import { openDatabase } from "./db/database.js";
+import { createAuthStore, parseSupportEmails } from "./auth/store.js";
+import { createSettingsStore } from "./settings/store.js";
+import { createAdminRouter } from "./admin/routes.js";
+import { createFishAudio } from "./voice/fishaudio.js";
+import { authenticate, requireUser, requireUserPage } from "./auth/session.js";
+import { createAuthRouter } from "./auth/routes.js";
+import { cors } from "./http/cors.js";
+import { rateLimiter } from "./http/rate-limit.js";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const root = path.join(here, "..");
+const webDir = path.join(root, "web");
+const DEFAULT_RATE_WINDOW_MS = 5 * 60_000;
+
+function apiErrorResponse(err) {
+  if (err instanceof ValidationError) return [400, err.message];
+  if (err instanceof Anthropic.AuthenticationError) return [500, "Server sozlanmagan: API kalit noto'g'ri."];
+  if (err instanceof Anthropic.RateLimitError) return [503, "Jigar hozir band. Bir daqiqadan keyin qayta urinib ko'r."];
+  if (err instanceof Anthropic.BadRequestError) return [400, "So'rovda xato bor. Yangi suhbat boshlab ko'r."];
+  if (err instanceof Anthropic.APIConnectionError) return [503, "Jigar bilan aloqa uzildi. Internetni tekshirib, qayta urin."];
+  if (err instanceof Anthropic.APIError) return [502, "Jigar javob bera olmadi. Qayta urinib ko'r."];
+  return [500, "Kutilmagan xato yuz berdi."];
+}
+
+function voiceErrorResponse(err, failMessage) {
+  if (err instanceof ValidationError) return [400, err.message];
+  if (err instanceof TtsNotConfiguredError) return [503, "Ovoz xizmati sozlanmagan."];
+  return [502, failMessage];
+}
+
+/**
+ * Ovoz xizmatlari. Qaysi biri ishlatilishini support tanlaydi (settings: tts_provider), hamma uchun bir xil.
+ *   elevenlabs — ElevenLabs (his-tuyg'u teglari, so'z vaqtlari); kaliti bo'lmasa — Azure.
+ *                AKA_TTS=azure — Azure'ning tug'ma o'zbek ovozi (teglarsiz).
+ *   fishaudio  — Fish Audio (arzonroq; FISH_API_KEY).
+ * Matnga aylantirish faqat ElevenLabs.
+ */
+export function createVoiceServices(env) {
+  const eleven = createElevenLabs({ env });
+  const azure = createTts({ env });
+  const preferAzure = env.AKA_TTS === "azure" && azure.configured;
+  return {
+    providers: { elevenlabs: eleven.configured && !preferAzure ? eleven : azure, fishaudio: createFishAudio({ env }) },
+    stt: eleven,
+  };
+}
+
+/** Standart baza fayli: data/jigar.db (AKA_DB_FILE bilan o'zgartiriladi). */
+export function defaultDbFile(env) {
+  return env.AKA_DB_FILE?.trim() || path.join(root, "data", "jigar.db");
+}
+
+/**
+ * @param {{ jigar?: object, env?: Record<string, string | undefined>, tts?: object, stt?: object,
+ *           db?: import("node:sqlite").DatabaseSync }} [options]
+ */
+export function createApp({ jigar = createJigar(), env = process.env, tts, stt, ttsProviders, db } = {}) {
+  const defaults = (tts || ttsProviders) && stt ? null : createVoiceServices(env);
+  const providers = ttsProviders ?? (tts ? { elevenlabs: tts } : defaults.providers);
+  const database = db ?? openDatabase(defaultDbFile(env));
+  const settings = createSettingsStore(database);
+  // Support tanlagan xizmat; sozlanmagan bo'lsa — ElevenLabs (yoki Azure).
+  const currentTts = () => {
+    const chosen = providers[settings.ttsProvider()];
+    return chosen?.configured ? chosen : providers.elevenlabs;
+  };
+  const voice = { get tts() { return currentTts(); }, stt: stt ?? defaults.stt };
+
+  /** Ovoz (+ bo'lsa so'z vaqtlari). Tanlangan xizmat xato bersa — o'sha so'rov ElevenLabs'ga o'tadi. */
+  async function speakWith(service, text, options) {
+    const run = (s) => (s.synthesizeTimed
+      ? s.synthesizeTimed(text, options)
+      : s.synthesize(text, options).then((audio) => ({ audio, wordStarts: null })));
+    try {
+      return await run(service);
+    } catch (err) {
+      const backup = providers.elevenlabs;
+      if (err instanceof ValidationError || service === backup || !backup?.configured) throw err;
+      console.warn(`[/api/tts] tanlangan xizmat ishlamadi — ElevenLabs'ga o'tildi: ${err.message}`);
+      return run(backup);
+    }
+  }
+  const store = createAuthStore(database, { supportEmails: parseSupportEmails(env.SUPPORT_EMAILS) });
+  const app = express();
+  app.disable("x-powered-by");
+  if (env.TRUST_PROXY) app.set("trust proxy", env.TRUST_PROXY);
+
+  const allowed = (env.AKA_ALLOWED_ORIGINS || "chrome-extension://*")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const windowMs = Number(env.AKA_RATE_WINDOW_MS) || DEFAULT_RATE_WINDOW_MS;
+  const limiter = rateLimiter({ windowMs, max: Number(env.AKA_RATE_MAX) || 40 });
+  // Bitta javob bir nechta ovoz bo'lagiga bo'linadi, shuning uchun limit alohida va kattaroq.
+  const ttsLimiter = rateLimiter({ windowMs, max: Number(env.AKA_TTS_RATE_MAX) || 300 });
+
+  app.use(authenticate(store));
+  app.use("/api", cors(allowed));
+  app.use("/api", express.json({ limit: "1mb" }));
+  app.use(
+    "/api/auth",
+    createAuthRouter({
+      store,
+      secureCookies: env.NODE_ENV === "production" || env.COOKIE_SECURE === "1",
+      authMax: Number(env.AKA_AUTH_RATE_MAX) || undefined,
+    }),
+  );
+
+  app.use("/api/admin", createAdminRouter({ settings, providers }));
+
+  app.get("/api/health", (_req, res) => res.json({ ok: true }));
+
+  app.get("/api/voice-config", (_req, res) =>
+    res.json({
+      tts: Boolean(voice.tts.configured),
+      stt: Boolean(voice.stt.configured),
+      // Chrome (Google) jonli o'zbekchani Scribe'dan yaxshiroq taniydi — server tanishi faqat so'ralganda.
+      preferServerStt: env.AKA_STT === "elevenlabs",
+      // Chrome tanishiga qo'shimcha: Scribe ham eshitadi, Jigar ikkalasini solishtiradi. AKA_STT=chrome — o'chiq.
+      doubleCheck: Boolean(voice.stt.configured) && env.AKA_STT !== "chrome",
+    }),
+  );
+
+  app.post("/api/tts", requireUser, ttsLimiter, async (req, res) => {
+    try {
+      const lang = normalizeLang(req.body?.lang);
+      const persona = normalizePersona(req.body?.persona); // ovoz va ohang xarakterga mos
+      const level = normalizeLevel(req.body?.level); // ovoz o'quvchi yoshiga mos (yosh / katta)
+      // model — support tanlagan Fish modeli (ElevenLabs uni e'tiborsiz qoldiradi).
+      const options = { lang, persona, level, model: settings.fishModel() };
+      const { audio, wordStarts } = await speakWith(voice.tts, req.body?.text, options);
+      // Har so'z boshlanish vaqti (soniya) — brauzer yozuv va robot yuzini ovozga aniq moslaydi.
+      if (wordStarts?.length) res.set("X-Word-Starts", wordStarts.map((t) => t.toFixed(2)).join(","));
+      res.set("Content-Type", "audio/mpeg");
+      res.set("Cache-Control", "no-store");
+      res.send(audio);
+    } catch (err) {
+      const [status, message] = voiceErrorResponse(err, "Ovozni yaratib bo'lmadi.");
+      if (status === 502) console.error("[/api/tts]", err);
+      res.status(status).json({ error: message });
+    }
+  });
+
+  app.post("/api/stt", requireUser, ttsLimiter, express.raw({ type: "audio/*", limit: "10mb" }), async (req, res) => {
+    try {
+      const lang = normalizeLang(req.query.lang);
+      const text = await voice.stt.transcribe(req.body, req.get("Content-Type"), { lang });
+      res.json({ text });
+    } catch (err) {
+      const [status, message] = voiceErrorResponse(err, "Ovozni tanib bo'lmadi. Qayta urinib ko'r.");
+      if (status === 502) console.error("[/api/stt]", err);
+      res.status(status).json({ error: message });
+    }
+  });
+
+  app.post("/api/chat", requireUser, limiter, async (req, res) => {
+    try {
+      const { page, history, selection, mode, heardAlt, lang, length, simple, persona, goal, level } = req.body ?? {};
+      const result = await jigar.chat({ page, history, selection, mode, heardAlt, lang, length, simple, persona, goal, level });
+      res.json(result);
+    } catch (err) {
+      const [status, message] = apiErrorResponse(err);
+      if (status >= 500) console.error("[/api/chat]", err);
+      res.status(status).json({ error: message });
+    }
+  });
+
+  app.post("/api/summary", requireUser, limiter, async (req, res) => {
+    try {
+      const { pageTitle, items, mode, lang, simple, persona, goal, level } = req.body ?? {};
+      const result = await jigar.summary({ pageTitle, items, mode, lang, simple, persona, goal, level });
+      res.json({ text: result.text, refused: result.refused, usage: result.usage });
+    } catch (err) {
+      const [status, message] = apiErrorResponse(err);
+      if (status >= 500) console.error("[/api/summary]", err);
+      res.status(status).json({ error: message });
+    }
+  });
+
+  // ---------- Sahifalar ----------
+  const page = (...parts) => (_req, res) => res.sendFile(path.join(webDir, ...parts));
+  app.get("/", page("landing", "index.html"));
+  app.get("/login", (req, res, next) => (req.user ? res.redirect(302, "/app/") : next()), page("auth", "index.html"));
+  // Express "/app" ni "/app/" bilan ham moslaydi — faqat oxirida "/" bo'lmasa yo'naltiramiz (aks holda cheksiz aylanadi).
+  app.get("/app", (req, res, next) => (req.path === "/app" ? res.redirect(301, "/app/") : next()));
+  app.get(["/app/", "/app/index.html"], requireUserPage, page("app", "index.html"));
+
+  // Umumiy fayllar: javobni ajratish brauzerda ham ishlatiladi, chizma kutubxonasi node_modules'dan.
+  app.get("/shared/parse.js", (_req, res) => res.sendFile(path.join(here, "core", "parse.js")));
+  app.get("/vendor/mermaid.min.js", (_req, res) =>
+    res.sendFile(path.join(root, "node_modules", "mermaid", "dist", "mermaid.min.js")),
+  );
+  app.use(express.static(webDir, { index: false }));
+
+  // JSON xatolari (masalan, buzilgan body)
+  app.use((err, _req, res, _next) => {
+    if (err?.type === "entity.parse.failed") return res.status(400).json({ error: "JSON noto'g'ri" });
+    if (err?.type === "entity.too.large") return res.status(413).json({ error: "Sahifa juda katta" });
+    console.error(err);
+    res.status(500).json({ error: "Kutilmagan xato yuz berdi." });
+  });
+
+  return Object.assign(app, { store });
+}

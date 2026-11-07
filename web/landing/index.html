@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jigar — gapirib tushuntiradigan robot-ustoz</title>
+  <meta name="description" content="Jigar — 12-18 yoshli o'quvchilar uchun ovozli robot-ustoz. Savolingni ayt, Jigar oddiy so'zlar, misollar va hazil bilan tushuntiradi.">
+  <link rel="icon" href="/shared/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/shared/theme.css">
+  <link rel="stylesheet" href="/shared/avatar.css">
+  <link rel="stylesheet" href="/shared/site.css">
+  <link rel="stylesheet" href="/landing/landing.css">
+</head>
+<body>
+  <div class="notebook" aria-hidden="true"></div>
+
+  <header class="nav">
+    <a class="nav-brand" href="/">
+      <img src="/shared/logo.svg" alt="" width="36" height="36">
+      <span>Jigar</span>
+    </a>
+    <nav class="nav-links" aria-label="Bo'limlar">
+      <a href="#how" data-l="nav.how">Qanday ishlaydi</a>
+      <a href="#features" data-l="nav.features">Imkoniyatlar</a>
+      <a href="#extension" data-l="nav.extension">Kengaytma</a>
+    </nav>
+    <div class="nav-actions">
+      <div class="lang" role="group" aria-label="Til">
+        <button type="button" data-lang="uz" aria-pressed="true">UZ</button>
+        <button type="button" data-lang="ru" aria-pressed="false">RU</button>
+      </div>
+      <a class="btn btn-quiet" href="/login" data-l="nav.login">Kirish</a>
+      <a class="btn btn-main" href="/login?mode=register" data-l="nav.start">Boshlash</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- ---------- Hero ---------- -->
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow" data-l="hero.eyebrow">12–18 yoshdagi o'quvchilar uchun ovozli ustoz</p>
+        <h1>
+          <span data-l="hero.title1">Gapir.</span>
+          <span class="marker"><span data-l="hero.title2">Jigar</span></span>
+          <span data-l="hero.title3">tushuntiradi.</span>
+        </h1>
+        <p class="lead" data-l="hero.lead">Darslikdagi qiyin sahifani ko'rsat yoki savolingni ovoz bilan ayt — Jigar oddiy so'zlar, hayotiy misollar va hazil bilan tushuntiradi.</p>
+        <div class="hero-cta">
+          <a class="btn btn-main btn-big" href="/login?mode=register" data-l="hero.cta">Bepul boshlash</a>
+          <a class="btn btn-quiet btn-big" href="#how" data-l="hero.more">Qanday ishlaydi ↓</a>
+        </div>
+      </div>
+
+      <div class="hero-stage">
+        <div class="doodles" aria-hidden="true">
+          <span class="doodle d1">a² + b² = c²</span>
+          <span class="doodle d2">π ≈ 3,14</span>
+          <span class="doodle d3">H₂O</span>
+          <span class="doodle d4">E = mc²</span>
+          <span class="doodle d5">½ + ¼ = ¾</span>
+        </div>
+        <div class="bubble" aria-live="polite"><span id="bubbleText"></span><i class="caret"></i></div>
+        <div class="avatar hero-avatar" id="heroAvatar"></div>
+        <div class="moods" role="group" aria-label="Kayfiyatni sinab ko'r">
+          <span class="moods-label" data-l="moods.label">Kayfiyatini sinab ko'r:</span>
+          <button type="button" data-emotion="happy">😄</button>
+          <button type="button" data-emotion="excited">🤩</button>
+          <button type="button" data-emotion="curious">🤔</button>
+          <button type="button" data-emotion="sad">😢</button>
+          <button type="button" data-emotion="angry">😠</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- Qanday ishlaydi ---------- -->
+    <section class="how" id="how" aria-labelledby="howTitle">
+      <h2 id="howTitle" data-l="how.title">Uch qadam — va mavzu tushunarli</h2>
+      <ol class="steps">
+        <li class="step">
+          <span class="step-num">1</span>
+          <h3 data-l="how.s1.title">Mikrofonni bos va so'ra</h3>
+          <p data-l="how.s1.text">O'zbekcha yoki ruscha, xohlagancha oddiy gapir. Jigar ikki tizim bilan eshitadi va savolingni aniq tushunadi.</p>
+        </li>
+        <li class="step">
+          <span class="step-num">2</span>
+          <h3 data-l="how.s2.title">Jigar tushuntiradi</h3>
+          <p data-l="how.s2.text">Jonli ovoz, yuz ifodasi va ekranda yozilib boradigan matn bilan — misol va hazil qo'shib.</p>
+        </li>
+        <li class="step">
+          <span class="step-num">3</span>
+          <h3 data-l="how.s3.title">O'zingni tekshir</h3>
+          <p data-l="how.s3.text">Kerak paytda Jigar savol beradi. Javobni aytasan — u maqtaydi yoki yana tushuntiradi.</p>
+        </li>
+      </ol>
+    </section>
+
+    <!-- ---------- Imkoniyatlar ---------- -->
+    <section class="features" id="features" aria-labelledby="featTitle">
+      <h2 id="featTitle" data-l="feat.title">Oddiy chatbot emas — xarakterli ustoz</h2>
+      <div class="bento">
+        <article class="tile tile-voice">
+          <div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <h3 data-l="feat.voice.title">Jonli ovoz</h3>
+          <p data-l="feat.voice.text">Jigar gapiradi, kuladi, pichirlaydi. Ovozi bilan birga matn ham so‘zma-so‘z yoziladi.</p>
+        </article>
+        <article class="tile tile-faces">
+          <div class="faces" aria-hidden="true"><span>😄</span><span>🤔</span><span>😢</span><span>🤩</span></div>
+          <h3 data-l="feat.faces.title">His-tuyg'u</h3>
+          <p data-l="feat.faces.text">Ko'zlari, qoshlari, og'zi va qo'llari har bir gapga mos harakat qiladi.</p>
+        </article>
+        <article class="tile tile-wild" id="wildTile" tabindex="0">
+          <span class="tile-tag" data-l="feat.wild.tag">Faqat jur'atlilar uchun</span>
+          <h3 data-l="feat.wild.title">Beparvo rejim</h3>
+          <p data-l="feat.wild.text">Jigar jahldor ko'cha yigitiga aylanadi: baqiradi, kesatadi, mavzu bo'yicha "po'pisa" qiladi — lekin baribir to'g'ri tushuntiradi.</p>
+        </article>
+        <article class="tile tile-lang">
+          <div class="lang-demo" aria-hidden="true"><b>UZ</b><b>RU</b></div>
+          <h3 data-l="feat.lang.title">O'zbekcha va ruscha</h3>
+          <p data-l="feat.lang.text">Bir tugma bilan til almashadi: interfeys ham, Jigarning ovozi ham.</p>
+        </article>
+        <article class="tile tile-short">
+          <h3 data-l="feat.short.title">Qisqa va sodda</h3>
+          <p data-l="feat.short.text">2–3 gap, oddiy so'zlar. Batafsil kerak bo'lsa — "batafsil" de.</p>
+        </article>
+        <article class="tile tile-quiz">
+          <div class="quiz-demo" aria-hidden="true">
+            <b data-l="feat.quiz.q">Kasr nima?</b>
+            <span class="ok" data-l="feat.quiz.a">Butunning bo'lagi ✓</span>
+          </div>
+          <h3 data-l="feat.quiz.title">Kerak paytda savol</h3>
+          <p data-l="feat.quiz.text">Har javobda test emas — yangi mavzudan keyin, tushunganingni tekshirish uchun.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ---------- Kengaytma ---------- -->
+    <section class="ext" id="extension" aria-labelledby="extTitle">
+      <div class="ext-copy">
+        <h2 id="extTitle" data-l="ext.title">Istalgan saytda — yoningda</h2>
+        <p data-l="ext.text">Chrome kengaytmasi ochiq sahifani o'qiydi. Wikipedia, darslik yoki maqola — belgini bos, Jigar yon panelda tushuntiradi.</p>
+        <ol class="ext-steps">
+          <li data-l="ext.s1">Kengaytmani o'rnat</li>
+          <li data-l="ext.s2">Sozlamalarda hisobingga kir</li>
+          <li data-l="ext.s3">Istalgan sahifada Jigar belgisini bos</li>
+        </ol>
+      </div>
+      <div class="browser" aria-hidden="true">
+        <div class="browser-bar"><i></i><i></i><i></i><span>wikipedia.org/Fotosintez</span></div>
+        <div class="browser-body">
+          <div class="page-lines"><b></b><b></b><b></b><b></b><b></b><b></b></div>
+          <div class="side-panel">
+            <img src="/shared/logo.svg" alt="" width="44" height="44">
+            <p data-l="ext.mock">Fotosintez — o'simlikning oshxonasi! 🌿</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- Yakuniy chaqiriq ---------- -->
+    <section class="final">
+      <h2 data-l="final.title">Birinchi darsni hozir boshla</h2>
+      <p data-l="final.text">Ro'yxatdan o'tish bir daqiqa. Keyin faqat gapirasan.</p>
+      <a class="btn btn-main btn-big" href="/login?mode=register" data-l="final.cta">Jigar bilan tanishish</a>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>© Jigar</span>
+    <a href="/login" data-l="nav.login">Kirish</a>
+  </footer>
+
+  <script type="module" src="/landing/landing.js"></script>
+</body>
+</html>

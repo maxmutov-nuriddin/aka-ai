@@ -1,16 +1,16 @@
 {
   "name": "aka-ai",
   "version": "1.0.0",
-  "description": "Aka — maktab o'quvchilari uchun sahifani tushuntirib beradigan o'quv yordamchisi",
+  "description": "Jigar — maktab o'quvchilari uchun sahifani tushuntirib beradigan o'quv yordamchisi",
   "type": "module",
   "private": true,
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "start": "node server/index.js",
-    "dev": "node --watch server/index.js",
-    "test": "node --test test/*.test.js",
+    "start": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning server/index.js",
+    "dev": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning --watch server/index.js",
+    "test": "node --disable-warning=ExperimentalWarning --test \"test/**/*.test.js\"",
     "build:extension": "node scripts/build-extension.js"
   },
   "dependencies": {

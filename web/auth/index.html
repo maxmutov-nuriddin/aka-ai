@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kirish — Jigar</title>
+  <link rel="icon" href="/shared/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/shared/theme.css">
+  <link rel="stylesheet" href="/shared/avatar.css">
+  <link rel="stylesheet" href="/shared/site.css">
+  <link rel="stylesheet" href="/auth/auth.css">
+</head>
+<body>
+  <div class="notebook" aria-hidden="true"></div>
+
+  <header class="nav">
+    <a class="nav-brand" href="/">
+      <img src="/shared/logo.svg" alt="" width="36" height="36">
+      <span>Jigar</span>
+    </a>
+    <nav class="nav-links" aria-label="Bo'limlar">
+      <a href="/#how" data-l="nav.how">Qanday ishlaydi</a>
+      <a href="/#features" data-l="nav.features">Imkoniyatlar</a>
+      <a href="/#extension" data-l="nav.extension">Kengaytma</a>
+    </nav>
+    <div class="nav-actions">
+      <div class="lang" role="group" aria-label="Til">
+        <button type="button" data-lang="uz" aria-pressed="true">UZ</button>
+        <button type="button" data-lang="ru" aria-pressed="false">RU</button>
+      </div>
+      <a class="btn btn-quiet" href="/login" id="navLogin" data-l="nav.login">Kirish</a>
+      <a class="btn btn-main" href="/login?mode=register" id="navStart" data-l="nav.start">Boshlash</a>
+    </div>
+  </header>
+
+  <div class="auth">
+
+    <section class="auth-stage" aria-hidden="true">
+      <div class="doodles">
+        <span class="doodle d1">a² + b² = c²</span>
+        <span class="doodle d2">π ≈ 3,14</span>
+        <span class="doodle d3">H₂O</span>
+        <span class="doodle d4">E = mc²</span>
+        <span class="doodle d5">½ + ¼ = ¾</span>
+      </div>
+      <div class="auth-bubble" id="bubble">Salom! Keling, tanishamiz 👋</div>
+      <div class="avatar auth-avatar" id="authAvatar"></div>
+    </section>
+
+    <section class="auth-card" aria-labelledby="authTitle">
+      <header class="auth-head">
+        <img src="/shared/logo.svg" alt="" width="40" height="40">
+        <h1 id="authTitle" data-l="title.login">Jigarga kirish</h1>
+      </header>
+
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" id="tabLogin" aria-selected="true" data-mode="login" data-l="tab.login">Kirish</button>
+        <button type="button" role="tab" id="tabRegister" aria-selected="false" data-mode="register" data-l="tab.register">Ro'yxatdan o'tish</button>
+      </div>
+
+      <section id="onboard" class="onboard" aria-live="polite" hidden></section>
+
+      <form id="authForm" class="form" novalidate>
+        <label class="field" id="nameField" hidden>
+          <span data-l="field.name">Ismingiz</span>
+          <input id="name" name="name" type="text" autocomplete="name" maxlength="60">
+        </label>
+        <label class="field">
+          <span data-l="field.email">Email</span>
+          <input id="email" name="email" type="email" autocomplete="email" maxlength="254" required>
+        </label>
+        <label class="field">
+          <span data-l="field.password">Parol</span>
+          <span class="pass-wrap">
+            <input id="password" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" required>
+            <button type="button" class="peek" id="peek" aria-pressed="false" aria-label="Parolni ko'rsatish">👁</button>
+          </span>
+          <small class="hint" id="passHint" hidden data-l="field.passHint">Kamida 8 belgi</small>
+        </label>
+        <p class="error" id="error" role="alert" hidden></p>
+        <button type="submit" class="submit" id="submit">Kirish</button>
+      </form>
+
+      <p class="switch-note">
+        <span id="switchText">Hisobing yo'qmi?</span>
+        <button type="button" class="link" id="switchBtn">Ro'yxatdan o't</button>
+      </p>
+    </section>
+  </div>
+
+  <script type="module" src="/auth/auth.js"></script>
+</body>
+</html>

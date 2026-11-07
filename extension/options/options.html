@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jigar sozlamalari</title>
+  <link rel="icon" href="../shared/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../shared/theme.css">
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main class="opts">
+    <header class="opts-head">
+      <img src="../shared/logo.svg" alt="" width="44" height="44">
+      <div>
+        <h1>Jigar sozlamalari</h1>
+        <p class="muted">Kengaytma shu yerda serverga ulanadi va hisobingga kiradi.</p>
+      </div>
+    </header>
+
+    <section class="card" aria-labelledby="accountTitle">
+      <h2 id="accountTitle">Hisob</h2>
+      <div id="signedIn" hidden>
+        <p class="who">Kirgansiz: <strong id="userName"></strong> <span class="muted" id="userEmail"></span></p>
+        <button class="ghost" id="logout" type="button">Chiqish</button>
+      </div>
+      <form id="loginForm" class="form" novalidate>
+        <label class="field">
+          <span>Email</span>
+          <input id="email" type="email" autocomplete="email" required>
+        </label>
+        <label class="field">
+          <span>Parol</span>
+          <input id="password" type="password" autocomplete="current-password" minlength="8" required>
+        </label>
+        <div class="row">
+          <button class="primary" type="submit">Kirish</button>
+          <a class="link-btn" id="registerLink" href="#" target="_blank" rel="noopener">Ro'yxatdan o'tish</a>
+        </div>
+        <p class="status" id="loginStatus" role="status"></p>
+      </form>
+    </section>
+
+    <section class="card" aria-labelledby="serverTitle">
+      <h2 id="serverTitle">Server manzili</h2>
+      <label class="field">
+        <span>Jigar serveri</span>
+        <input id="apiBase" type="url" placeholder="http://localhost:3000">
+      </label>
+      <div class="row">
+        <button class="ghost" id="save" type="button">Saqlash</button>
+        <span class="status" id="status" role="status"></span>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="micTitle">
+      <h2 id="micTitle">Mikrofon</h2>
+      <p class="muted">Jigar bilan gaplashish uchun mikrofonga bir marta ruxsat ber.</p>
+      <div class="row">
+        <button class="ghost" id="mic" type="button">Mikrofonga ruxsat berish</button>
+        <span class="status" id="micStatus" role="status"></span>
+      </div>
+    </section>
+  </main>
+  <script src="options.js"></script>
+</body>
+</html>

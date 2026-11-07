@@ -71,6 +71,16 @@ export function parseQuiz(body) {
   return { savol, variantlar, togri, izoh };
 }
 
+// Ovoz teglari: [laughs], [excited], [low, gravelly voice]. Ovozga boradi, ekranda ko'rinmaydi.
+const AUDIO_TAG_RE = /[ \t]*\[[a-z]+(?:[ ,'-]+[a-z]+){0,4}\][ \t]*/g;
+
+export function stripAudioTags(text) {
+  return String(text ?? "")
+    .replace(AUDIO_TAG_RE, " ")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/^[ \t]+|[ \t]+$/gm, "");
+}
+
 export function variantLetter(variant, index) {
   const m = String(variant).match(/^\s*([A-Za-zА-Яа-я])\s*[).:-]/);
   if (m) return m[1].toUpperCase();

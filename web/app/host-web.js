@@ -1,5 +1,5 @@
 // Veb-rejim: sahifa matni foydalanuvchi kiritgan maydondan olinadi, API shu serverda.
-window.AKA_HOST = {
+window.JIGAR_HOST = {
   mode: "web",
   apiBase: "",
   async getPage() {
