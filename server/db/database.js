@@ -38,6 +38,25 @@ const MIGRATIONS = [
   `ALTER TABLE usage_daily ADD COLUMN tts_chars INTEGER NOT NULL DEFAULT 0;`,
   // Support bloklagan hisob: kira olmaydi, sessiyalari bekor qilinadi.
   `ALTER TABLE users ADD COLUMN blocked INTEGER NOT NULL DEFAULT 0;`,
+  // Obuna to'lovlari (PayGate) va obuna muddati (har to'lov +30 kun).
+  `CREATE TABLE payments (
+     payment_id  TEXT PRIMARY KEY,
+     order_id    TEXT NOT NULL UNIQUE,
+     user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     goal        TEXT NOT NULL,
+     amount      INTEGER NOT NULL,
+     status      TEXT NOT NULL DEFAULT 'pending',
+     card        TEXT,
+     card_holder TEXT,
+     expire_at   INTEGER NOT NULL,
+     created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+     paid_at     TEXT
+   );
+   CREATE INDEX payments_by_user ON payments(user_id, status);
+   ALTER TABLE users ADD COLUMN paid_until TEXT;`,
+  // Konstruktor tarifi: o'quvchi to'lagan reja ({ goals, minutes }) — to'lovda va foydalanuvchida.
+  `ALTER TABLE users ADD COLUMN plan TEXT;
+   ALTER TABLE payments ADD COLUMN plan TEXT;`,
 ];
 
 /**

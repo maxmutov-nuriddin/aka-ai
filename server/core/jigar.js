@@ -86,6 +86,13 @@ function oneOf(field, list) {
   };
 }
 export const normalizeGoal = oneOf("goal", GOALS);
+
+/** Konstruktor yo'nalishlari: ma'lumlari (takrorsiz); bo'sh yoki noto'g'ri — null. */
+export function normalizeGoals(goals) {
+  if (!Array.isArray(goals)) return null;
+  const list = GOALS.filter((g) => goals.includes(g));
+  return list.length ? list : null;
+}
 export const normalizeLevel = oneOf("level", LEVELS);
 
 // "Beparvo" (so'kinadigan) rejim faqat kattalar uchun: sinf maktab o'quvchisi bo'lsa — oddiyga tushiriladi.
@@ -93,13 +100,37 @@ export const normalizeLevel = oneOf("level", LEVELS);
 const ADULT_LEVELS = new Set(["student"]);
 const effectiveMode = (mode, level) => (mode === "beparvo" && level && !ADULT_LEVELS.has(level) ? "oddiy" : mode);
 
-/** Maqsad, sinf va ismdan tizim promptiga qo'shimcha. Hech biri yo'q bo'lsa — null. */
-function profilePromptFor(goal, level, name) {
+// Konstruktor (bir nechta yo'nalish): har birining qisqa doirasi — "faqat shu tarif" cheklovlarisiz.
+const GOAL_SCOPE = {
+  study: "Maktab darslari — 5–11-sinf fanlari; uy vazifasida tayyor javob emas, yo'l ko'rsat.",
+  exam: "Imtihonga tayyorgarlik — DTM, attestatsiya, nazorat ishlari; test tuzoqlari va tez yechish usullari.",
+  olympiad: "Olimpiada — chuqur tushuncha, isbot, nostandart masalalar.",
+  university: "Universitet yoki kurs — oliy ta'lim fanlari, ma'ruza, seminar, kurs ishi.",
+  language: "Til o'rganish — gapirish mashqi (pastdagi \"TIL O'RGANISH\" bo'limi).",
+  curious: "Qiziqish — ilm-fan, tarix, texnika, tabiat haqida qiziqarli faktlar.",
+};
+const MULTI_OFF_SCOPE = "Bu yo'nalishlardan tashqaridagi savolga 1-2 gapda qisqa javob ber va o'quvchini muloyimlik bilan o'z yo'nalishlariga qaytar.";
+
+/** Yo'nalish(lar) qatori: bitta — to'liq doira qoidasi; bir nechta (konstruktor) — hammasi doirada. */
+function goalLines(goals) {
+  if (goals.length === 1) return [`- Maqsad: ${GOAL_GUIDE[goals[0]]}`];
+  return [
+    "- Maqsad: o'quvchi bir nechta yo'nalishni tanlagan (konstruktor tarifi). DOIRA — shularning hammasi:",
+    ...goals.map((g) => `  - ${GOAL_SCOPE[g]}`),
+    `  ${MULTI_OFF_SCOPE}`,
+    ...(goals.includes("language")
+      ? ["  Til mashqi rejimi faqat o'quvchi til mashq qilmoqchi bo'lganda (o'rganilayotgan tilda gapirsa yoki mashq so'rasa); fan savoliga — odatdagidek tushuntir."]
+      : []),
+  ];
+}
+
+/** Maqsad(lar), sinf va ismdan tizim promptiga qo'shimcha. Hech biri yo'q bo'lsa — null. */
+function profilePromptFor(goals, level, name) {
   const cleanedName = cleanName(name);
-  if (!goal && !level && !cleanedName) return null;
+  if (!goals.length && !level && !cleanedName) return null;
   const lines = ["# O'QUVCHI PROFILI (ro'yxatdan o'tishda o'zi tanladi)", "Tushuntirish, misollar va so'zlarni shu o'quvchiga moslab tanla:"];
   if (cleanedName) lines.push(`- Ismi: ${cleanedName} — vaqti-vaqti bilan ismi bilan murojaat qil (har gapda emas).`);
-  if (goal) lines.push(`- Maqsad: ${GOAL_GUIDE[goal]}`);
+  if (goals.length) lines.push(...goalLines(goals));
   if (level) lines.push(`- Sinf: ${LEVEL_GUIDE[level]}`);
   return lines.join("\n");
 }
@@ -133,8 +164,10 @@ export function normalizeMode(mode) {
 
 /** Rejim, til va uslubga mos tizim prompti. Har birikma alohida keshlanadi. Til qo'shimchasi doim oxirida. */
 export function systemPromptFor(
-  mode, lang = "uz", { length = "odatiy", simple = false, persona = null, goal = null, level = null, name = null } = {},
+  mode, lang = "uz", { length = "odatiy", simple = false, persona = null, goal = null, goals = null, level = null, name = null } = {},
 ) {
+  // goals — konstruktor rejasi (bir nechta yo'nalish); bo'lmasa — bitta goal.
+  const allGoals = goals?.length ? goals : goal ? [goal] : [];
   const parts = [SYSTEM_PROMPT];
   if (mode === "beparvo") parts.push(BEPARVO_PROMPT);
   else if (persona === "romantik" && ADULT_LEVELS.has(level)) parts.push(ROMANTIC_ADULT_PROMPT);
@@ -142,10 +175,10 @@ export function systemPromptFor(
   if (length === "qisqa") parts.push(SHORT_PROMPT);
   if (length === "batafsil") parts.push(DETAILED_PROMPT);
   if (simple) parts.push(SIMPLE_PROMPT);
-  const profile = profilePromptFor(goal, level, name);
+  const profile = profilePromptFor(allGoals, level, name);
   if (profile) parts.push(profile);
   if (lang === "ru") parts.push(RUSSIAN_PROMPT);
-  if (goal === "language") parts.push(languageModePrompt(lang)); // ikki tilda gapirish — til qoidasidan keyin, ustun
+  if (allGoals.includes("language")) parts.push(languageModePrompt(lang)); // ikki tilda gapirish — til qoidasidan keyin, ustun
   return parts.join("\n\n");
 }
 
@@ -390,7 +423,7 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ra
   }
 
   return {
-    async chat({ page, history, selection, mode, heardAlt, pronunciation, lang, length, simple, persona, goal, level, studentName, llm }) {
+    async chat({ page, history, selection, mode, heardAlt, pronunciation, lang, length, simple, persona, goal, goals, level, studentName, llm }) {
       const normLevel = normalizeLevel(level);
       const normMode = effectiveMode(normalizeMode(mode), normLevel);
       const normLang = normalizeLang(lang);
@@ -399,6 +432,7 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ra
         simple: simple === true,
         persona: normalizePersona(persona),
         goal: normalizeGoal(goal),
+        goals: normalizeGoals(goals),
         level: normLevel,
         name: studentName, // promptga tozalanib yoziladi (cleanName)
       };
@@ -412,12 +446,12 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ra
       // userContent: mijoz tarixga aynan shuni yozadi — keyingi so'rovlarda prefiks o'zgarmaydi (kesh ishlaydi).
       return { ...result, userContent, pageTruncated: Boolean(normPage?.truncated), parsed: parseAkaResponse(result.text) };
     },
-    async summary({ pageTitle, items, mode, lang, simple, persona, goal, level, llm }) {
+    async summary({ pageTitle, items, mode, lang, simple, persona, goal, goals, level, llm }) {
       const normLevel = normalizeLevel(level);
       const normMode = effectiveMode(normalizeMode(mode), normLevel);
       const normLang = normalizeLang(lang);
       const content = buildSummaryMessage({ pageTitle, items });
-      const style = { simple: simple === true, persona: normalizePersona(persona), goal: normalizeGoal(goal), level: normLevel };
+      const style = { simple: simple === true, persona: normalizePersona(persona), goal: normalizeGoal(goal), goals: normalizeGoals(goals), level: normLevel };
       return call([{ role: "user", content }], normMode, normLang, style, llm);
     },
   };

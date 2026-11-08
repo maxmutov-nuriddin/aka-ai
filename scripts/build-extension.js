@@ -30,6 +30,7 @@ writeFileSync(to("app", "sidepanel.html"), html.replace('src="host-web.js"', 'sr
 // Umumiy fayllar va kutubxonalar
 copy(from("web", "shared"), to("shared"));
 copy(from("server", "core", "parse.js"), to("shared", "parse.js"));
+copy(from("server", "usage", "plan-pricing.js"), to("shared", "plan-pricing.js")); // konstruktor narxi (tannarxsiz)
 copy(from("node_modules", "mermaid", "dist", "mermaid.min.js"), to("vendor", "mermaid.min.js"));
 
 console.log(`Kengaytma tayyor: ${path.relative(root, out)}`);

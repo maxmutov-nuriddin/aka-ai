@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/shared/avatar.css">
   <link rel="stylesheet" href="/shared/site.css">
   <link rel="stylesheet" href="/landing/landing.css">
+  <link rel="stylesheet" href="/shared/plan-builder.css">
 </head>
 <body>
   <div class="notebook" aria-hidden="true"></div>
@@ -161,6 +162,16 @@
       <h2 id="priceTitle" data-l="price.title">Narxlar</h2>
       <p class="section-lead" data-l="price.lead">Har yo'nalishning o'z tarifi bor. Daqiqa — Jigar bilan suhbat vaqti, har kuni yarim tunda yangilanadi.</p>
       <div class="price-grid" id="pricingGrid"></div>
+      <!-- Konstruktor: o'quvchi tarifni o'zi yig'adi (landing-sections.js: renderBuilder) -->
+      <div class="builder-card">
+        <div class="builder-head">
+          <span class="pill-new" data-l="dir.new">Yangi</span>
+          <h3 data-l="builder.title">Konstruktor — tarifni o'zing yig'</h3>
+          <p data-l="builder.lead">Kerakli yo'nalishlarni tanla va kunlik vaqtni yoki oylik summani ber — ikkinchisi o'zi hisoblanadi. Narx faqat vaqtga bog'liq: tayyor tarifni yig'sang, narxi aynan bir xil.</p>
+        </div>
+        <div id="planBuilder"></div>
+        <a class="btn btn-main btn-big builder-cta" id="builderCta" href="/login?mode=register" data-l="builder.cta">Shu reja bilan boshlash</a>
+      </div>
     </section>
 
     <!-- ---------- Kengaytma ---------- -->

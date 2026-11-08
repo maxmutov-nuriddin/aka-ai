@@ -3,7 +3,7 @@
 import { createAvatar } from "/shared/avatar.js";
 import { moodSvg } from "/shared/faces.js";
 import { DICT, LINES } from "./landing-content.js";
-import { renderDirections, renderFaq, renderPersonas, renderPricing } from "./landing-sections.js";
+import { renderBuilder, renderDirections, renderFaq, renderPersonas, renderPricing } from "./landing-sections.js";
 
 const PREFS_KEY = "jigar.prefs"; // ilova bilan bir xil — tanlangan til /app/ da ham saqlanadi
 const TYPE_MS = 34;
@@ -39,6 +39,7 @@ function applyLang() {
   renderDirections(lang);
   renderPersonas(lang);
   renderPricing(lang);
+  renderBuilder(lang);
   renderFaq(lang);
 }
 

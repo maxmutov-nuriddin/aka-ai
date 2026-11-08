@@ -202,8 +202,32 @@ section { position: relative; }
 .price-amount strong { font: 900 34px/1 var(--font-display); letter-spacing: -0.02em; }
 .price-amount span { color: var(--muted); font-size: 14px; }
 .price-daily { margin: 0; color: var(--accent-2); font-weight: 700; }
+.price-features { list-style: none; margin: 4px 0 8px; padding: 0; display: grid; gap: 8px; font-size: 14px; line-height: 1.4; }
+.price-features li { position: relative; padding-left: 26px; }
+.price-features li::before {
+  position: absolute; left: 0; top: 1px; width: 18px; height: 18px; display: grid; place-items: center;
+  border-radius: 50%; font-size: 11px; font-weight: 900;
+}
+.price-features .is-yes::before { content: "✓"; color: var(--right); background: color-mix(in srgb, var(--right) 16%, transparent); }
+.price-features .is-no { color: var(--muted); }
+.price-features .is-no::before { content: "✕"; color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, transparent); }
 .price-cta { margin-top: auto; justify-content: center; }
 .price-error { grid-column: 1 / -1; color: var(--muted); }
+
+/* ---------- Konstruktor ---------- */
+.builder-card {
+  margin-top: 20px; padding: 28px; border-radius: var(--radius-xl); display: grid; grid-template-columns: 1fr 1.3fr; gap: 20px 40px;
+  background: linear-gradient(150deg, color-mix(in srgb, var(--accent) 16%, var(--surface)), var(--surface) 60%);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.builder-head h3 { margin: 10px 0 8px; font-size: 24px; }
+.builder-head p { margin: 0; color: var(--muted); line-height: 1.6; }
+.pill-new { display: inline-block; padding: 4px 10px; border-radius: 999px; background: var(--accent-2); color: #06201c; font-size: 12px; font-weight: 800; }
+.builder-cta { grid-column: 2; justify-self: start; }
+@media (max-width: 860px) {
+  .builder-card { grid-template-columns: 1fr; padding: 20px; }
+  .builder-cta { grid-column: 1; }
+}
 
 /* ---------- Savol-javob ---------- */
 .faq-list { margin-top: 32px; display: grid; gap: 12px; max-width: 860px; }

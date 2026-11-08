@@ -126,6 +126,7 @@ function fillDrawer(ctx) {
     ["ID", `#${u.id}`],
     ["Ro'yxatdan o'tgan", formatDate(u.createdAt)],
     ["Oxirgi faollik", relativeDay(u.lastActiveDay, today(state))],
+    ["Obuna", u.paidUntil && Date.parse(u.paidUntil) > Date.now() ? `${new Date(u.paidUntil).toLocaleDateString("ru-RU")} gacha` : "yo'q"],
     ["Holat", statusPill(u)],
   ]
     .map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`)

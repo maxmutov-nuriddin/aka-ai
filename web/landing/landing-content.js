@@ -44,6 +44,9 @@ export const DICT = {
     "price.daily": "kuniga {n} daqiqa suhbat",
     "price.cta": "Tanlash",
     "price.error": "Narxlarni yuklab bo'lmadi. Sahifani yangilang.",
+    "builder.title": "Konstruktor — tarifni o'zing yig'",
+    "builder.lead": "Kerakli yo'nalishlarni tanla va kunlik vaqtni yoki oylik summani ber — ikkinchisi o'zi hisoblanadi. Narx faqat vaqtga bog'liq: tayyor tarifni yig'sang, narxi aynan bir xil.",
+    "builder.cta": "Shu reja bilan boshlash",
     "ext.title": "Istalgan saytda — yoningda",
     "ext.text": "Chrome kengaytmasi ochiq sahifani o'qiydi va ko'radi. Wikipedia, darslik, maqola yoki Figma — belgini bos, Jigar yon panelda tushuntiradi.",
     "ext.s1": "Kengaytmani o'rnat", "ext.s2": "Sozlamalarda hisobingga kir", "ext.s3": "Istalgan sahifada Jigar belgisini bos",
@@ -97,6 +100,9 @@ export const DICT = {
     "price.daily": "{n} мин разговора в день",
     "price.cta": "Выбрать",
     "price.error": "Не удалось загрузить цены. Обнови страницу.",
+    "builder.title": "Конструктор — собери тариф сам",
+    "builder.lead": "Выбери нужные направления и задай время в день или сумму в месяц — второе посчитается само. Цена зависит только от времени: соберёшь готовый тариф — цена та же.",
+    "builder.cta": "Начать с этим планом",
     "ext.title": "На любом сайте — рядом",
     "ext.text": "Расширение для Chrome читает и видит открытую страницу. Википедия, учебник, статья или Figma — нажми значок, и Джигар объяснит в боковой панели.",
     "ext.s1": "Установи расширение", "ext.s2": "Войди в аккаунт в настройках", "ext.s3": "На любой странице нажми значок Джигара",
@@ -133,6 +139,7 @@ export const FAQ = {
   uz: [
     ["Jigar uy vazifamni yechib beradimi?", "Yo'q — va bu ataylab shunday. Jigar tayyor javobni yozib bermaydi: mavzuni tushuntiradi va qadamma-qadam yo'l ko'rsatadi, yechimni o'zing topasan. Shunda bilim boshingda qoladi."],
     ["Qaysi fanlarni tushuntiradi?", "Tanlagan yo'nalishingga qarab: maktab dasturidagi barcha fanlar, DTM va attestatsiya, olimpiada masalalari, universitet fanlari yoki rus/o'zbek tilini o'rganish."],
+    ["Talaffuzni qaysi tarif tekshiradi?", "Faqat \"Til o'rganish\" tarifi: u erda Jigar har so'z va tovushni baholaydi, xatoni tuzatadi va takrorlatadi. Boshqa tariflarda Jigar gapingni tushunadi, lekin talaffuzni baholamaydi. Har tarifda nimalar bor va nimalar yo'qligi Narxlar bo'limida yozilgan."],
     ["Daqiqa qanday hisoblanadi?", "Daqiqa — Jigarning ovozli javoblari va savollaring vaqti. Kunlik limit har kuni Toshkent vaqti bilan yarim tunda yangilanadi. Qolgan vaqt ilovaning yuqori qismida ko'rinib turadi."],
     ["Qaysi tillarda gapiradi?", "O'zbek va rus tillarida. Tilni ro'yxatdan o'tishda tanlaysan. \"Til o'rganish\" yo'nalishida esa o'zbek tilini bilgan o'quvchi rus tilini, rus tilini bilgan o'quvchi o'zbek tilini o'rganadi."],
     ["Telefonda ishlaydimi?", "Ha — telefon va kompyuter brauzerida ishlaydi. Mikrofonga ruxsat so'raladi; ruxsat bersang, bas. Chrome uchun kengaytma ham bor."],
@@ -141,6 +148,7 @@ export const FAQ = {
   ru: [
     ["Джигар сделает за меня домашку?", "Нет — и это специально. Джигар не пишет готовый ответ: объясняет тему и шаг за шагом подсказывает путь, а решение находишь ты. Так знания остаются в голове."],
     ["Какие предметы он объясняет?", "Зависит от направления: все школьные предметы, ДТМ и аттестация, олимпиадные задачи, университетские дисциплины или изучение русского/узбекского языка."],
+    ["Какой тариф проверяет произношение?", "Только «Изучение языка»: там Джигар оценивает каждое слово и звук, исправляет и просит повторить. В других тарифах Джигар понимает твою речь, но произношение не оценивает. Что входит в каждый тариф, а что нет — написано в разделе Цены."],
     ["Как считаются минуты?", "Минуты — это время голосовых ответов Джигара и твоих вопросов. Дневной лимит обновляется каждый день в полночь по Ташкенту. Оставшееся время видно вверху приложения."],
     ["На каких языках он говорит?", "На узбекском и русском. Язык выбираешь при регистрации. А в направлении «Изучение языка» узбекоговорящий ученик учит русский, а русскоговорящий — узбекский."],
     ["Работает на телефоне?", "Да — в браузере телефона и компьютера. Нужно только разрешить доступ к микрофону. Для Chrome есть ещё и расширение."],
@@ -164,4 +172,34 @@ export const LINES = {
     { text: "Пифагор? Главная тайна треугольника…", emotion: "curious" },
     { text: "Домашку за тебя не сделаю. Решим вместе!", emotion: "smirk" },
   ],
+};
+
+// Tarif kartasida: nimalar bor (+) va nimalar yo'q (-) — o'quvchi tarifni adashtirmasin
+// (masalan, "Qiziqish"da til o'rganish va talaffuz yo'q). Doira: server/core/jigar.js (GOAL_GUIDE).
+const NO_LANG = { uz: "-Til o'rganish va talaffuz bahosi", ru: "-Изучение языка и оценка произношения" };
+export const TARIFF_FEATURES = {
+  study: {
+    uz: ["+5–11-sinf barcha fanlari", "+Uy vazifasida yo'l ko'rsatadi (tayyor javob emas)", "+Savol-javob va dars xulosasi", "-DTM test strategiyasi", NO_LANG.uz],
+    ru: ["+Все предметы 5–11 классов", "+Подсказки по домашке (не готовый ответ)", "+Вопросы-проверки и итог урока", "-Стратегия тестов ДТМ", NO_LANG.ru],
+  },
+  exam: {
+    uz: ["+DTM, attestatsiya, nazorat ishlari", "+Test tuzoqlari va tez yechish usullari", "+Test shaklidagi misollar", NO_LANG.uz],
+    ru: ["+ДТМ, аттестация, контрольные", "+Ловушки тестов и быстрые способы", "+Примеры в формате теста", NO_LANG.ru],
+  },
+  olympiad: {
+    uz: ["+Olimpiada darajasidagi masalalar", "+Isbot va nostandart yechimlar", "+Avval o'zing o'ylaysan, keyin yordam", NO_LANG.uz],
+    ru: ["+Задачи олимпиадного уровня", "+Доказательства и нестандартные решения", "+Сначала думаешь сам, потом помощь", NO_LANG.ru],
+  },
+  university: {
+    uz: ["+Oliy ta'lim fanlari", "+Ma'ruza, seminar, kurs ishi", "+Aniq atamalar va ta'riflar", NO_LANG.uz],
+    ru: ["+Университетские дисциплины", "+Лекции, семинары, курсовые", "+Точные термины и определения", NO_LANG.ru],
+  },
+  language: {
+    uz: ["+Rus (yoki o'zbek) tilida erkin suhbat", "+Talaffuz bahosi: har so'z va tovush", "+Xatolarni yumshoq tuzatish", "+Rolli o'yin va yangi so'zlar", "-Fan darslari (matematika va h.k.)"],
+    ru: ["+Свободный разговор на русском (или узбекском)", "+Оценка произношения: каждое слово и звук", "+Мягкое исправление ошибок", "+Ролевые игры и новые слова", "-Школьные предметы (математика и т.д.)"],
+  },
+  curious: {
+    uz: ["+Qiziqarli faktlar va dunyoqarash", "+Ilm-fan, tarix, texnika, tabiat", "-Maktab darslari va uy vazifasi", "-DTM va olimpiada", NO_LANG.uz],
+    ru: ["+Интересные факты и кругозор", "+Наука, история, техника, природа", "-Школьные уроки и домашка", "-ДТМ и олимпиады", NO_LANG.ru],
+  },
 };

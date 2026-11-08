@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="../shared/theme.css">
   <link rel="stylesheet" href="../shared/avatar.css">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="../shared/plan-builder.css">
 </head>
 <body>
   <div class="app" id="app" data-mode="oddiy" data-chat="closed">
@@ -80,6 +81,14 @@
               <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/></svg>
               <span>Support paneli</span>
             </a>
+            <!-- Obuna (PayGate): holat va to'lov tugmasi. billing.js — paywall o'chiq va obuna yo'q bo'lsa yashirin. -->
+            <div class="setting billing-row" id="billingRow" hidden>
+              <span class="setting-label" data-i18n="pay.title">Obuna</span>
+              <div class="account-row">
+                <span class="billing-status" id="billingStatus">—</span>
+                <button type="button" class="ghost" id="payBtn" data-i18n="pay.button">To'lash</button>
+              </div>
+            </div>
             <div class="setting account">
               <span class="setting-label" data-i18n="settings.account">Hisob</span>
               <div class="account-row">
@@ -193,6 +202,34 @@
 
   <script src="../vendor/mermaid.min.js"></script>
   <script src="host-web.js"></script>
+  <!-- To'lov oynasi (billing.js): karta, aniq summa, vaqt; to'lov tushishi bilan obuna ochiladi. -->
+  <dialog class="pay-dialog" id="payDialog" aria-labelledby="payTitle">
+    <h2 id="payTitle" data-i18n="pay.dialogTitle">Obunani to'lash</h2>
+    <!-- 1-qadam: reja (tayyor tarif yoki konstruktor) — billing.js -->
+    <div id="payPlanStep" hidden>
+      <div id="payPlan"></div>
+      <button type="button" class="pay-continue" id="payContinue" data-i18n="pay.continue">To'lashga o'tish</button>
+    </div>
+    <div id="payDetails" hidden>
+      <p class="pay-hint" data-i18n="pay.hint">Quyidagi kartaga aynan shu summani o'tkazing (Payme, Click yoki bank ilovasi orqali). Pul tushishi bilan obuna o'zi ochiladi.</p>
+      <div class="pay-field">
+        <span data-i18n="pay.amount">Summa (aynan shu)</span>
+        <div class="pay-value"><strong id="payAmount"></strong><button type="button" class="ghost" id="payAmountCopy" data-i18n="pay.copy">Nusxa</button></div>
+      </div>
+      <div class="pay-field">
+        <span data-i18n="pay.card">Karta</span>
+        <div class="pay-value"><strong id="payCard" class="pay-card"></strong><button type="button" class="ghost" id="payCopy" data-i18n="pay.copy">Nusxa</button></div>
+        <small id="payHolder"></small>
+      </div>
+      <p class="pay-timer"><span data-i18n="pay.timeLeft">Qolgan vaqt:</span> <b id="payTimer">05:00</b></p>
+    </div>
+    <p class="pay-state" id="payState" aria-live="polite"></p>
+    <div class="pay-actions">
+      <button type="button" class="ghost" id="payRetry" hidden data-i18n="pay.retry">Qayta urinish</button>
+      <button type="button" class="ghost" id="payClose" data-i18n="pay.close">Yopish</button>
+    </div>
+  </dialog>
+
   <script type="module" src="app.js"></script>
 </body>
 </html>

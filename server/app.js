@@ -12,13 +12,16 @@ import { createElevenLabs, AUTO_LANG } from "./voice/elevenlabs.js";
 import { createAzurePronunciation } from "./voice/azure-pronunciation.js";
 import { createGeminiTts } from "./voice/gemini-tts.js";
 import { createGeminiLlm } from "./core/gemini-llm.js";
+import { createPaygate } from "./payments/paygate.js";
+import { createPaymentStore } from "./payments/store.js";
+import { createPaymentRouter } from "./payments/routes.js";
 import { createLocalPronunciation } from "./voice/local-pronunciation.js";
 import { fromScribeWords } from "./core/pronunciation.js";
 import { openDatabase } from "./db/database.js";
 import { createAuthStore, parseSupportEmails } from "./auth/store.js";
 import { createSettingsStore } from "./settings/store.js";
 import { createUsageStore } from "./usage/store.js";
-import { TARIFFS, tariffFor, dailyMinutes } from "./usage/tariffs.js";
+import { TARIFFS, dailyMinutes, planDailyMinutes, tariffOf } from "./usage/tariffs.js";
 import { createAdminRouter } from "./admin/routes.js";
 import { createFishAudio } from "./voice/fishaudio.js";
 import { authenticate, requireUser, requireUserPage } from "./auth/session.js";
@@ -68,9 +71,14 @@ export function createVoiceServices(env) {
   };
 }
 
+/** O'quvchi til o'rganadimi: yo'nalishi yoki to'langan rejasida (konstruktor) "language" bor. */
+function learnsLanguage(user) {
+  return user?.profile?.goal === "language" || Boolean(user?.plan?.goals?.includes("language"));
+}
+
 /** Til o'rganish yo'nalishida nutq ikki tilda aralash — ovoz xizmati tilni o'zi aniqlaydi. */
 function voiceLang(user, lang) {
-  return user?.profile?.goal === "language" ? AUTO_LANG : lang;
+  return learnsLanguage(user) ? AUTO_LANG : lang;
 }
 
 /** Standart baza fayli: data/jigar.db (AKA_DB_FILE bilan o'zgartiriladi). */
@@ -82,7 +90,7 @@ export function defaultDbFile(env) {
  * @param {{ jigar?: object, env?: Record<string, string | undefined>, tts?: object, stt?: object,
  *           db?: import("node:sqlite").DatabaseSync }} [options]
  */
-export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env }), jigar = createJigar({ gemini: geminiLlm }), tts, stt, ttsProviders, db, pronunciation = [createLocalPronunciation({ env }), createAzurePronunciation({ env })] } = {}) {
+export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env }), jigar = createJigar({ gemini: geminiLlm }), tts, stt, ttsProviders, db, pronunciation = [createLocalPronunciation({ env }), createAzurePronunciation({ env })], paygate = createPaygate({ env }) } = {}) {
   const defaults = (tts || ttsProviders) && stt ? null : createVoiceServices(env);
   const providers = ttsProviders ?? (tts ? { elevenlabs: tts } : defaults.providers);
   const database = db ?? openDatabase(defaultDbFile(env));
@@ -112,13 +120,14 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
   }
   const store = createAuthStore(database, { supportEmails: parseSupportEmails(env.SUPPORT_EMAILS) });
   const usage = createUsageStore(database);
+  const payments = createPaymentStore(database);
   /** Foydalanuvchining bugungi sarfi (daqiqa) va tarif limiti. Support — limit yo'q. */
   function dailyUsage(user) {
     const provider = settings.ttsProvider();
     const usedMinutes = usage.minutesToday(user.id);
-    const tariff = tariffFor(user.profile?.goal);
+    const tariff = tariffOf(user.profile?.goal, user.plan); // konstruktor rejasi yoki tayyor tarif
     if (user.role === "support") return { usedMinutes, limitMinutes: null, remainingMinutes: null, provider, tariff };
-    const limitMinutes = dailyMinutes(tariff.goal, provider, settings.llmProvider());
+    const limitMinutes = planDailyMinutes(tariff, provider, settings.llmProvider());
     const remainingMinutes = Math.max(0, Math.round((limitMinutes - usedMinutes) * 10) / 10);
     return { usedMinutes, limitMinutes, remainingMinutes, provider, tariff };
   }
@@ -214,7 +223,7 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
 
   app.post("/api/stt", requireUser, ttsLimiter, express.raw({ type: "audio/*", limit: "10mb" }), async (req, res) => {
     try {
-      if (req.user?.profile?.goal === "language" && voice.stt.transcribeDetailed) {
+      if (learnsLanguage(req.user) && voice.stt.transcribeDetailed) {
         return res.json(await languageStt(req.body, req.get("Content-Type"), req.user.profile));
       }
       const lang = voiceLang(req.user, normalizeLang(req.query.lang));
@@ -236,7 +245,15 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
     res.json({ provider, tariffs });
   });
 
+  // Obuna to'lovi (PayGate) — /api/payments, /api/subscription; PAYWALL=1 bo'lsa chat obuna/sinov talab qiladi.
+  const billing = createPaymentRouter({ paygate, payments, env, limiter });
+  app.use("/api", billing.router);
+
   app.post("/api/chat", requireUser, limiter, async (req, res) => {
+    // Obuna yo'q ko'rinsa — avval callback kelmagan to'lovlar qayta tekshiriladi (to'lagan o'quvchi to'xtatilmasin).
+    if (!billing.canUse(req.user) && (await billing.reconcile(req.user.id), !billing.canUse(req.user))) {
+      return res.status(402).json({ error: "Bepul sinov tugadi. Davom etish uchun obunani to'lang.", code: "payment_required" });
+    }
     try {
       // Tarif: kunlik savol limiti (support — cheksiz). Xato bergan so'rov hisobga olinmaydi.
       const before = dailyUsage(req.user);
@@ -252,6 +269,7 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
       const result = await jigar.chat({
         page, history, selection, mode, heardAlt, pronunciation, lang, length, simple, persona, goal, level,
         studentName: req.user?.name, llm: settings.llmProvider(),
+        goals: req.user?.plan?.goals, // konstruktor: bir nechta yo'nalish (to'langan reja)
       });
       usage.addChat(req.user.id);
       res.json({ ...result, dailyUsage: dailyUsage(req.user) });
@@ -265,7 +283,7 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
   app.post("/api/summary", requireUser, limiter, async (req, res) => {
     try {
       const { pageTitle, items, mode, lang, simple, persona, goal, level } = req.body ?? {};
-      const result = await jigar.summary({ pageTitle, items, mode, lang, simple, persona, goal, level, llm: settings.llmProvider() });
+      const result = await jigar.summary({ pageTitle, items, mode, lang, simple, persona, goal, level, llm: settings.llmProvider(), goals: req.user?.plan?.goals });
       res.json({ text: result.text, refused: result.refused, usage: result.usage });
     } catch (err) {
       const [status, message] = apiErrorResponse(err);
@@ -287,6 +305,7 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
 
   // Umumiy fayllar: javobni ajratish brauzerda ham ishlatiladi, chizma kutubxonasi node_modules'dan.
   app.get("/shared/parse.js", (_req, res) => res.sendFile(path.join(here, "core", "parse.js")));
+  app.get("/shared/plan-pricing.js", (_req, res) => res.sendFile(path.join(here, "usage", "plan-pricing.js"))); // konstruktor narxi (tannarxsiz)
   app.get("/shared/levels.js", (_req, res) => res.sendFile(path.join(here, "core", "levels.js"))); // yo'nalish -> sinflar
   app.get("/vendor/mermaid.min.js", (_req, res) =>
     res.sendFile(path.join(root, "node_modules", "mermaid", "dist", "mermaid.min.js")),
@@ -301,5 +320,5 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
     res.status(500).json({ error: "Kutilmagan xato yuz berdi." });
   });
 
-  return Object.assign(app, { store });
+  return Object.assign(app, { store, paymentsForTest: { expire: payments.expireForTest } });
 }

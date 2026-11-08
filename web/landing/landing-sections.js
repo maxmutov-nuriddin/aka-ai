@@ -3,7 +3,10 @@
 import { createAvatar } from "/shared/avatar.js";
 import { FACE_COLORS, faceSvg } from "/shared/faces.js";
 import { GOAL_COLORS, iconSvg } from "/shared/icons.js";
-import { DICT, DIRECTIONS, FAQ, PERSONAS } from "./landing-content.js";
+import { DICT, DIRECTIONS, FAQ, PERSONAS, TARIFF_FEATURES } from "./landing-content.js";
+import { createPlanBuilder } from "/shared/plan-builder.js";
+
+const PLAN_KEY = "jigar.plan"; // konstruktorda yig'ilgan reja — ilovadagi to'lov oynasi shundan boshlaydi
 
 const $ = (id) => document.getElementById(id);
 const t = (lang, key) => DICT[lang][key] ?? DICT.uz[key] ?? key;
@@ -86,6 +89,17 @@ export function renderPersonas(lang) {
 }
 
 // ---------- Narxlar ----------
+/** Tarifda nimalar bor (✓) va yo'q (✗) — tarif adashtirilmasin. */
+function featureList(goal, lang) {
+  const list = el("ul", "price-features");
+  for (const item of TARIFF_FEATURES[goal]?.[lang] ?? []) {
+    const included = item.startsWith("+");
+    const li = el("li", included ? "is-yes" : "is-no", item.slice(1));
+    li.setAttribute("aria-label", `${included ? "✓" : "✗"} ${item.slice(1)}`);
+    list.append(li);
+  }
+  return list;
+}
 let tariffsPromise = null;
 const loadTariffs = () => {
   tariffsPromise ??= fetch("/api/tariffs").then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))));
@@ -107,7 +121,7 @@ export async function renderPricing(lang) {
       amount.append(el("strong", null, priceFmt.format(tariff.price)), el("span", null, ` ${t(lang, "price.month")}`));
       const cta = el("a", "btn btn-quiet price-cta", t(lang, "price.cta"));
       cta.href = "/login?mode=register";
-      card.append(head, amount, el("p", "price-daily", t(lang, "price.daily").replace("{n}", tariff.minutes)), cta);
+      card.append(head, amount, el("p", "price-daily", t(lang, "price.daily").replace("{n}", tariff.minutes)), featureList(goal, lang), cta);
       return card;
     });
     grid.replaceChildren(...cards);
@@ -115,6 +129,22 @@ export async function renderPricing(lang) {
     tariffsPromise = null; // keyingi safar qayta urinadi
     grid.replaceChildren(el("p", "price-error", t(lang, "price.error")));
   }
+}
+
+// ---------- Konstruktor ----------
+let builder = null;
+export function renderBuilder(lang) {
+  if (builder) return builder.setLang(lang);
+  builder = createPlanBuilder($("planBuilder"), {
+    lang,
+    onChange: (plan) => {
+      try {
+        localStorage.setItem(PLAN_KEY, JSON.stringify(plan));
+      } catch {
+        /* saqlab bo'lmasa — to'lov oynasida qayta tanlanadi */
+      }
+    },
+  });
 }
 
 // ---------- Savol-javob ----------

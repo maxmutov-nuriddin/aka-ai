@@ -1,24 +1,7 @@
-// Tariflar: o'quvchi ro'yxatdan o'tishda tanlagan yo'nalish (profile.goal) — narx va kunlik daqiqa limiti.
-// Daqiqa = Jigarning ovozli gapirishi (~900 belgi = 1 daqiqa) + har savol 0.5 daqiqa (Claude xarajati).
-// Limitlar Fish Drama 3 narxida hisoblangan (≈550 so'm/daqiqa): to'liq ishlatilsa ham ~17% foyda qoladi.
-export const TARIFFS = {
-  curious: { price: 199_000, minutes: 10 }, // Qiziqish, umumiy bilim
-  study: { price: 249_000, minutes: 12 }, // Maktab darslari
-  exam: { price: 299_000, minutes: 15 }, // Imtihonga tayyorgarlik (DTM)
-  olympiad: { price: 399_000, minutes: 20 }, // Olimpiada
-  university: { price: 399_000, minutes: 20 }, // Universitet yoki kurs
-  // Til o'rganish (gapirish): o'quvchi ham, Jigar ham ko'p gapiradi — daqiqa xarajati ~1.5x, shuning uchun limit kamroq.
-  language: { price: 299_000, minutes: 12 },
-};
-const DEFAULT_GOAL = "study";
-const LEGACY_GOAL = "curious"; // olib tashlangan yo'nalish (IT) — eng arzon tarifga
+// Tannarx va kunlik limit (faqat server). Narxlar va konstruktor — plan-pricing.js (brauzer bilan umumiy).
+import { TARIFFS, tariffFor } from "./plan-pricing.js";
 
-/** Yo'nalish tarifi. Maqsad tanlanmagan — maktab darslari; noma'lum/eski — qiziqish. */
-export function tariffFor(goal) {
-  const key = goal == null || goal === "" ? DEFAULT_GOAL : TARIFFS[goal] ? goal : LEGACY_GOAL;
-  return { goal: key, ...TARIFFS[key] };
-}
-
+export * from "./plan-pricing.js";
 
 // Taxminiy xarajat (so'm / daqiqa) = miya (LLM) + ovoz (TTS). Support paneli va narxlar hisobi uchun.
 // "1 daqiqa" ~ bitta savol-javob: ~8k token kirish, ~1k chiqish, Jigar ~30 soniya gapiradi; 1 $ ~ 12 800 so'm.
@@ -38,13 +21,24 @@ export function costPerMinute(llm, tts) {
 const BASE_LLM = "claude";
 const BASE_TTS = "fishaudio";
 
+/** Asosiy daqiqani juftlik narxiga moslaydi (teng xarajat): arzon juftlik — ko'proq, qimmati — kamroq. */
+function scaleMinutes(baseMinutes, tts, llm = BASE_LLM) {
+  const ratio = costPerMinute(BASE_LLM, BASE_TTS) / costPerMinute(llm, tts);
+  return Math.round(baseMinutes * ratio * 10) / 10;
+}
+
 /** Kunlik daqiqa limiti — tarif, ovoz va miya juftligiga qarab (0.1 aniqlikda). Miya berilmasa — Claude. */
 export function dailyMinutes(goal, tts, llm = BASE_LLM) {
-  const ratio = costPerMinute(BASE_LLM, BASE_TTS) / costPerMinute(llm, tts);
-  return Math.round(tariffFor(goal).minutes * ratio * 10) / 10;
+  return scaleMinutes(tariffFor(goal).minutes, tts, llm);
+}
+
+/** Reja (konstruktor yoki tayyor tarif) bo'yicha kunlik daqiqa limiti. */
+export function planDailyMinutes(plan, tts, llm = BASE_LLM) {
+  return scaleMinutes(plan.minutes, tts, llm);
 }
 
 /** Barcha juftliklar: [{ key: "claude+fishaudio", llm, tts }] (panel jadvali uchun). */
 export function comboKeys() {
   return Object.keys(LLM_COST_SOM).flatMap((llm) => Object.keys(TTS_COST_SOM).map((tts) => ({ key: `${llm}+${tts}`, llm, tts })));
 }
+

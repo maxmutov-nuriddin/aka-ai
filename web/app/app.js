@@ -5,6 +5,7 @@ import { createVoice } from "./voice.js";
 import { createAvatar } from "../shared/avatar.js";
 import { createCaption } from "./caption.js";
 import { LANGS, getLang, t, setLang, translatePage } from "./i18n.js";
+import { createBilling } from "./billing.js";
 
 const host = window.JIGAR_HOST;
 const $ = (id) => document.getElementById(id);
@@ -296,7 +297,8 @@ async function api(pathname, body) {
 
 /** Server xatosi tanlangan tilda. Server matni o'zbekcha — ruschada kod/holat bo'yicha tarjima olinadi. */
 function serverErrorText(status, data) {
-  const byCode = { daily_limit: "err.dailyLimit", blocked: "err.blocked" }[data?.code];
+  if (data?.code === "payment_required") billing.open(); // sinov tugagan — to'lov oynasi
+  const byCode = { daily_limit: "err.dailyLimit", blocked: "err.blocked", payment_required: "err.paymentRequired" }[data?.code];
   if (byCode) return t(byCode);
   if (getLang() === "uz" && data?.error) return data.error;
   if (status === 429) return t("err.rateLimit");
@@ -832,6 +834,9 @@ function renderSupport(user) {
   if (link) link.href = `${host.apiBase}/admin`; // kengaytmada ham server manziliga ochiladi
 }
 
+// ---------- Obuna (PayGate) ----------
+const billing = createBilling({ apiBase: () => host.apiBase, authHeaders });
+
 // ---------- Hisob: kim kirgan va chiqish ----------
 async function loadAccount() {
   await host.ready;
@@ -844,6 +849,7 @@ async function loadAccount() {
     $("accountEmail").textContent = user.email;
     syncServerProfile(user.profile);
     renderSupport(user);
+    billing.refresh();
     loadUsage();
   } catch {
     /* tarmoq bo'lmasa — hisob qatori bo'sh qoladi, ilova ishlayveradi */

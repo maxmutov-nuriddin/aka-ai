@@ -377,3 +377,29 @@ code { font: 0.92em ui-monospace, monospace; background: rgba(255, 255, 255, 0.0
 
 /* Sahifa belgisi (kengaytma): brend ikonkasi + nom */
 .page-chip svg { vertical-align: -3px; margin-right: 2px; color: var(--accent-2); }
+
+/* ---------- Obuna va to'lov oynasi (billing.js) ---------- */
+.billing-status { font-size: 13px; font-weight: 600; color: var(--right); }
+.billing-status.is-warn { color: var(--muted); }
+.pay-dialog {
+  width: min(420px, calc(100vw - 32px)); padding: 24px; border: 1px solid var(--line-strong); border-radius: var(--radius-lg);
+  background: var(--surface); color: var(--text); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+}
+.pay-dialog::backdrop { background: rgba(3, 4, 12, 0.6); backdrop-filter: blur(3px); }
+.pay-dialog h2 { margin: 0 0 12px; font: 800 20px var(--font-display); }
+.pay-hint { margin: 0 0 16px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.pay-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.pay-field > span { color: var(--muted); font-size: 12px; }
+.pay-field small { color: var(--muted); font-size: 13px; }
+.pay-value { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--glass); border: 1px solid var(--line); }
+.pay-value strong { font: 800 20px var(--font-display); font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+.pay-timer { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+.pay-timer b { color: var(--text); font-variant-numeric: tabular-nums; }
+.pay-state { margin: 14px 0 0; font-size: 14px; line-height: 1.5; }
+.pay-state.is-ok { color: var(--right); font-weight: 700; }
+.pay-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.pay-dialog { width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; }
+.pay-continue {
+  width: 100%; margin-top: 16px; padding: 12px; border: 0; border-radius: var(--radius-sm); cursor: pointer;
+  background: var(--accent); color: var(--accent-ink); font: 700 15px var(--font);
+}

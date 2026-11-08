@@ -4,6 +4,15 @@ import { createHash, randomBytes } from "node:crypto";
 import { ValidationError } from "../core/errors.js";
 import { hashPassword, verifyPassword } from "./passwords.js";
 import { normalizeProfile, parseStoredProfile } from "./profile.js";
+import { normalizePlan } from "../usage/tariffs.js";
+
+const parsePlan = (text) => {
+  try {
+    return text ? normalizePlan(JSON.parse(text)) : null;
+  } catch {
+    return null;
+  }
+};
 
 export const SESSION_DAYS = 30;
 const CLIENTS = new Set(["web", "extension"]);
@@ -63,7 +72,11 @@ function publicUser(row, supportEmails) {
   if (!row) return null;
   const profile = parseStoredProfile(row.profile);
   const support = supportEmails.has(String(row.email).toLowerCase());
-  return { id: row.id, name: row.name, email: row.email, ...(profile ? { profile } : {}), ...(support ? { role: "support" } : {}) };
+  const plan = parsePlan(row.plan); // konstruktor/tarif rejasi (to'langan bo'lsa)
+  return {
+    id: row.id, name: row.name, email: row.email,
+    ...(profile ? { profile } : {}), ...(plan ? { plan } : {}), ...(support ? { role: "support" } : {}),
+  };
 }
 
 /**
@@ -75,17 +88,17 @@ export function createAuthStore(db, { now = () => new Date(), supportEmails = ne
   const q = {
     insertUser: db.prepare("INSERT INTO users (name, email, password_hash, profile) VALUES (?, ?, ?, ?)"),
     userByEmail: db.prepare("SELECT id, name, email, password_hash, profile, blocked FROM users WHERE email = ?"),
-    listUsers: db.prepare("SELECT id, name, email, profile, blocked, created_at FROM users ORDER BY id"),
+    listUsers: db.prepare("SELECT id, name, email, profile, plan, blocked, created_at, paid_until FROM users ORDER BY id"),
     setBlocked: db.prepare("UPDATE users SET blocked = ? WHERE id = ?"),
     deleteUser: db.prepare("DELETE FROM users WHERE id = ?"),
     deleteUserSessions: db.prepare("DELETE FROM sessions WHERE user_id = ?"),
     insertSession: db.prepare("INSERT INTO sessions (token_hash, user_id, client, expires_at) VALUES (?, ?, ?, ?)"),
     sessionUser: db.prepare(
-      `SELECT u.id, u.name, u.email, u.profile FROM sessions s JOIN users u ON u.id = s.user_id
+      `SELECT u.id, u.name, u.email, u.profile, u.plan FROM sessions s JOIN users u ON u.id = s.user_id
        WHERE s.token_hash = ? AND s.expires_at > ? AND u.blocked = 0`,
     ),
     updateProfile: db.prepare("UPDATE users SET profile = ? WHERE id = ?"),
-    userById: db.prepare("SELECT id, name, email, profile FROM users WHERE id = ?"),
+    userById: db.prepare("SELECT id, name, email, profile, plan FROM users WHERE id = ?"),
     deleteSession: db.prepare("DELETE FROM sessions WHERE token_hash = ?"),
     deleteExpired: db.prepare("DELETE FROM sessions WHERE expires_at <= ?"),
   };
@@ -132,7 +145,7 @@ export function createAuthStore(db, { now = () => new Date(), supportEmails = ne
   }
 
   // ---------- Support (admin panel) ----------
-  const adminView = (row) => ({ ...toPublic(row), blocked: Boolean(row.blocked), createdAt: row.created_at });
+  const adminView = (row) => ({ ...toPublic(row), blocked: Boolean(row.blocked), createdAt: row.created_at, paidUntil: row.paid_until ?? null });
 
   /** Barcha foydalanuvchilar (support uchun). */
   function listUsers() {

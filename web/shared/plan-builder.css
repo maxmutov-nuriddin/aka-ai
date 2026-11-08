@@ -1,0 +1,29 @@
+/* Konstruktor tarifi (web/shared/plan-builder.js): landing va ilova to'lov oynasi uchun umumiy uslub. */
+.plan-builder { display: flex; flex-direction: column; gap: 10px; }
+.pb-label { margin: 6px 0 0; color: var(--muted); font-size: 13px; font-weight: 600; }
+.pb-goals { display: flex; flex-wrap: wrap; gap: 8px; }
+.pb-goal {
+  display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line-strong); background: transparent; color: var(--muted); font: 600 14px var(--font);
+  transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
+}
+.pb-goal:hover { color: var(--text); }
+.pb-goal-icon { display: grid; color: var(--gc); }
+.pb-goal[aria-pressed="true"] { color: var(--text); border-color: var(--gc); background: color-mix(in srgb, var(--gc) 16%, transparent); }
+.pb-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.pb-minutes { font: 800 20px var(--font-display); font-variant-numeric: tabular-nums; }
+.pb-recommend {
+  padding: 6px 12px; border-radius: 999px; border: 1px dashed var(--accent-2); background: transparent;
+  color: var(--accent-2); font: 600 13px var(--font); cursor: pointer;
+}
+.pb-recommend:disabled { cursor: default; border-style: solid; opacity: 0.9; }
+.pb-slider { width: 100%; accent-color: var(--accent); }
+.pb-budget-label { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; color: var(--muted); font-size: 13px; }
+.pb-budget {
+  width: 140px; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--line-strong);
+  background: var(--glass); color: var(--text); font: 600 14px var(--font); font-variant-numeric: tabular-nums;
+}
+.pb-price-row { margin-top: 6px; }
+.pb-price { font: 900 32px/1 var(--font-display); letter-spacing: -0.02em; }
+.pb-price-unit { color: var(--muted); font-size: 14px; }
+.pb-note { margin: 0; color: var(--accent-2); font-size: 13px; line-height: 1.5; }

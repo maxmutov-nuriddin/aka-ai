@@ -2,7 +2,7 @@
 import express from "express";
 import { ValidationError } from "../core/errors.js";
 import { FISH_MODELS } from "../voice/fishaudio.js";
-import { LLM_COST_SOM, TARIFFS, TTS_COST_SOM, comboKeys, costPerMinute, dailyMinutes, tariffFor } from "../usage/tariffs.js";
+import { LLM_COST_SOM, TARIFFS, TTS_COST_SOM, comboKeys, costPerMinute, dailyMinutes, planDailyMinutes, tariffOf } from "../usage/tariffs.js";
 
 /**
  * @param {{ settings: ReturnType<import("../settings/store.js").createSettingsStore>,
@@ -55,8 +55,8 @@ export function createAdminRouter({ settings, providers, store, usage, llms = {}
   // ---------- Foydalanuvchilar ----------
   const STATS_DAYS = 30;
   const withUsage = (user, lastActive) => {
-    const tariff = tariffFor(user.profile?.goal);
-    const limitMinutes = user.role === "support" ? null : dailyMinutes(tariff.goal, settings.ttsProvider(), settings.llmProvider());
+    const tariff = tariffOf(user.profile?.goal, user.plan);
+    const limitMinutes = user.role === "support" ? null : planDailyMinutes(tariff, settings.ttsProvider(), settings.llmProvider());
     return { ...user, usedMinutes: usage.minutesToday(user.id), limitMinutes, tariff, lastActiveDay: lastActive.get(user.id) ?? null };
   };
   const tariffTable = () =>
