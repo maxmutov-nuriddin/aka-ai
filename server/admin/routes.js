@@ -2,7 +2,7 @@
 import express from "express";
 import { ValidationError } from "../core/errors.js";
 import { FISH_MODELS } from "../voice/fishaudio.js";
-import { LLM_COST_SOM, TARIFFS, TTS_COST_SOM, costPerMinute, dailyMinutes, tariffFor } from "../usage/tariffs.js";
+import { LLM_COST_SOM, TARIFFS, TTS_COST_SOM, comboKeys, costPerMinute, dailyMinutes, tariffFor } from "../usage/tariffs.js";
 
 /**
  * @param {{ settings: ReturnType<import("../settings/store.js").createSettingsStore>,
@@ -56,14 +56,15 @@ export function createAdminRouter({ settings, providers, store, usage, llms = {}
   const STATS_DAYS = 30;
   const withUsage = (user, lastActive) => {
     const tariff = tariffFor(user.profile?.goal);
-    const limitMinutes = user.role === "support" ? null : dailyMinutes(tariff.goal, settings.ttsProvider());
+    const limitMinutes = user.role === "support" ? null : dailyMinutes(tariff.goal, settings.ttsProvider(), settings.llmProvider());
     return { ...user, usedMinutes: usage.minutesToday(user.id), limitMinutes, tariff, lastActiveDay: lastActive.get(user.id) ?? null };
   };
   const tariffTable = () =>
     Object.entries(TARIFFS).map(([goal, t]) => ({
       goal,
       price: t.price,
-      minutes: { fishaudio: dailyMinutes(goal, "fishaudio"), elevenlabs: dailyMinutes(goal, "elevenlabs"), gemini: dailyMinutes(goal, "gemini") },
+      // Har juftlik (miya + ovoz) uchun kunlik limit — teng xarajat qoidasi.
+      minutes: Object.fromEntries(comboKeys().map(({ key, llm, tts }) => [key, dailyMinutes(goal, tts, llm)])),
     }));
   const fail = (res, status, error, code) => res.status(status).json({ error, code });
   const userId = (req) => Number.parseInt(req.params.id, 10);

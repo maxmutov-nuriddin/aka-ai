@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { startServer, TEST_USER } from "./helpers.js";
 import { todayInTashkent } from "../../server/usage/store.js";
-import { TARIFFS, tariffFor } from "../../server/usage/tariffs.js";
+import { TARIFFS, comboKeys, dailyMinutes, tariffFor } from "../../server/usage/tariffs.js";
 
 const voice = (tag) => ({ configured: true, async synthesize() { return Buffer.from(tag); } });
 const fakeJigar = { async chat() { return { text: "ok", parsed: {} }; }, async summary() { return { text: "x" }; } };
@@ -38,7 +38,7 @@ test("daqiqa limiti: maqsad tarifiga qarab; ovoz va savollar hisoblanadi; tugasa
     const user = await register(s, "u@x.uz", { goal: "curious" }); // 10 daqiqa (Fish), ElevenLabs — 4
     const usage = async () => (await fetch(`${s.base}/api/usage`, { headers: { Cookie: user } })).json();
     let u = await usage();
-    assert.equal(u.limitMinutes, 4); // standart ovoz — ElevenLabs (x0.4)
+    assert.equal(u.limitMinutes, 3.9); // standart: Claude + ElevenLabs — 10 x 550/1400
     assert.equal(u.tariff.price, 199000);
 
     assert.equal((await fetch(`${s.base}/api/chat`, json(chatBody, user))).status, 200); // +0.5
@@ -86,8 +86,19 @@ test("/api/tariffs: ochiq (kirishsiz) — narx va joriy ovoz xizmatidagi kunlik 
     assert.equal(tariffs.length, 6);
     const exam = tariffs.find((t) => t.goal === "exam");
     assert.equal(exam.price, 299000);
-    assert.equal(exam.minutes, provider === "elevenlabs" ? 6 : 15);
+    assert.equal(exam.minutes, provider === "elevenlabs" ? 5.9 : 15);
   } finally {
     s.close();
   }
+});
+
+test("teng xarajat: kunlik limit miya + ovoz juftligiga qarab — xarajat Claude + Fish bilan bir xil", () => {
+  assert.equal(dailyMinutes("study", "fishaudio", "claude"), 12);
+  assert.equal(dailyMinutes("study", "gemini", "claude"), 17.9);
+  assert.equal(dailyMinutes("study", "gemini", "gemini"), 15.6);
+  assert.equal(dailyMinutes("study", "fishaudio", "gemini"), 10.9);
+  assert.equal(dailyMinutes("study", "elevenlabs", "claude"), 4.7);
+  assert.equal(dailyMinutes("olympiad", "gemini", "claude"), 29.9);
+  assert.equal(dailyMinutes("study", "fishaudio"), 12); // miya berilmasa — Claude
+  assert.equal(comboKeys().length, 6);
 });

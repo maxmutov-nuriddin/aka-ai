@@ -118,7 +118,7 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
     const usedMinutes = usage.minutesToday(user.id);
     const tariff = tariffFor(user.profile?.goal);
     if (user.role === "support") return { usedMinutes, limitMinutes: null, remainingMinutes: null, provider, tariff };
-    const limitMinutes = dailyMinutes(tariff.goal, provider);
+    const limitMinutes = dailyMinutes(tariff.goal, provider, settings.llmProvider());
     const remainingMinutes = Math.max(0, Math.round((limitMinutes - usedMinutes) * 10) / 10);
     return { usedMinutes, limitMinutes, remainingMinutes, provider, tariff };
   }
@@ -231,7 +231,7 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
   // Ochiq: landing narxlar bo'limi — kunlik daqiqa joriy ovoz xizmatiga bog'liq (ElevenLabs — 40%).
   app.get("/api/tariffs", (_req, res) => {
     const provider = settings.ttsProvider();
-    const tariffs = Object.entries(TARIFFS).map(([goal, t]) => ({ goal, price: t.price, minutes: dailyMinutes(goal, provider) }));
+    const tariffs = Object.entries(TARIFFS).map(([goal, t]) => ({ goal, price: t.price, minutes: dailyMinutes(goal, provider, settings.llmProvider()) }));
     res.set("Cache-Control", "public, max-age=300");
     res.json({ provider, tariffs });
   });
