@@ -3,6 +3,7 @@
 // (bosib turib gapirish), bo'lmasa — brauzerning SpeechRecognition'i.
 // O'qish: /api/tts (ElevenLabs/Azure), u ishlamasa — brauzer ovozi.
 import { splitForSpeech, planEmotions, emotionAt } from "./speech.js";
+import { toWav16k } from "./wav.js";
 import { stripAudioTags } from "../shared/parse.js";
 
 const LOCALES = { uz: "uz-UZ", ru: "ru-RU" };
@@ -65,7 +66,7 @@ async function postJson(url, body, signal, headers = {}) {
  *   sttUrl?: () => string,
  *   onState?: (state: "idle" | "listening" | "transcribing" | "speaking") => void,
  *   onInterim?: (text: string) => void,
- *   onFinal?: (text: string, alternative?: string) => void,
+ *   onFinal?: (text: string, alternative?: string, pronunciation?: object | null) => void,
  *   onError?: (kind: "denied" | "other", message: string) => void,
  *   onLevel?: (level: number | null) => void,
  *   onCaption?: (caption: { text: string, spoken: number }) => void,
@@ -91,6 +92,7 @@ export function createVoice({
   const canRecord = Boolean(navigator.mediaDevices?.getUserMedia && window.MediaRecorder && sttUrl);
 
   let serverStt = false; // app /api/voice-config dan keyin yoqadi
+  let sttAvailable = false; // serverda tanish bor — til o'rganishda (pronunciation) doim u ishlatiladi
   let serverTts = Boolean(ttsUrl); // server "sozlanmagan" desa, sessiya davomida o'chadi
   let recognition = null;
   let style = { mode: "oddiy", lang: "uz" }; // rejim (kayfiyat uchun) va til (tinglash/gapirish uchun)
@@ -108,21 +110,22 @@ export function createVoice({
 
   const supported = {
     get listen() {
-      return (serverStt && canRecord) || Boolean(Recognition);
+      return (serverStt && canRecord) || (style.pronunciation && sttAvailable) || Boolean(Recognition);
     },
     speak: Boolean(synth) || Boolean(ttsUrl),
   };
 
   // ---------- Tinglash ----------
-  /** Rejim va til: { mode?: "oddiy" | "beparvo", lang?: "uz" | "ru" }. */
+  /** Rejim va til: { mode?, lang?, pronunciation? } — pronunciation: til o'rganish (server tanishi + talaffuz bahosi). */
   function setStyle(next) {
     style = { ...style, ...next };
   }
 
   const sttEndpoint = () => `${sttUrl()}?lang=${encodeURIComponent(style.lang)}`;
 
-  function useServerStt(on) {
+  function useServerStt(on, available = on) {
     serverStt = Boolean(on) && canRecord;
+    sttAvailable = Boolean(available) && canRecord;
   }
 
   /** Chrome tanishiga qo'shimcha ravishda Scribe ham eshitadi — Jigar ikkala variantni solishtiradi. */
@@ -203,7 +206,8 @@ export function createVoice({
     warmUpAudio(); // foydalanuvchi bosgan paytda — keyin Jigar ovozini o'lchash uchun
     stopSpeaking();
     stopListening({ send: false });
-    if (serverStt && canRecord) return startRecording();
+    // Til o'rganishda nutq ikki tilda — brauzer tanishi bitta tilda ishlaydi, shuning uchun server (Scribe) tinglaydi.
+    if ((serverStt || (style.pronunciation && sttAvailable)) && canRecord) return startRecording();
     if (Recognition) return startRecognition();
   }
 
@@ -265,10 +269,11 @@ export function createVoice({
     if (session.cancelled) return;
     onState("transcribing");
     try {
+      const body = await uploadBody(new Blob(parts, { type: mimeType }));
       const res = await fetch(sttEndpoint(), {
         method: "POST",
-        headers: { "Content-Type": mimeType, ...authHeaders() },
-        body: new Blob(parts, { type: mimeType }),
+        headers: { "Content-Type": body.type, ...authHeaders() },
+        body,
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 503) serverStt = false; // keyingi safar brauzer tanishi ishlaydi
@@ -276,10 +281,20 @@ export function createVoice({
       onState("idle");
       const text = String(data.text || "").trim();
       if (!text) return onError("other", "err.notHeard");
-      onFinal(text);
+      onFinal(text, "", data.pronunciation ?? null);
     } catch (err) {
       onState("idle");
       onError("other", err.message || "err.sttFailed");
+    }
+  }
+
+  /** Til o'rganishda — WAV (talaffuz bahosi uchun); aylantirib bo'lmasa yoki boshqa rejimda — asl yozuv. */
+  async function uploadBody(blob) {
+    if (!style.pronunciation) return blob;
+    try {
+      return await toWav16k(blob);
+    } catch {
+      return blob;
     }
   }
 

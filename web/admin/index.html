@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jigar — Support paneli</title>
+  <link rel="icon" href="/shared/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/shared/theme.css">
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+  <!-- Ikonkalar: <svg class="i"><use href="#i-..."/></svg> -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.2c2.1.7 3.5 2.6 3.5 5.8"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.5 6.2M3 12A9 9 0 0 1 18.5 5.8"/><path d="M18.5 2v4h-4M5.5 22v-4h4"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h13v4"/><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="16.5" cy="13.5" r="1.2"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+    <symbol id="i-sort" viewBox="0 0 24 24"><path d="M8 9l4-4 4 4M8 15l4 4 4-4"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4M12 17.5v.01"/></symbol>
+    <symbol id="i-wave" viewBox="0 0 24 24"><path d="M4 10v4M8 6v12M12 9v6M16 4v16M20 10v4"/></symbol>
+  </svg>
+
+  <div class="shell">
+    <!-- ---------- Yon panel ---------- -->
+    <aside class="side">
+      <a class="side-brand" href="/admin">
+        <img src="/shared/logo.svg" alt="" width="32" height="32">
+        <span><strong>Jigar</strong><small>Support</small></span>
+      </a>
+      <nav class="side-nav" aria-label="Bo'limlar">
+        <button type="button" class="nav-item" data-nav="overview"><svg class="i"><use href="#i-grid"/></svg><span>Umumiy</span></button>
+        <button type="button" class="nav-item" data-nav="users"><svg class="i"><use href="#i-users"/></svg><span>Foydalanuvchilar</span><b class="nav-count" id="navUsersCount"></b></button>
+        <button type="button" class="nav-item" data-nav="settings"><svg class="i"><use href="#i-gear"/></svg><span>Sozlamalar</span></button>
+      </nav>
+      <div class="side-foot">
+        <div class="me">
+          <span class="avatar-sm" id="meAvatar">—</span>
+          <span class="me-text"><strong id="meName">—</strong><small id="meEmail"></small></span>
+        </div>
+        <a class="side-link" href="/app/"><svg class="i"><use href="#i-back"/></svg>Ilovaga qaytish</a>
+        <button type="button" class="side-link" id="logoutBtn"><svg class="i"><use href="#i-logout"/></svg>Chiqish</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1 id="viewTitle">Umumiy</h1>
+          <p class="sub" id="viewSub">Bugungi holat va oxirgi 30 kun</p>
+        </div>
+        <div class="topbar-actions">
+          <span class="chip" id="providerChip" title="Hozirgi ovoz xizmati (Sozlamalar)"><svg class="i"><use href="#i-wave"/></svg><span></span></span>
+          <button type="button" class="btn" id="refreshBtn" title="Ma'lumotlarni yangilash">
+            <svg class="i"><use href="#i-refresh"/></svg><span id="updatedAt">Yangilash</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- ---------- Umumiy ---------- -->
+      <section class="view" data-view="overview" aria-label="Umumiy">
+        <div class="kpis">
+          <article class="kpi">
+            <div class="kpi-head"><span>Foydalanuvchilar</span><svg class="i"><use href="#i-users"/></svg></div>
+            <strong id="kpiUsers">—</strong>
+            <small id="kpiUsersSub"></small>
+          </article>
+          <article class="kpi">
+            <div class="kpi-head"><span>Bugun faol</span><svg class="i"><use href="#i-pulse"/></svg></div>
+            <strong id="kpiActive">—</strong>
+            <small id="kpiActiveSub"></small>
+          </article>
+          <article class="kpi">
+            <div class="kpi-head"><span>Bugungi daqiqa</span><svg class="i"><use href="#i-clock"/></svg></div>
+            <strong id="kpiMinutes">—</strong>
+            <small id="kpiMinutesSub"></small>
+          </article>
+          <article class="kpi">
+            <div class="kpi-head"><span>Bugungi xarajat</span><svg class="i"><use href="#i-wallet"/></svg></div>
+            <strong id="kpiCost">—</strong>
+            <small id="kpiCostSub"></small>
+          </article>
+        </div>
+
+        <div class="row-2">
+          <section class="panel">
+            <header class="panel-head">
+              <div><h2>Faollik</h2><p class="sub" id="chartSub">Oxirgi 30 kun</p></div>
+              <div class="seg" role="group" aria-label="Grafik ko'rsatkichi">
+                <button type="button" data-metric="minutes" aria-pressed="true">Daqiqa</button>
+                <button type="button" data-metric="users" aria-pressed="false">Faol</button>
+              </div>
+            </header>
+            <div class="chart" id="chart">
+              <div class="chart-grid" id="chartGrid"></div>
+              <div class="chart-bars" id="chartBars"></div>
+              <div class="chart-tip" id="chartTip" hidden></div>
+            </div>
+            <div class="chart-axis" id="chartAxis"></div>
+          </section>
+
+          <section class="panel">
+            <header class="panel-head">
+              <div><h2>Tariflar</h2><p class="sub">Potensial oylik tushum</p></div>
+              <strong class="big-num" id="mrr">—</strong>
+            </header>
+            <ul class="dist" id="tariffDist"></ul>
+          </section>
+        </div>
+
+        <div class="row-2 even">
+          <section class="panel">
+            <header class="panel-head"><div><h2>E'tibor talab</h2><p class="sub">Limiti tugagan va bloklanganlar</p></div></header>
+            <ul class="list" id="attentionList"></ul>
+          </section>
+          <section class="panel">
+            <header class="panel-head"><div><h2>Bugun eng faol</h2><p class="sub">Sarflangan daqiqa bo'yicha</p></div></header>
+            <ul class="list" id="topList"></ul>
+          </section>
+        </div>
+      </section>
+
+      <!-- ---------- Foydalanuvchilar ---------- -->
+      <section class="view" data-view="users" aria-label="Foydalanuvchilar" hidden>
+        <div class="toolbar">
+          <label class="search">
+            <svg class="i"><use href="#i-search"/></svg>
+            <input type="search" id="search" placeholder="Ism, email yoki ID…" aria-label="Qidirish" autocomplete="off">
+            <kbd>/</kbd>
+          </label>
+          <div class="chips" id="filterChips" role="group" aria-label="Filtr"></div>
+        </div>
+        <section class="panel flush">
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th><button type="button" class="th-sort" data-sort="name">Foydalanuvchi<svg class="i"><use href="#i-sort"/></svg></button></th>
+                  <th><button type="button" class="th-sort" data-sort="tariff">Tarif<svg class="i"><use href="#i-sort"/></svg></button></th>
+                  <th>Xarakter · sinf</th>
+                  <th><button type="button" class="th-sort" data-sort="usage">Bugun<svg class="i"><use href="#i-sort"/></svg></button></th>
+                  <th><button type="button" class="th-sort" data-sort="last">Oxirgi faollik<svg class="i"><use href="#i-sort"/></svg></button></th>
+                  <th>Holat</th>
+                  <th aria-label="Ochish"></th>
+                </tr>
+              </thead>
+              <tbody id="usersBody"></tbody>
+            </table>
+          </div>
+          <p class="empty-state" id="usersEmpty" hidden>Hech kim topilmadi. Qidiruv yoki filtrni o'zgartiring.</p>
+        </section>
+      </section>
+
+      <!-- ---------- Sozlamalar ---------- -->
+      <section class="view" data-view="settings" aria-label="Sozlamalar" hidden>
+        <!-- Joriy juftlik (miya + ovoz) narxi: settings.js renderSettings -->
+        <section class="panel combo" id="comboPanel" aria-live="polite"></section>
+        <section class="panel">
+          <header class="panel-head"><div><h2>Miya (sun'iy intellekt)</h2><p class="sub">Jigar kim bilan o'ylaydi — hamma uchun; Gemini xato bersa, javobni Claude beradi</p></div></header>
+          <div class="options" id="llmOptions"></div>
+        </section>
+        <section class="panel">
+          <header class="panel-head"><div><h2>Ovoz xizmati</h2><p class="sub">Hamma foydalanuvchiga darhol ta'sir qiladi</p></div></header>
+          <div class="options" id="providerOptions"></div>
+        </section>
+        <section class="panel" id="fishPanel">
+          <header class="panel-head"><div><h2>Fish Audio modeli</h2><p class="sub">Faqat Fish Audio tanlanganda ishlatiladi</p></div></header>
+          <div class="options" id="fishOptions"></div>
+        </section>
+        <section class="panel flush">
+          <header class="panel-head pad"><div><h2>Tariflar</h2><p class="sub">Kunlik daqiqa limiti ovoz xizmatiga bog'liq</p></div></header>
+          <div class="table-wrap">
+            <table class="table compact">
+              <thead><tr><th>Yo'nalish</th><th class="num">Narx / oy</th><th class="num">Fish Audio</th><th class="num">ElevenLabs</th><th class="num">Gemini</th><th class="num">Foydalanuvchi</th></tr></thead>
+              <tbody id="tariffBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <!-- ---------- Foydalanuvchi oynasi (o'ng tomondan) ---------- -->
+  <div class="scrim" id="scrim" hidden></div>
+  <aside class="drawer" id="drawer" aria-label="Foydalanuvchi" aria-hidden="true">
+    <header class="drawer-head">
+      <span class="avatar-lg" id="dAvatar"></span>
+      <div class="drawer-who"><h2 id="dName"></h2><p class="sub" id="dEmail"></p></div>
+      <button type="button" class="icon-btn" id="drawerClose" aria-label="Yopish"><svg class="i"><use href="#i-x"/></svg></button>
+    </header>
+    <div class="drawer-body">
+      <dl class="meta" id="dMeta"></dl>
+
+      <section class="d-block">
+        <h3>Bugungi sarf</h3>
+        <div class="usage-line"><strong id="dUsage"></strong><span class="sub" id="dUsageSub"></span></div>
+        <div class="meter"><i id="dMeter"></i></div>
+      </section>
+
+      <form class="d-block" id="profileForm">
+        <h3>Profil</h3>
+        <label class="field">
+          <span>Yo'nalish (tarif)</span>
+          <select name="goal" id="dGoal"></select>
+        </label>
+        <div class="field">
+          <span>Xarakter</span>
+          <div class="pick" id="dPersona" role="radiogroup" aria-label="Xarakter"></div>
+        </div>
+        <div class="field">
+          <span>Sinf</span>
+          <div class="pick" id="dLevel" role="radiogroup" aria-label="Sinf"></div>
+        </div>
+        <div class="form-actions">
+          <span class="sub" id="dDirty"></span>
+          <button type="submit" class="btn btn-primary" id="dSave" disabled>Saqlash</button>
+        </div>
+      </form>
+
+      <section class="d-block" id="dActions">
+        <h3>Amallar</h3>
+        <div class="action-row">
+          <div><strong>Bugungi limitni tiklash</strong><p class="sub">Sarf nolga tushadi, bugun yana to'liq limit</p></div>
+          <button type="button" class="btn" data-act="reset">Tiklash</button>
+        </div>
+        <div class="action-row" data-self-hide>
+          <div><strong id="dBlockTitle">Bloklash</strong><p class="sub" id="dBlockSub">Darhol tizimdan chiqariladi, kira olmaydi</p></div>
+          <button type="button" class="btn" data-act="block" id="dBlockBtn">Bloklash</button>
+        </div>
+        <div class="action-row danger" data-self-hide>
+          <div><strong>Hisobni o'chirish</strong><p class="sub">Profil va barcha sarf yozuvlari o'chadi. Qaytarib bo'lmaydi</p></div>
+          <button type="button" class="btn btn-danger" data-act="delete">O'chirish</button>
+        </div>
+      </section>
+    </div>
+  </aside>
+
+  <dialog class="dialog" id="confirmDialog">
+    <form method="dialog">
+      <h2 id="confirmTitle"></h2>
+      <p id="confirmText"></p>
+      <div class="dialog-actions">
+        <button type="submit" class="btn" value="cancel">Bekor qilish</button>
+        <button type="submit" class="btn btn-primary" value="ok" id="confirmOk">Tasdiqlash</button>
+      </div>
+    </form>
+  </dialog>
+
+  <p class="toast" id="toast" role="status" aria-live="polite" hidden></p>
+  <script type="module" src="/admin/admin.js"></script>
+</body>
+</html>

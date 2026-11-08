@@ -1,9 +1,10 @@
+import { iconSvg } from "../shared/icons.js";
 import { parseAkaResponse, variantLetter, stripAudioTags } from "../shared/parse.js";
 import { toSpeechText, toSpokenUzbek, toSpokenRussian, matchQuizAnswer } from "./speech.js";
 import { createVoice } from "./voice.js";
 import { createAvatar } from "../shared/avatar.js";
 import { createCaption } from "./caption.js";
-import { LANGS, t, setLang, translatePage } from "./i18n.js";
+import { LANGS, getLang, t, setLang, translatePage } from "./i18n.js";
 
 const host = window.JIGAR_HOST;
 const $ = (id) => document.getElementById(id);
@@ -289,8 +290,18 @@ async function api(pathname, body) {
   } catch {
     /* bo'sh javob */
   }
-  if (!res.ok) throw new Error(data?.error || `Server xatosi (${res.status})`);
+  if (!res.ok) throw new Error(serverErrorText(res.status, data));
   return data;
+}
+
+/** Server xatosi tanlangan tilda. Server matni o'zbekcha — ruschada kod/holat bo'yicha tarjima olinadi. */
+function serverErrorText(status, data) {
+  const byCode = { daily_limit: "err.dailyLimit", blocked: "err.blocked" }[data?.code];
+  if (byCode) return t(byCode);
+  if (getLang() === "uz" && data?.error) return data.error;
+  if (status === 429) return t("err.rateLimit");
+  if (status === 413) return t("err.tooLarge");
+  return t(status >= 500 ? "err.server" : "err.generic");
 }
 
 function setBusy(busy) {
@@ -338,7 +349,11 @@ function updatePageUi() {
     el.pageBtn.hidden = true;
     const p = state.page;
     el.pageChip.hidden = !p;
-    if (p) el.pageChip.textContent = `${p.image ? "🖼" : "📄"} ${p.title || p.url || t("page.current")}`;
+    if (p) {
+      // Belgi — brend ikonkasi (rasm yoki sahifa), matn — xavfsiz textContent.
+      el.pageChip.innerHTML = iconSvg(p.image ? "image" : "page", 16);
+      el.pageChip.append(` ${p.title || p.url || t("page.current")}`);
+    }
   }
 }
 
@@ -349,7 +364,7 @@ function setSelection(text) {
     state.selection.length > 160 ? state.selection.slice(0, 160) + "…" : state.selection;
 }
 
-async function sendMessage(text, { fromQuiz = false, fromVoice = false, heardAlt = "" } = {}) {
+async function sendMessage(text, { fromQuiz = false, fromVoice = false, heardAlt = "", pronunciation = null } = {}) {
   if (state.busy || state.finished) return;
   showError("");
   const message = (text ?? "").trim();
@@ -386,8 +401,14 @@ async function sendMessage(text, { fromQuiz = false, fromVoice = false, heardAlt
   const typing = addTyping();
 
   try {
-    const data = await api("/api/chat", { page, history: state.history, selection, mode: prefs.mode, lang: prefs.lang, length: prefs.length, simple: prefs.simple, ...profileFields(), heardAlt });
+    const data = await api("/api/chat", { page, history: state.history, selection, mode: prefs.mode, lang: prefs.lang, length: prefs.length, simple: prefs.simple, ...profileFields(), heardAlt, ...(pronunciation ? { pronunciation } : {}) });
     typing.remove();
+    // Tarif: kunlik limit tugashiga oz qolganda oldindan ogohlantiramiz.
+    renderUsage(data.dailyUsage);
+    const left = data.dailyUsage?.remainingMinutes;
+    if (typeof left === "number" && left <= 2) {
+      showError(left === 0 ? t("err.dailyLimit") : t("err.minutesLeft").replace("{n}", left));
+    }
     // Server ovozli xabarga ikkinchi tanish variantini qo'shgan bo'lishi mumkin — tarixga aynan o'shani yozamiz.
     if (typeof data.userContent === "string" && data.userContent) {
       state.history = [...state.history.slice(0, -1), { role: "user", content: data.userContent }];
@@ -490,6 +511,11 @@ const DEFAULT_PREFS = {
 };
 const HOLD_MS = 350; // shundan uzoq bosib turilsa — qo'yib yuborganda yuboriladi
 
+// Ovoz tugmasi ikonkalari (index.html dagi .ic uslubida).
+const ICON_SOUND = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
+const ICON_MUTED = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m16 9 5 6M21 9l-5 6"/></svg>';
+const ICON_KEYBOARD = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6.5 10h.01M10 10h.01M13.5 10h.01M17 10h.01M7.5 14h9"/></svg>';
+const ICON_CLOSE = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
 const PROFILE_KEY = "jigar.profile"; // ro'yxatdan o'tishdagi savollar javobi (web/auth/onboarding.js)
 const SIMPLE_LEVELS = ["5-7", "8-9"];
 
@@ -573,10 +599,10 @@ const voice = createVoice({
   onError(kind, message) {
     if (kind !== "denied") return showError(t(message));
     if (host.requestMicPermission) {
-      showError("Mikrofonga ruxsat kerak. Ochilgan sahifada ruxsat ber, keyin qayta bos.");
+      showError(t("err.micNeedPermission"));
       host.requestMicPermission();
     } else {
-      showError("Mikrofonga ruxsat berilmagan. Manzil satridagi 🔒 belgisidan ruxsat ber.");
+      showError(t("err.micDeniedHint"));
     }
   },
 });
@@ -618,15 +644,12 @@ function renderPrefs() {
     btn.setAttribute("aria-pressed", String(btn.dataset.lang === prefs.lang));
   }
   // Ovoz xarakterga va o'quvchi yoshiga (sinf) mos.
-  voice.setStyle({ mode: prefs.mode, lang: prefs.lang, persona: prefs.persona ?? null, level: prefs.level ?? null });
+  voice.setStyle({
+    mode: prefs.mode, lang: prefs.lang, persona: prefs.persona ?? null, level: prefs.level ?? null,
+    pronunciation: prefs.goal === "language", // til o'rganish: server tinglaydi va talaffuzni baholaydi
+  });
   for (const btn of el.settingsPop.querySelectorAll("[data-length]")) {
     btn.setAttribute("aria-pressed", String(btn.dataset.length === prefs.length));
-  }
-  for (const btn of el.settingsPop.querySelectorAll("[data-persona]")) {
-    btn.setAttribute("aria-pressed", String(btn.dataset.persona === prefs.persona));
-  }
-  for (const btn of el.settingsPop.querySelectorAll("[data-level]")) {
-    btn.setAttribute("aria-pressed", String(btn.dataset.level === prefs.level));
   }
   el.simpleToggle.checked = prefs.simple;
   el.send.textContent = el.input.value.trim() ? t("btn.send") : t("btn.explain");
@@ -634,8 +657,8 @@ function renderPrefs() {
   el.textRow.hidden = !typing;
   el.typeToggle.setAttribute("aria-expanded", String(typing));
   el.typeToggle.lastElementChild.textContent = typing ? t("btn.close") : t("btn.type");
-  el.typeToggle.firstElementChild.textContent = typing ? "✕" : "⌨️";
-  el.mute.textContent = prefs.muted ? "🔇" : "🔊";
+  el.typeToggle.firstElementChild.outerHTML = typing ? ICON_CLOSE : ICON_KEYBOARD; // statik SVG
+  el.mute.innerHTML = prefs.muted ? ICON_MUTED : ICON_SOUND; // statik SVG
   el.mute.setAttribute("aria-pressed", String(prefs.muted));
   el.mute.title = prefs.muted ? t("mute.on") : t("mute.off");
   el.app.dataset.chat = prefs.chatOpen ? "open" : "closed";
@@ -664,6 +687,9 @@ function renderPersonaTag() {
   const brand = document.querySelector(".brand");
   $("tagline").hidden = Boolean(info);
   $("personaTag").hidden = !info;
+  // Fon ham xarakter rangida (styles.css: .app::after).
+  if (info) el.app.style.setProperty("--app-tint", info.color);
+  else el.app.style.removeProperty("--app-tint");
   if (!info) {
     delete brand.dataset.persona;
     return;
@@ -675,12 +701,12 @@ function renderPersonaTag() {
   $("personaHint").textContent = hint;
 }
 
-function handleSpoken(text, heardAlt = "") {
+function handleSpoken(text, heardAlt = "", pronunciation = null) {
   state.lastInput = "voice";
   const quiz = state.pendingQuiz?.quiz;
   const letter = matchQuizAnswer(text, quiz, variantLetter) || (heardAlt && matchQuizAnswer(heardAlt, quiz, variantLetter));
   if (letter) return state.pendingQuiz.answer(letter);
-  sendMessage(text, { fromVoice: true, heardAlt });
+  sendMessage(text, { fromVoice: true, heardAlt, pronunciation });
 }
 
 /**
@@ -796,92 +822,14 @@ for (const btn of el.settingsPop.querySelectorAll("[data-length]")) {
 }
 el.simpleToggle.addEventListener("change", () => updatePrefs({ simple: el.simpleToggle.checked }));
 
-// ---------- Support: xarakter, sinf va ovoz xizmati ----------
-// Oddiy foydalanuvchi ro'yxatdan o'tishda tanlaganida qoladi (server ham 403 beradi).
-let isSupport = false;
-
-async function renderSupport(user) {
-  isSupport = user?.role === "support";
-  // Fish modeli bo'limi — faqat Fish Audio tanlanganda (renderTtsChoice ochadi).
-  for (const node of el.settingsPop.querySelectorAll(".support-only")) node.hidden = !isSupport || node.id === "fishModelSetting";
-  if (!isSupport) return;
-  try {
-    const res = await fetch(`${host.apiBase}/api/admin/settings`, { headers: authHeaders() });
-    if (res.ok) renderTtsChoice(await res.json());
-  } catch {
-    /* tarmoq bo'lmasa — tugmalar tanlanmagan holda qoladi */
-  }
-}
-
-/** Ovoz xizmati va Fish modeli tugmalari: tanlangani belgilanadi, sozlanmagani (kalit yo'q) o'chiriladi. */
-function renderTtsChoice({ ttsProvider, fishModel, providers }) {
-  for (const btn of el.settingsPop.querySelectorAll("[data-tts]")) {
-    btn.setAttribute("aria-pressed", String(btn.dataset.tts === ttsProvider));
-    btn.disabled = !providers?.[btn.dataset.tts];
-    btn.title = btn.disabled ? "Kalit sozlanmagan (.env)" : "";
-  }
-  for (const btn of el.settingsPop.querySelectorAll("[data-fish-model]")) {
-    btn.setAttribute("aria-pressed", String(btn.dataset.fishModel === fishModel));
-    btn.disabled = !providers?.fishaudio;
-  }
-  $("fishModelSetting").hidden = !isSupport || ttsProvider !== "fishaudio";
-}
-
-/** Umumiy sozlamani saqlaydi (faqat support) — hamma foydalanuvchiga ta'sir qiladi. */
-async function saveAdminSetting(patch) {
-  try {
-    const res = await fetch(`${host.apiBase}/api/admin/settings`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", ...authHeaders() },
-      body: JSON.stringify(patch),
-    });
-    if (!res.ok) return showError("Sozlamani almashtirib bo'lmadi.");
-    renderTtsChoice(await res.json());
-  } catch {
-    showError("Server bilan aloqa yo'q — sozlama almashmadi.");
-  }
-}
-
-for (const btn of el.settingsPop.querySelectorAll("[data-tts]")) {
-  btn.addEventListener("click", () => isSupport && !btn.disabled && saveAdminSetting({ ttsProvider: btn.dataset.tts }));
-}
-for (const btn of el.settingsPop.querySelectorAll("[data-fish-model]")) {
-  btn.addEventListener("click", () => isSupport && !btn.disabled && saveAdminSetting({ fishModel: btn.dataset.fishModel }));
-}
-
-// Xarakter va sinf (faqat support): profil shu brauzerda va hisobda yangilanadi —
-// robot yuzi, ovoz, ohang va tushuntirish darajasi darhol o'zgaradi.
-async function changeProfile(patch) {
-  if (!isSupport) return;
-  let profile = {};
-  try {
-    profile = JSON.parse(localStorage.getItem(PROFILE_KEY) || "{}") || {};
-  } catch {
-    profile = {};
-  }
-  const next = { ...profile, ...patch };
-  try {
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(next));
-  } catch {
-    /* saqlab bo'lmasa ham shu sahifada qo'llanadi */
-  }
-  updatePrefs(profilePrefs());
-  try {
-    const res = await fetch(`${host.apiBase}/api/auth/profile`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", ...authHeaders() },
-      body: JSON.stringify({ profile: next }),
-    });
-    if (!res.ok) showError("Sozlamani hisobga saqlab bo'lmadi — faqat shu brauzerda qo'llandi.");
-  } catch {
-    showError("Server bilan aloqa yo'q — sozlama faqat shu brauzerda qo'llandi.");
-  }
-}
-for (const btn of el.settingsPop.querySelectorAll("[data-persona]")) {
-  btn.addEventListener("click", () => changeProfile({ persona: btn.dataset.persona }));
-}
-for (const btn of el.settingsPop.querySelectorAll("[data-level]")) {
-  btn.addEventListener("click", () => changeProfile({ level: btn.dataset.level }));
+// ---------- Support ----------
+// Ovoz xizmati, xarakter, sinf va foydalanuvchilar — Support panelida (/admin).
+// Ilovada support faqat panelga havolani ko'radi.
+function renderSupport(user) {
+  const isSupport = user?.role === "support";
+  for (const node of el.settingsPop.querySelectorAll(".support-only")) node.hidden = !isSupport;
+  const link = el.settingsPop.querySelector(".admin-link");
+  if (link) link.href = `${host.apiBase}/admin`; // kengaytmada ham server manziliga ochiladi
 }
 
 // ---------- Hisob: kim kirgan va chiqish ----------
@@ -896,8 +844,29 @@ async function loadAccount() {
     $("accountEmail").textContent = user.email;
     syncServerProfile(user.profile);
     renderSupport(user);
+    loadUsage();
   } catch {
     /* tarmoq bo'lmasa — hisob qatori bo'sh qoladi, ilova ishlayveradi */
+  }
+}
+
+// ---------- Tarif: bugungi suhbat vaqti ----------
+/** Sarlavhadagi taymer: "2.5 / 12 daq". Support (limit yo'q) — yashirin. */
+function renderUsage(u) {
+  if (!u) return;
+  const tag = $("usageTag");
+  tag.hidden = u.limitMinutes == null;
+  if (tag.hidden) return;
+  $("usageText").textContent = `${u.usedMinutes} / ${u.limitMinutes} ${t("usage.min")}`;
+  tag.classList.toggle("low", u.remainingMinutes <= 2);
+}
+
+async function loadUsage() {
+  try {
+    const res = await fetch(`${host.apiBase}/api/usage`, { headers: authHeaders() });
+    if (res.ok) renderUsage(await res.json());
+  } catch {
+    /* tarmoq bo'lmasa — taymer ko'rinmaydi */
   }
 }
 
@@ -964,7 +933,7 @@ async function loadVoiceConfig() {
     if (!res.ok) return;
     const config = await res.json();
     // Brauzer tanishi bo'lsa — u (aniqroq); server tanishi faqat brauzerda yo'q bo'lsa yoki AKA_STT=elevenlabs.
-    voice.useServerStt(config.stt && (config.preferServerStt || !voice.hasBrowserRecognition));
+    voice.useServerStt(config.stt && (config.preferServerStt || !voice.hasBrowserRecognition), config.stt);
     // Chrome tinglaganda Scribe ham eshitadi — Jigar ikkala variantdan to'g'ri savolni tiklaydi.
     voice.useDoubleCheck(config.doubleCheck && !voice.pushToTalk);
   } catch {

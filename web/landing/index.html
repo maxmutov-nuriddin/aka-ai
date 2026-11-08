@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Jigar — gapirib tushuntiradigan robot-ustoz</title>
-  <meta name="description" content="Jigar — 12-18 yoshli o'quvchilar uchun ovozli robot-ustoz. Savolingni ayt, Jigar oddiy so'zlar, misollar va hazil bilan tushuntiradi.">
+  <meta name="description" content="Jigar — 5-sinfdan talabagacha ovozli robot-ustoz. Savolingni ayt: Jigar oddiy so'zlar, misollar va hazil bilan tushuntiradi, DTMga tayyorlaydi va rus yoki o'zbek tilida gapirishni o'rgatadi.">
   <link rel="icon" href="/shared/logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/shared/theme.css">
   <link rel="stylesheet" href="/shared/avatar.css">
@@ -21,8 +21,10 @@
     </a>
     <nav class="nav-links" aria-label="Bo'limlar">
       <a href="#how" data-l="nav.how">Qanday ishlaydi</a>
-      <a href="#features" data-l="nav.features">Imkoniyatlar</a>
-      <a href="#extension" data-l="nav.extension">Kengaytma</a>
+      <a href="#directions" data-l="nav.directions">Yo'nalishlar</a>
+      <a href="#personas" data-l="nav.personas">Xarakterlar</a>
+      <a href="#pricing" data-l="nav.pricing">Narxlar</a>
+      <a href="#faq" data-l="nav.faq">Savollar</a>
     </nav>
     <div class="nav-actions">
       <div class="lang" role="group" aria-label="Til">
@@ -38,15 +40,15 @@
     <!-- ---------- Hero ---------- -->
     <section class="hero">
       <div class="hero-copy">
-        <p class="eyebrow" data-l="hero.eyebrow">12–18 yoshdagi o'quvchilar uchun ovozli ustoz</p>
+        <p class="eyebrow" data-l="hero.eyebrow">5-sinfdan talabagacha — ovozli robot-ustoz</p>
         <h1>
           <span data-l="hero.title1">Gapir.</span>
           <span class="marker"><span data-l="hero.title2">Jigar</span></span>
           <span data-l="hero.title3">tushuntiradi.</span>
         </h1>
-        <p class="lead" data-l="hero.lead">Darslikdagi qiyin sahifani ko'rsat yoki savolingni ovoz bilan ayt — Jigar oddiy so'zlar, hayotiy misollar va hazil bilan tushuntiradi.</p>
+        <p class="lead" data-l="hero.lead">Darslikdagi qiyin sahifani ko'rsat yoki savolingni ovoz bilan ayt — Jigar oddiy so'zlar, hayotiy misollar va hazil bilan tushuntiradi. Rus yoki o'zbek tilida gapirishni ham o'rgatadi.</p>
         <div class="hero-cta">
-          <a class="btn btn-main btn-big" href="/login?mode=register" data-l="hero.cta">Bepul boshlash</a>
+          <a class="btn btn-main btn-big" href="/login?mode=register" data-l="hero.cta">Boshlash</a>
           <a class="btn btn-quiet btn-big" href="#how" data-l="hero.more">Qanday ishlaydi ↓</a>
         </div>
       </div>
@@ -63,11 +65,12 @@
         <div class="avatar hero-avatar" id="heroAvatar"></div>
         <div class="moods" role="group" aria-label="Kayfiyatni sinab ko'r">
           <span class="moods-label" data-l="moods.label">Kayfiyatini sinab ko'r:</span>
-          <button type="button" data-emotion="happy">😄</button>
-          <button type="button" data-emotion="excited">🤩</button>
-          <button type="button" data-emotion="curious">🤔</button>
-          <button type="button" data-emotion="sad">😢</button>
-          <button type="button" data-emotion="angry">😠</button>
+          <!-- Kayfiyat stikerlari (brend): landing.js moodSvg bilan to'ldiradi -->
+          <button type="button" data-emotion="happy" aria-label="Xursand"></button>
+          <button type="button" data-emotion="excited" aria-label="Hayajon"></button>
+          <button type="button" data-emotion="curious" aria-label="Qiziqish"></button>
+          <button type="button" data-emotion="sad" aria-label="Xafa"></button>
+          <button type="button" data-emotion="angry" aria-label="Jahl"></button>
         </div>
       </div>
     </section>
@@ -94,6 +97,26 @@
       </ol>
     </section>
 
+    <!-- ---------- Yo'nalishlar (landing-sections.js: renderDirections) ---------- -->
+    <section class="directions" id="directions" aria-labelledby="dirTitle">
+      <h2 id="dirTitle" data-l="dir.title">Maqsadingni tanla — Jigar shunga moslashadi</h2>
+      <p class="section-lead" data-l="dir.lead">Ro'yxatdan o'tishda yo'nalishni tanlaysan: misollar, chuqurlik va savollar shu yo'nalish doirasida bo'ladi.</p>
+      <div class="dir-grid" id="directionsGrid"></div>
+    </section>
+
+    <!-- ---------- Xarakterlar (renderPersonas): bosilgan xarakterda robot gapiradi ---------- -->
+    <section class="personas" id="personas" aria-labelledby="perTitle">
+      <div class="per-copy">
+        <h2 id="perTitle" data-l="per.title">Qaysi Jigar senga yoqadi?</h2>
+        <p class="section-lead" data-l="per.lead">5 xil xarakter — har biri o'z ohangi, ovozi va yuzi bilan. Bittasini bos — eshitib ko'r.</p>
+        <div class="per-grid" id="personaGrid" role="group" aria-label="Xarakterlar"></div>
+      </div>
+      <div class="per-stage">
+        <p class="per-bubble" id="personaBubble" aria-live="polite"></p>
+        <div class="avatar per-avatar" id="personaAvatar"></div>
+      </div>
+    </section>
+
     <!-- ---------- Imkoniyatlar ---------- -->
     <section class="features" id="features" aria-labelledby="featTitle">
       <h2 id="featTitle" data-l="feat.title">Oddiy chatbot emas — xarakterli ustoz</h2>
@@ -101,26 +124,26 @@
         <article class="tile tile-voice">
           <div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
           <h3 data-l="feat.voice.title">Jonli ovoz</h3>
-          <p data-l="feat.voice.text">Jigar gapiradi, kuladi, pichirlaydi. Ovozi bilan birga matn ham so‘zma-so‘z yoziladi.</p>
+          <p data-l="feat.voice.text">Jigar gapiradi, kuladi, pichirlaydi. Ovozi bilan birga matn ham so'zma-so'z yoziladi.</p>
         </article>
         <article class="tile tile-faces">
-          <div class="faces" aria-hidden="true"><span>😄</span><span>🤔</span><span>😢</span><span>🤩</span></div>
+          <div class="faces" aria-hidden="true"><span data-mood="happy"></span><span data-mood="curious"></span><span data-mood="sad"></span><span data-mood="excited"></span></div>
           <h3 data-l="feat.faces.title">His-tuyg'u</h3>
           <p data-l="feat.faces.text">Ko'zlari, qoshlari, og'zi va qo'llari har bir gapga mos harakat qiladi.</p>
         </article>
-        <article class="tile tile-wild" id="wildTile" tabindex="0">
-          <span class="tile-tag" data-l="feat.wild.tag">Faqat jur'atlilar uchun</span>
-          <h3 data-l="feat.wild.title">Beparvo rejim</h3>
-          <p data-l="feat.wild.text">Jigar jahldor ko'cha yigitiga aylanadi: baqiradi, kesatadi, mavzu bo'yicha "po'pisa" qiladi — lekin baribir to'g'ri tushuntiradi.</p>
+        <article class="tile tile-fit">
+          <span class="tile-tag" data-l="feat.fit.tag">Senga moslashadi</span>
+          <h3 data-l="feat.fit.title">Sinfing, maqsading, xarakteri</h3>
+          <p data-l="feat.fit.text">5-sinf o'quvchisiga — eng oddiy misollar, talabaga — aniq ilmiy atamalar. Ismingni bilib, sen bilan gaplashadi.</p>
         </article>
         <article class="tile tile-lang">
           <div class="lang-demo" aria-hidden="true"><b>UZ</b><b>RU</b></div>
           <h3 data-l="feat.lang.title">O'zbekcha va ruscha</h3>
-          <p data-l="feat.lang.text">Bir tugma bilan til almashadi: interfeys ham, Jigarning ovozi ham.</p>
+          <p data-l="feat.lang.text">Tilni ro'yxatdan o'tishda tanlaysan — interfeys, tushuntirish va ovoz shu tilda bo'ladi.</p>
         </article>
         <article class="tile tile-short">
-          <h3 data-l="feat.short.title">Qisqa va sodda</h3>
-          <p data-l="feat.short.text">2–3 gap, oddiy so'zlar. Batafsil kerak bo'lsa — "batafsil" de.</p>
+          <h3 data-l="feat.short.title">Qisqami yoki batafsil</h3>
+          <p data-l="feat.short.text">Javob uzunligini o'zing tanlaysan: 2–3 gap, misol bilan yoki qadamma-qadam.</p>
         </article>
         <article class="tile tile-quiz">
           <div class="quiz-demo" aria-hidden="true">
@@ -133,11 +156,18 @@
       </div>
     </section>
 
+    <!-- ---------- Narxlar (renderPricing: /api/tariffs) ---------- -->
+    <section class="pricing" id="pricing" aria-labelledby="priceTitle">
+      <h2 id="priceTitle" data-l="price.title">Narxlar</h2>
+      <p class="section-lead" data-l="price.lead">Har yo'nalishning o'z tarifi bor. Daqiqa — Jigar bilan suhbat vaqti, har kuni yarim tunda yangilanadi.</p>
+      <div class="price-grid" id="pricingGrid"></div>
+    </section>
+
     <!-- ---------- Kengaytma ---------- -->
     <section class="ext" id="extension" aria-labelledby="extTitle">
       <div class="ext-copy">
         <h2 id="extTitle" data-l="ext.title">Istalgan saytda — yoningda</h2>
-        <p data-l="ext.text">Chrome kengaytmasi ochiq sahifani o'qiydi. Wikipedia, darslik yoki maqola — belgini bos, Jigar yon panelda tushuntiradi.</p>
+        <p data-l="ext.text">Chrome kengaytmasi ochiq sahifani o'qiydi va ko'radi. Wikipedia, darslik, maqola yoki Figma — belgini bos, Jigar yon panelda tushuntiradi.</p>
         <ol class="ext-steps">
           <li data-l="ext.s1">Kengaytmani o'rnat</li>
           <li data-l="ext.s2">Sozlamalarda hisobingga kir</li>
@@ -150,10 +180,16 @@
           <div class="page-lines"><b></b><b></b><b></b><b></b><b></b><b></b></div>
           <div class="side-panel">
             <img src="/shared/logo.svg" alt="" width="44" height="44">
-            <p data-l="ext.mock">Fotosintez — o'simlikning oshxonasi! 🌿</p>
+            <p data-l="ext.mock">Fotosintez — o'simlikning oshxonasi!</p>
           </div>
         </div>
       </div>
+    </section>
+
+    <!-- ---------- Savol-javob (renderFaq) ---------- -->
+    <section class="faq" id="faq" aria-labelledby="faqTitle">
+      <h2 id="faqTitle" data-l="faq.title">Ko'p so'raladigan savollar</h2>
+      <div class="faq-list" id="faqList"></div>
     </section>
 
     <!-- ---------- Yakuniy chaqiriq ---------- -->
@@ -165,8 +201,25 @@
   </main>
 
   <footer class="foot">
-    <span>© Jigar</span>
-    <a href="/login" data-l="nav.login">Kirish</a>
+    <div class="foot-brand">
+      <a class="nav-brand" href="/"><img src="/shared/logo.svg" alt="" width="32" height="32"><span>Jigar</span></a>
+      <p data-l="foot.tagline">Gapirib tushuntiradigan robot-ustoz</p>
+    </div>
+    <nav class="foot-col" aria-labelledby="footSections">
+      <h3 id="footSections" data-l="foot.sections">Bo'limlar</h3>
+      <a href="#how" data-l="nav.how">Qanday ishlaydi</a>
+      <a href="#directions" data-l="nav.directions">Yo'nalishlar</a>
+      <a href="#personas" data-l="nav.personas">Xarakterlar</a>
+      <a href="#pricing" data-l="nav.pricing">Narxlar</a>
+      <a href="#extension" data-l="nav.extension">Kengaytma</a>
+      <a href="#faq" data-l="nav.faq">Savollar</a>
+    </nav>
+    <nav class="foot-col" aria-labelledby="footAccount">
+      <h3 id="footAccount" data-l="foot.account">Hisob</h3>
+      <a href="/login" data-l="nav.login">Kirish</a>
+      <a href="/login?mode=register" data-l="nav.start">Boshlash</a>
+    </nav>
+    <p class="foot-copy">© <span id="year">2026</span> Jigar</p>
   </footer>
 
   <script type="module" src="/landing/landing.js"></script>

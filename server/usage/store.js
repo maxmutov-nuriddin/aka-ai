@@ -1,0 +1,71 @@
+// Kunlik sarf (repository): tarif limiti uchun har foydalanuvchining bugungi savollari va ovoz belgilari.
+const TASHKENT_OFFSET_MS = 5 * 60 * 60_000; // UTC+5, yozgi vaqt yo'q
+const CHARS_PER_MINUTE = 900; // o'zbekcha nutq: ~900 belgi ≈ 1 daqiqa ovoz
+const MINUTES_PER_CHAT = 0.5; // har savol (Claude xarajati) — 0.5 daqiqa
+
+/** Bugungi sana (YYYY-MM-DD) Toshkent vaqti bo'yicha — limit yarim tunda yangilanadi. */
+export function todayInTashkent(now = new Date()) {
+  return new Date(now.getTime() + TASHKENT_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+/**
+ * @param {import("node:sqlite").DatabaseSync} db
+ * @param {{ now?: () => Date }} [options]
+ */
+export function createUsageStore(db, { now = () => new Date() } = {}) {
+  const q = {
+    get: db.prepare("SELECT chats, tts_chars FROM usage_daily WHERE user_id = ? AND day = ?"),
+    add: db.prepare(
+      `INSERT INTO usage_daily (user_id, day, chats, tts_chars) VALUES (?, ?, ?, ?)
+       ON CONFLICT(user_id, day) DO UPDATE SET chats = chats + excluded.chats, tts_chars = tts_chars + excluded.tts_chars`,
+    ),
+    reset: db.prepare("DELETE FROM usage_daily WHERE user_id = ? AND day = ?"),
+    totals: db.prepare(
+      `SELECT day, COUNT(*) AS users, SUM(chats) AS chats, SUM(tts_chars) AS ttsChars
+       FROM usage_daily WHERE day >= ? GROUP BY day`,
+    ),
+    lastDays: db.prepare("SELECT user_id AS userId, MAX(day) AS day FROM usage_daily GROUP BY user_id"),
+  };
+  const today = () => todayInTashkent(now());
+
+  /** Bugungi sarf daqiqada (0.1 aniqlikda): savollar + Jigarning ovozi. */
+  function minutesToday(userId) {
+    const row = q.get.get(userId, today());
+    if (!row) return 0;
+    return Math.round((row.chats * MINUTES_PER_CHAT + row.tts_chars / CHARS_PER_MINUTE) * 10) / 10;
+  }
+
+  /** Muvaffaqiyatli javobdan keyin. */
+  function addChat(userId) {
+    q.add.run(userId, today(), 1, 0);
+  }
+
+  /** Ovoz yaratilgandan keyin (belgilar soni). */
+  function addSpeech(userId, chars) {
+    if (chars > 0) q.add.run(userId, today(), 0, Math.round(chars));
+  }
+
+  /** Support: foydalanuvchining bugungi sarfini nolga tushiradi. */
+  function resetToday(userId) {
+    q.reset.run(userId, today());
+  }
+
+  /** Support: oxirgi N kun (eskidan yangiga) — har kun: faol foydalanuvchilar va daqiqalar. */
+  function dailyTotals(days) {
+    const ms = 86_400_000;
+    const list = Array.from({ length: days }, (_, i) => todayInTashkent(new Date(now().getTime() - (days - 1 - i) * ms)));
+    const rows = new Map(q.totals.all(list[0]).map((r) => [r.day, r]));
+    return list.map((day) => {
+      const r = rows.get(day);
+      const minutes = r ? Math.round((r.chats * MINUTES_PER_CHAT + r.ttsChars / CHARS_PER_MINUTE) * 10) / 10 : 0;
+      return { day, users: r?.users ?? 0, minutes };
+    });
+  }
+
+  /** Support: har foydalanuvchining oxirgi faol kuni (Map: userId -> "YYYY-MM-DD"). */
+  function lastActiveDays() {
+    return new Map(q.lastDays.all().map((r) => [r.userId, r.day]));
+  }
+
+  return { minutesToday, addChat, addSpeech, resetToday, dailyTotals, lastActiveDays };
+}

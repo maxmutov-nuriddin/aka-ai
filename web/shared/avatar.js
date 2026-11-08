@@ -237,7 +237,8 @@ function presetFor(emotion, mode, persona) {
  * }}
  */
 export function createAvatar(root) {
-  root.innerHTML = ROBOT_SVG; // o'zgarmas, ishonchli belgilash
+  // o'zgarmas, ishonchli belgilash. .av-hearts — Romantik xarakterda robot atrofida suzib yuruvchi yurakchalar.
+  root.innerHTML = `${ROBOT_SVG}<div class="av-hearts" aria-hidden="true">${"<span>♥</span>".repeat(6)}</div>`;
   const part = (name) => root.querySelector(`[data-part="${name}"]`);
   const nodes = Object.fromEntries(
     ["eyeL", "eyeR", "browL", "browR", "mouth", "head", "armL", "armR", "core", "cheekL", "cheekR"].map((n) => [n, part(n)]),

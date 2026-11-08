@@ -6,6 +6,7 @@ import path from "node:path";
 import { parseAkaResponse } from "./parse.js";
 
 import { ValidationError } from "./errors.js";
+import { normalizePronunciation, withPronunciation } from "./pronunciation.js";
 
 export { ValidationError };
 
@@ -16,6 +17,15 @@ export const SYSTEM_PROMPT = readPrompt("system-prompt.md");
 const BEPARVO_PROMPT = readPrompt("beparvo-mode.md");
 // Rus tili tanlansa — oxiriga qo'shiladi va til qoidalarini almashtiradi.
 const RUSSIAN_PROMPT = readPrompt("lang-ru.md");
+const LANGUAGE_MODE_PROMPT = readPrompt("mode-language.md");
+const LANGUAGE_NAMES = { uz: "o'zbek tili", ru: "rus tili" };
+
+/** Til o'rganish yo'nalishi: ona tili (interfeys) va o'rganiladigan til — o'zbek <-> rus. */
+export const targetLanguageOf = (lang) => (lang === "ru" ? "uz" : "ru");
+function languageModePrompt(lang) {
+  return LANGUAGE_MODE_PROMPT.replaceAll("{NATIVE}", LANGUAGE_NAMES[lang] ?? LANGUAGE_NAMES.uz)
+    .replaceAll("{TARGET}", LANGUAGE_NAMES[targetLanguageOf(lang)]);
+}
 // Javob uslubi: qisqa (2-3 gap) va sodda (oddiy so'zlar). O'quvchi yuqoridagi sozlamalarda tanlaydi.
 const SHORT_PROMPT = readPrompt("style-short.md");
 const DETAILED_PROMPT = readPrompt("style-detailed.md");
@@ -25,6 +35,14 @@ const SIMPLE_PROMPT = readPrompt("style-simple.md");
 // Xarakter tanlanmagan bo'lsa — asosiy promptning o'zi.
 export const PERSONAS = ["neytral", "mehribon", "kinoyali", "jahldor", "romantik"];
 const PERSONA_PROMPTS = Object.fromEntries(PERSONAS.map((p) => [p, readPrompt(`persona-${p}.md`)]));
+// Romantik + talaba (katta) — noz-karashmali iliq uslub ("jonim", "go'zalim"). Maktab o'quvchilariga — flirtsiz.
+const ROMANTIC_ADULT_PROMPT = readPrompt("persona-romantik-adult.md");
+const NAME_MAX = 40;
+
+/** O'quvchi ismi promptga: faqat harf, bo'shliq, apostrof va chiziqcha (yangi qator — in'yeksiya emas). */
+function cleanName(name) {
+  return clip(str(name).replace(/[^\p{L}\p{M} 'ʻʼ‘’-]/gu, " ").replace(/\s+/g, " ").trim(), NAME_MAX);
+}
 
 /** Xarakterni tekshiradi. Berilmasa — null (asosiy ohang). */
 export function normalizePersona(persona) {
@@ -34,14 +52,21 @@ export function normalizePersona(persona) {
 }
 
 // O'quvchi profili (ro'yxatdan o'tishdagi savollar): maqsad va sinf — misollar va murakkablikni belgilaydi.
+const OFF_SCOPE = "Doiradan tashqari savol bo'lsa: 1-2 gapda qisqa javob ber va o'quvchini muloyimlik bilan o'z yo'nalishiga qaytar (\"Qiziq savol! Lekin keling, darsimizga qaytamiz...\"). Tashqi mavzuni uzoq tushuntirma.";
+// Yo'nalish (tarif) — Jigar shu doirada ishlaydi. Har tarifning narxi va daqiqasi: server/usage/tariffs.js.
 const GOAL_GUIDE = {
-  study: "Maktab darslari. Maktab dasturiga mos tushuntir. Uy vazifasida javobni tayyor yozib berma — o'zi yechishiga yordam ber.",
-  exam: "Imtihonga tayyorgarlik (DTM, test, nazorat ishlari). Mavzu testda qanday so'ralishini, tipik xatolarni va eslab qolish usullarini ko'rsat.",
-  olympiad: "Olimpiada. Chuqurroq bor: nostandart yondashuv, murakkabroq misol, \"nega\" savoliga alohida e'tibor.",
-  university: "Universitet yoki kurs. Akademik aniqlik: to'g'ri atamalar, ta'riflar, kerak bo'lsa formulalar.",
-  language: "Chet tilini o'rganyapti. Yangi so'zlarni tarjimasi bilan ber, gaplarni sodda tuz, kerak joyda grammatika yoki talaffuz izohini qo'sh.",
-  it: "Dasturlash va IT. Misollarni dasturlash va texnologiyadan ol; kerak bo'lsa algoritm qadamlarini yoki juda qisqa kodni ko'rsat.",
-  curious: "Shunchaki qiziqish. Qiziqarli faktlar va hayotiy bog'lanishlarga urg'u ber, imtihon ohangisiz.",
+  study: `Maktab darslari. DOIRA: 5–11-sinf maktab dasturi fanlari — matematika, algebra, geometriya, fizika, kimyo, biologiya, tarix, geografiya, ona tili va adabiyot, informatika asoslari, chet tili grammatikasi. Darslik darajasida tushuntir. Uy vazifasida javobni tayyor yozib berma — o'zi yechishiga yo'l ko'rsat. ${OFF_SCOPE}`,
+  exam: `Imtihonga tayyorgarlik. DOIRA: DTM (abituriyent testlari), attestatsiya, maktab nazorat va choraklik ishlari. Mavzu testda qanday so'ralishini, tipik xatolar va tuzoqlarni, tez yechish usullarini va eslab qolish usullarini ko'rsat; imkon bo'lsa test shaklidagi misol ber. ${OFF_SCOPE}`,
+  olympiad: `Olimpiada. DOIRA: fan olimpiadalari (maktab, tuman, viloyat, respublika) darajasidagi masalalar — chuqur tushuncha, isbot, nostandart yondashuv, "nega" savoli. Yechimni qadamma-qadam ber, avval o'zi o'ylab ko'rishiga imkon qoldir. ${OFF_SCOPE}`,
+  university: `Universitet yoki kurs. DOIRA: oliy ta'lim fanlari va kurslar — ma'ruza mavzulari, seminar, kurs ishi, referat. Akademik aniqlik: to'g'ri atamalar, ta'riflar, formulalar. Kurs ishi yoki referatni tayyor yozib berma — reja, manba turi va tushuntirish bilan yordam ber. ${OFF_SCOPE}`,
+  // Eng arzon tarif — dars va imtihon tayyorgarligi uchun "aylanib o'tish" yo'li bo'lmasin.
+  curious: "Qiziqish, umumiy bilim. DOIRA: umumiy dunyoqarash — ilm-fan qiziqarli faktlari, tarix, texnika, tabiat, dunyo voqealari. Qiziqarli faktlar va hayotiy bog'lanishlarga urg'u ber, imtihon ohangisiz. "
+    + "Bu tarifga KIRMAYDI: maktab darsi va uy vazifasi, darslik mashqlari, DTM/test tayyorgarligi, olimpiada masalalari, kurs ishi va referat. "
+    + "Bunday so'rov bo'lsa: 1-2 gapda umumiy tushuncha ber, misol yoki masalani yechib berma va muloyim ayt: \"Buni chuqur o'rganish uchun Maktab darslari yoki Imtihon tarifi kerak — u yerda qadamma-qadam o'rgatamiz.\"",
+  // Til o'rganish (gapirish mashqi): o'zbek o'quvchi — rus tili, rus o'quvchi — o'zbek tili. Batafsil: prompts/mode-language.md.
+  language: "Til o'rganish, gapirish mashqi. DOIRA va qoidalar — pastdagi \"TIL O'RGANISH\" bo'limida.",
+  // Eski (olib tashlangan) yo'nalish — mavjud profillar buzilmasin; tarif: qiziqish.
+  it: "Qiziqish, umumiy bilim. DOIRA: har qanday ta'limiy mavzu. Misollarni texnologiyadan olsang bo'ladi.",
 };
 const LEVEL_GUIDE = {
   "5-7": "5–7-sinf (taxminan 11–13 yosh). Eng oddiy so'zlar, kundalik misollar. Har bir atamani oddiy so'z bilan izohla.",
@@ -68,10 +93,12 @@ export const normalizeLevel = oneOf("level", LEVELS);
 const ADULT_LEVELS = new Set(["student"]);
 const effectiveMode = (mode, level) => (mode === "beparvo" && level && !ADULT_LEVELS.has(level) ? "oddiy" : mode);
 
-/** Maqsad va sinfdan tizim promptiga qo'shimcha. Ikkalasi ham yo'q bo'lsa — null. */
-function profilePromptFor(goal, level) {
-  if (!goal && !level) return null;
+/** Maqsad, sinf va ismdan tizim promptiga qo'shimcha. Hech biri yo'q bo'lsa — null. */
+function profilePromptFor(goal, level, name) {
+  const cleanedName = cleanName(name);
+  if (!goal && !level && !cleanedName) return null;
   const lines = ["# O'QUVCHI PROFILI (ro'yxatdan o'tishda o'zi tanladi)", "Tushuntirish, misollar va so'zlarni shu o'quvchiga moslab tanla:"];
+  if (cleanedName) lines.push(`- Ismi: ${cleanedName} — vaqti-vaqti bilan ismi bilan murojaat qil (har gapda emas).`);
   if (goal) lines.push(`- Maqsad: ${GOAL_GUIDE[goal]}`);
   if (level) lines.push(`- Sinf: ${LEVEL_GUIDE[level]}`);
   return lines.join("\n");
@@ -106,17 +133,19 @@ export function normalizeMode(mode) {
 
 /** Rejim, til va uslubga mos tizim prompti. Har birikma alohida keshlanadi. Til qo'shimchasi doim oxirida. */
 export function systemPromptFor(
-  mode, lang = "uz", { length = "odatiy", simple = false, persona = null, goal = null, level = null } = {},
+  mode, lang = "uz", { length = "odatiy", simple = false, persona = null, goal = null, level = null, name = null } = {},
 ) {
   const parts = [SYSTEM_PROMPT];
   if (mode === "beparvo") parts.push(BEPARVO_PROMPT);
+  else if (persona === "romantik" && ADULT_LEVELS.has(level)) parts.push(ROMANTIC_ADULT_PROMPT);
   else if (PERSONA_PROMPTS[persona]) parts.push(PERSONA_PROMPTS[persona]); // beparvo o'zi kuchli xarakter — ustma-ust qo'yilmaydi
   if (length === "qisqa") parts.push(SHORT_PROMPT);
   if (length === "batafsil") parts.push(DETAILED_PROMPT);
   if (simple) parts.push(SIMPLE_PROMPT);
-  const profile = profilePromptFor(goal, level);
+  const profile = profilePromptFor(goal, level, name);
   if (profile) parts.push(profile);
   if (lang === "ru") parts.push(RUSSIAN_PROMPT);
+  if (goal === "language") parts.push(languageModePrompt(lang)); // ikki tilda gapirish — til qoidasidan keyin, ustun
   return parts.join("\n\n");
 }
 
@@ -299,13 +328,29 @@ function extractText(message) {
 const REFUSAL_TEXT =
   "Ha-ha, bu savolga men javob bera olmayman, jigar. Keling, darsga qaytamiz: sahifadagi mavzu bo'yicha nima tushunarsiz bo'ldi?";
 
-export function createJigar({ client = new Anthropic(), config = getConfig(), random = Math.random } = {}) {
-  function lastUserContent(content, heardAlt, mode) {
-    const heard = withHeardAlternative(content, heardAlt);
+export function createJigar({ client = new Anthropic(), config = getConfig(), random = Math.random, gemini = null } = {}) {
+  function lastUserContent(content, heardAlt, mode, pronunciation = null) {
+    // Til o'rganishda ovozli javobga talaffuz tahlili qo'shiladi (Azure yoki Scribe — server/core/pronunciation.js).
+    const heard = withPronunciation(withHeardAlternative(content, heardAlt), normalizePronunciation(pronunciation));
     return mode === "beparvo" ? withBeparvoOpener(heard || "Shu sahifani tushuntirib ber.", random) : heard;
   }
 
-  async function call(messages, mode = "oddiy", lang = "uz", style = {}) {
+  /** Gemini bilan javob (support tanlagan bo'lsa). Xato bo'lsa — null: chaqiruvchi Claude'ga o'tadi. */
+  async function callGemini(messages, system) {
+    try {
+      const { text, model } = await gemini.generate({ system, messages, maxTokens: config.maxTokens });
+      return { text, stopReason: "end_turn", refused: false, truncated: false, model, usage: null };
+    } catch (err) {
+      console.warn(`[jigar] Gemini ishlamadi — Claude'ga o'tildi: ${err.message}`);
+      return null;
+    }
+  }
+
+  async function call(messages, mode = "oddiy", lang = "uz", style = {}, llm = "claude") {
+    if (llm === "gemini" && gemini?.configured) {
+      const viaGemini = await callGemini(messages, systemPromptFor(mode, lang, style));
+      if (viaGemini) return viaGemini;
+    }
     const params = {
       model: config.model,
       max_tokens: config.maxTokens,
@@ -345,7 +390,7 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ra
   }
 
   return {
-    async chat({ page, history, selection, mode, heardAlt, lang, length, simple, persona, goal, level }) {
+    async chat({ page, history, selection, mode, heardAlt, pronunciation, lang, length, simple, persona, goal, level, studentName, llm }) {
       const normLevel = normalizeLevel(level);
       const normMode = effectiveMode(normalizeMode(mode), normLevel);
       const normLang = normalizeLang(lang);
@@ -355,24 +400,25 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ra
         persona: normalizePersona(persona),
         goal: normalizeGoal(goal),
         level: normLevel,
+        name: studentName, // promptga tozalanib yoziladi (cleanName)
       };
       const normPage = normalizePage(page);
       const lastIndex = Array.isArray(history) ? history.length - 1 : -1;
       const normHistory = normalizeHistory(history).map((m, i) =>
-        i === lastIndex ? { ...m, content: lastUserContent(m.content, heardAlt, normMode) } : m,
+        i === lastIndex ? { ...m, content: lastUserContent(m.content, heardAlt, normMode, pronunciation) } : m,
       );
       const userContent = normHistory[normHistory.length - 1].content;
-      const result = await call(buildMessages({ page: normPage, history: normHistory, selection }), normMode, normLang, style);
+      const result = await call(buildMessages({ page: normPage, history: normHistory, selection }), normMode, normLang, style, llm);
       // userContent: mijoz tarixga aynan shuni yozadi — keyingi so'rovlarda prefiks o'zgarmaydi (kesh ishlaydi).
       return { ...result, userContent, pageTruncated: Boolean(normPage?.truncated), parsed: parseAkaResponse(result.text) };
     },
-    async summary({ pageTitle, items, mode, lang, simple, persona, goal, level }) {
+    async summary({ pageTitle, items, mode, lang, simple, persona, goal, level, llm }) {
       const normLevel = normalizeLevel(level);
       const normMode = effectiveMode(normalizeMode(mode), normLevel);
       const normLang = normalizeLang(lang);
       const content = buildSummaryMessage({ pageTitle, items });
       const style = { simple: simple === true, persona: normalizePersona(persona), goal: normalizeGoal(goal), level: normLevel };
-      return call([{ role: "user", content }], normMode, normLang, style);
+      return call([{ role: "user", content }], normMode, normLang, style, llm);
     },
   };
 }

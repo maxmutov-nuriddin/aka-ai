@@ -1,6 +1,7 @@
 // Serverni ishga tushirish: npm start (yoki npm run dev).
 import { createApp, defaultDbFile } from "./app.js";
 import { openDatabase } from "./db/database.js";
+import { networkInterfaces } from "node:os";
 
 const SESSION_CLEANUP_MS = 6 * 60 * 60_000;
 const env = process.env;
@@ -20,4 +21,21 @@ app.store.deleteExpiredSessions();
 setInterval(() => app.store.deleteExpiredSessions(), SESSION_CLEANUP_MS).unref();
 
 const port = Number(env.PORT) || 3000;
-app.listen(port, () => console.log(`Jigar ishga tushdi: http://localhost:${port} (baza: ${dbFile})`));
+// HOST=0.0.0.0 (standart) — bir Wi-Fi'dagi boshqa qurilmalar ham kira oladi. Faqat shu kompyuter: HOST=127.0.0.1
+const host = env.HOST || "0.0.0.0";
+
+/** Shu kompyuterning lokal tarmoqdagi IPv4 manzillari (192.168.x.x kabi). */
+function lanAddresses() {
+  return Object.values(networkInterfaces())
+    .flat()
+    .filter((i) => i && i.family === "IPv4" && !i.internal)
+    .map((i) => i.address);
+}
+
+app.listen(port, host, () => {
+  console.log(`Jigar ishga tushdi: http://localhost:${port} (baza: ${dbFile})`);
+  if (host === "0.0.0.0") {
+    for (const ip of lanAddresses()) console.log(`  Tarmoqdagi qurilmalar uchun: http://${ip}:${port}`);
+    console.log("  Eslatma: telefon/boshqa kompyuterda mikrofon faqat HTTPS orqali ishlaydi (brauzer talabi).");
+  }
+});

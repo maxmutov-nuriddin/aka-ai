@@ -19,23 +19,55 @@ html, body { height: 100%; overflow: hidden; }
   background-size: 24px 24px;
   mask-image: radial-gradient(70% 60% at 50% 38%, #000, transparent);
 }
+/* Fon — tanlangan xarakter rangida (app.js: renderPersonaTag → --app-tint). Xarakter yo'q — brend rangi. */
+.app::after {
+  content: ""; position: absolute; inset: 0; z-index: -2; pointer-events: none;
+  background:
+    radial-gradient(48% 42% at 50% 34%, color-mix(in srgb, var(--app-tint, var(--accent)) 30%, transparent), transparent 72%),
+    radial-gradient(40% 36% at 8% 100%, color-mix(in srgb, var(--app-tint, var(--accent)) 16%, transparent), transparent 70%),
+    radial-gradient(40% 36% at 92% 100%, color-mix(in srgb, var(--app-tint, var(--accent)) 16%, transparent), transparent 70%);
+  transition: background 600ms var(--ease);
+}
 
 /* ---------- Sarlavha ---------- */
 .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 22px 0; }
 .brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
 .logo { width: 38px; height: 38px; flex: none; border-radius: 11px; box-shadow: 0 6px 20px var(--glow); }
-.logo-eye { fill: var(--eye); filter: drop-shadow(0 0 3px var(--eye)); transition: fill var(--dur); }
-.logo-smile { fill: none; stroke: var(--eye); stroke-width: 4.5; stroke-linecap: round; transition: stroke var(--dur); }
+.logo-eye { fill: var(--persona, #5ff5dc); transition: fill var(--dur); }
+/* Ko'z va tabassum — robotning yonib turgan rangi; xarakter tanlangan bo'lsa — uning rangi */
+.logo-smile { fill: none; stroke: var(--persona, #5ff5dc); stroke-width: 4.5; stroke-linecap: round; transition: stroke var(--dur); }
 h1 { font: 800 18px/1.1 var(--font-display); margin: 0; }
 .tagline { margin: 0; color: var(--muted); font-size: 12px; }
 .tagline[hidden], .persona-tag[hidden] { display: none; }
 /* Tanlangan xarakter: rangli nuqta, nomi va qisqa tavsifi; logo ko'zlari ham shu rangda */
-.brand[data-persona] { --eye: var(--persona); }
 .persona-tag { margin: 2px 0 0; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; }
 .persona-tag strong { color: var(--persona); font-weight: 700; }
 .persona-tag strong::after { content: "·"; margin-left: 6px; color: var(--muted); font-weight: 400; }
+.usage-tag { margin: 2px 0 0; display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.usage-tag[hidden] { display: none; }
+.usage-tag .ic { width: 13px; height: 13px; }
+.usage-tag.low { color: var(--danger); }
 .persona-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--persona); box-shadow: 0 0 8px var(--persona); }
-.top-actions { display: flex; gap: 6px; align-items: center; }
+/* Boshqaruv: bitta shisha panel, ikki guruh — dars (Sahifa, Suhbat, Yangi, Tugatish) | shaxsiy (Ovoz, Hisob) */
+.top-actions {
+  display: flex; gap: 2px; align-items: center; padding: 4px; border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 70%, transparent); border: 1px solid var(--line);
+  backdrop-filter: blur(14px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+.top-actions > .ghost, .top-actions > .icon-btn, .top-actions > .settings > .icon-btn {
+  height: 34px; border-radius: 999px; border-color: transparent; background: transparent; backdrop-filter: none;
+}
+.top-actions #pageBtn { order: 1; }
+.top-actions #chatToggle { order: 2; }
+.top-actions #newChat { order: 3; }
+.top-actions #endLesson { order: 4; }
+.top-actions .tb-sep { order: 5; width: 1px; height: 20px; margin: 0 4px; background: var(--line-strong); }
+.top-actions #mute { order: 6; }
+.top-actions > .settings { order: 7; }
+.ic {
+  width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
 
 .ghost, .icon-btn, .mode-toggle {
   height: 36px; display: inline-flex; align-items: center; gap: 7px; padding: 0 13px;
@@ -333,3 +365,15 @@ code { font: 0.92em ui-monospace, monospace; background: rgba(255, 255, 255, 0.0
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Support paneliga havola (faqat support) */
+.admin-link {
+  display: flex; flex-direction: row; align-items: center; gap: 10px; padding: 10px 12px;
+  border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+  color: var(--text); text-decoration: none; font-weight: 600;
+  transition: background var(--dur-fast) var(--ease);
+}
+.admin-link:hover { background: var(--glass-hover); }
+
+/* Sahifa belgisi (kengaytma): brend ikonkasi + nom */
+.page-chip svg { vertical-align: -3px; margin-right: 2px; color: var(--accent-2); }

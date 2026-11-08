@@ -3,6 +3,7 @@
 import {
   normalizeGoal, normalizeLang, normalizeLength, normalizeLevel, normalizePersona, ValidationError,
 } from "../core/jigar.js";
+import { fitLevel, levelsForGoal } from "../core/levels.js";
 
 const FIELDS = {
   lang: normalizeLang,
@@ -27,7 +28,17 @@ export function normalizeProfile(input) {
     if (value == null || value === "") continue; // berilmagan maydon — standart qiymat ishlaydi
     profile[field] = normalize(value);
   }
-  return Object.keys(profile).length ? profile : null;
+  return Object.keys(profile).length ? withGoalLevel(profile) : null;
+}
+
+/** Sinf yo'nalishga mos bo'lsin (maktab darsida "talaba" yo'q); universitetda sinf — avtomatik "talaba". */
+function withGoalLevel(profile) {
+  if (!profile.goal) return profile;
+  if (profile.level && !levelsForGoal(profile.goal).includes(profile.level)) {
+    throw new ValidationError("Tanlangan sinf bu yo'nalishga mos emas.");
+  }
+  const level = fitLevel(profile.goal, profile.level);
+  return level ? { ...profile, level } : profile;
 }
 
 /** Bazadagi JSON matnni profilga aylantiradi (buzilgan bo'lsa — null). */

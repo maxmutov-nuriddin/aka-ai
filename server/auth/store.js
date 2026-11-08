@@ -11,6 +11,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const LIMITS = { nameMin: 2, nameMax: 60, emailMax: 254, passwordMin: 8, passwordMax: 128 };
 
 export class DuplicateEmailError extends Error {}
+export class BlockedError extends Error {}
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const str = (v) => (typeof v === "string" ? v : "");
@@ -73,11 +74,15 @@ export function createAuthStore(db, { now = () => new Date(), supportEmails = ne
   const toPublic = (row) => publicUser(row, supportEmails);
   const q = {
     insertUser: db.prepare("INSERT INTO users (name, email, password_hash, profile) VALUES (?, ?, ?, ?)"),
-    userByEmail: db.prepare("SELECT id, name, email, password_hash, profile FROM users WHERE email = ?"),
+    userByEmail: db.prepare("SELECT id, name, email, password_hash, profile, blocked FROM users WHERE email = ?"),
+    listUsers: db.prepare("SELECT id, name, email, profile, blocked, created_at FROM users ORDER BY id"),
+    setBlocked: db.prepare("UPDATE users SET blocked = ? WHERE id = ?"),
+    deleteUser: db.prepare("DELETE FROM users WHERE id = ?"),
+    deleteUserSessions: db.prepare("DELETE FROM sessions WHERE user_id = ?"),
     insertSession: db.prepare("INSERT INTO sessions (token_hash, user_id, client, expires_at) VALUES (?, ?, ?, ?)"),
     sessionUser: db.prepare(
       `SELECT u.id, u.name, u.email, u.profile FROM sessions s JOIN users u ON u.id = s.user_id
-       WHERE s.token_hash = ? AND s.expires_at > ?`,
+       WHERE s.token_hash = ? AND s.expires_at > ? AND u.blocked = 0`,
     ),
     updateProfile: db.prepare("UPDATE users SET profile = ? WHERE id = ?"),
     userById: db.prepare("SELECT id, name, email, profile FROM users WHERE id = ?"),
@@ -101,6 +106,7 @@ export function createAuthStore(db, { now = () => new Date(), supportEmails = ne
     const row = q.userByEmail.get(normalizeEmail(email));
     dummyHash ??= await hashPassword("dummy-password-for-timing");
     const ok = await verifyPassword(str(password), row?.password_hash ?? dummyHash);
+    if (row && ok && row.blocked) throw new BlockedError("Hisob bloklangan. Support bilan bog'laning.");
     return row && ok ? toPublic(row) : null;
   }
 
@@ -125,6 +131,27 @@ export function createAuthStore(db, { now = () => new Date(), supportEmails = ne
     return toPublic(q.userById.get(userId));
   }
 
+  // ---------- Support (admin panel) ----------
+  const adminView = (row) => ({ ...toPublic(row), blocked: Boolean(row.blocked), createdAt: row.created_at });
+
+  /** Barcha foydalanuvchilar (support uchun). */
+  function listUsers() {
+    return q.listUsers.all().map(adminView);
+  }
+
+  /** Bloklash / blokdan chiqarish. Bloklansa — barcha sessiyalari bekor. Topilmasa — null. */
+  function setBlocked(userId, blocked) {
+    if (!q.userById.get(userId)) return null;
+    q.setBlocked.run(blocked ? 1 : 0, userId);
+    if (blocked) q.deleteUserSessions.run(userId);
+    return toPublic(q.userById.get(userId));
+  }
+
+  /** Hisobni o'chiradi (sessiyalar va sarf — CASCADE). Qaytaradi: o'chirildimi. */
+  function deleteUser(userId) {
+    return q.deleteUser.run(userId).changes > 0;
+  }
+
   function deleteSession(token) {
     if (token) q.deleteSession.run(sha256(token));
   }
@@ -133,5 +160,5 @@ export function createAuthStore(db, { now = () => new Date(), supportEmails = ne
     q.deleteExpired.run(now().toISOString());
   }
 
-  return { createUser, verifyCredentials, createSession, userForToken, updateProfile, deleteSession, deleteExpiredSessions };
+  return { createUser, verifyCredentials, createSession, userForToken, updateProfile, listUsers, setBlocked, deleteUser, deleteSession, deleteExpiredSessions };
 }

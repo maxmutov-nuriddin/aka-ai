@@ -97,3 +97,9 @@ test("fish: bo'sh matn — ValidationError, API xatosi — status bilan", async 
   await assert.rejects(fish.synthesize("[laughs]"), ValidationError);
   await assert.rejects(fish.synthesize("Salom"), /402/);
 });
+
+test("fish: til o'rganish rejimi (lang \"auto\") — til maydoni yuborilmaydi", async () => {
+  const { fetchImpl, calls } = fakeFetch();
+  await createFishAudio({ env: ENV, fetchImpl }).synthesize("Salom! Привет!", { lang: "auto" });
+  assert.equal("language" in calls[0].body, false);
+});

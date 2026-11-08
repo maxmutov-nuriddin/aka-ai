@@ -11,53 +11,61 @@ const REDIRECT_MS = 700;
 const DICT = {
   uz: {
     back: "← Bosh sahifa",
-    "nav.how": "Qanday ishlaydi", "nav.features": "Imkoniyatlar", "nav.extension": "Kengaytma",
+    "nav.how": "Qanday ishlaydi", "nav.directions": "Yo'nalishlar", "nav.personas": "Xarakterlar", "nav.pricing": "Narxlar", "nav.faq": "Savollar",
     "nav.login": "Kirish", "nav.start": "Boshlash",
     "title.login": "Jigarga kirish", "title.register": "Jigar bilan tanishish", "title.onboard": "Keling, tanishamiz",
-    "say.onboardDone": "Zo'r! Endi hisob ochamiz — bir daqiqa ✍️",
+    "say.onboardDone": "Zo'r! Endi hisob ochamiz — bir daqiqa",
     "tab.login": "Kirish", "tab.register": "Ro'yxatdan o'tish",
     "field.name": "Ismingiz", "field.email": "Email", "field.password": "Parol", "field.passHint": "Kamida 8 belgi",
     "field.peek": "Parolni ko'rsatish",
     "submit.login": "Kirish", "submit.register": "Ro'yxatdan o'tish", "submit.wait": "Bir lahza…",
     "switch.toRegister": "Hisobing yo'qmi?", "switch.registerLink": "Ro'yxatdan o't",
     "switch.toLogin": "Hisobing bormi?", "switch.loginLink": "Kirish",
-    "say.hello": "Salom! Keling, tanishamiz 👋",
-    "say.welcomeBack": "Qaytganingdan xursandman! 😄",
+    "say.hello": "Salom! Keling, tanishamiz",
+    "say.welcomeBack": "Qaytganingdan xursandman!",
     "say.name": "Tanishganimdan xursandman, {name}!",
-    "say.email": "Emailingni yoz — hech kimga bermayman 🤫",
-    "say.password": "Ko'rmayapman, ko'rmayapman… yozaver! 🙈",
-    "say.success": "Zo'r! Darsga ketdik! 🚀",
+    "say.email": "Emailingni yoz — hech kimga bermayman",
+    "say.password": "Ko'rmayapman, ko'rmayapman… yozaver!",
+    "say.success": "Zo'r! Darsga ketdik!",
     "err.name": "Ismingni yoz (kamida 2 harf).",
     "err.email": "Email noto'g'ri ko'rinyapti.",
     "err.password": "Parol kamida 8 belgi bo'lsin.",
     "err.bad_credentials": "Email yoki parol noto'g'ri.",
     "err.duplicate_email": "Bu email bilan allaqachon ro'yxatdan o'tilgan. Kirib ko'r.",
     "err.network": "Server bilan aloqa yo'q. Internetni tekshir.",
+    "err.blocked": "Hisob bloklangan. Support bilan bog'lan.",
+    "err.rate": "Urinishlar juda ko'p. 15 daqiqadan keyin qayta urin.",
+    "err.invalid": "Ma'lumot noto'g'ri. Tekshirib, qayta urin.",
+    "err.server": "Serverda xato. Birozdan keyin qayta urin.",
   },
   ru: {
     back: "← На главную",
-    "nav.how": "Как это работает", "nav.features": "Возможности", "nav.extension": "Расширение",
+    "nav.how": "Как это работает", "nav.directions": "Направления", "nav.personas": "Характеры", "nav.pricing": "Цены", "nav.faq": "Вопросы",
     "nav.login": "Вход", "nav.start": "Начать",
     "title.login": "Вход в Джигар", "title.register": "Знакомство с Джигаром", "title.onboard": "Давай знакомиться",
-    "say.onboardDone": "Отлично! Теперь создадим аккаунт — минутка ✍️",
+    "say.onboardDone": "Отлично! Теперь создадим аккаунт — минутка",
     "tab.login": "Вход", "tab.register": "Регистрация",
     "field.name": "Твоё имя", "field.email": "Email", "field.password": "Пароль", "field.passHint": "Минимум 8 символов",
     "field.peek": "Показать пароль",
     "submit.login": "Войти", "submit.register": "Зарегистрироваться", "submit.wait": "Секунду…",
     "switch.toRegister": "Нет аккаунта?", "switch.registerLink": "Зарегистрируйся",
     "switch.toLogin": "Уже есть аккаунт?", "switch.loginLink": "Войти",
-    "say.hello": "Привет! Давай знакомиться 👋",
-    "say.welcomeBack": "Рад, что ты вернулся! 😄",
+    "say.hello": "Привет! Давай знакомиться",
+    "say.welcomeBack": "Рад, что ты вернулся!",
     "say.name": "Приятно познакомиться, {name}!",
-    "say.email": "Напиши email — никому не скажу 🤫",
-    "say.password": "Не смотрю, не смотрю… пиши! 🙈",
-    "say.success": "Отлично! Погнали на урок! 🚀",
+    "say.email": "Напиши email — никому не скажу",
+    "say.password": "Не смотрю, не смотрю… пиши!",
+    "say.success": "Отлично! Погнали на урок!",
     "err.name": "Напиши имя (минимум 2 буквы).",
     "err.email": "Похоже, email неверный.",
     "err.password": "Пароль — минимум 8 символов.",
     "err.bad_credentials": "Неверный email или пароль.",
     "err.duplicate_email": "Этот email уже зарегистрирован. Попробуй войти.",
     "err.network": "Нет связи с сервером. Проверь интернет.",
+    "err.blocked": "Аккаунт заблокирован. Свяжись с поддержкой.",
+    "err.rate": "Слишком много попыток. Попробуй через 15 минут.",
+    "err.invalid": "Данные неверные. Проверь и попробуй снова.",
+    "err.server": "Ошибка на сервере. Попробуй чуть позже.",
   },
 };
 
@@ -120,8 +128,11 @@ function render() {
 }
 
 // Ro'yxatdan o'tishda avval savollar, keyin forma. Profil bor bo'lsa savollar o'tkazib yuboriladi.
+// Har safar "Boshlash" (ro'yxatdan o'tish) bosilganda avval savollar — oldin javob berilgan bo'lsa ham.
+let onboardingDone = false;
+
 function syncOnboarding(register) {
-  const needed = register && !loadProfile();
+  const needed = register && !onboardingDone;
   $("onboard").hidden = !needed;
   $("authForm").hidden = needed;
   document.querySelector(".tabs").hidden = needed;
@@ -140,6 +151,7 @@ function syncOnboarding(register) {
     },
     onPick: () => avatar.setEmotion("excited"),
     onDone: (profile) => {
+      onboardingDone = true;
       saveProfile(profile);
       render();
       sayText(t("say.onboardDone"), "happy");
@@ -280,7 +292,9 @@ $("authForm").addEventListener("submit", async (e) => {
       body: JSON.stringify(body),
     });
     const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw Object.assign(new Error(json.error || ""), { code: json.code });
+    // Kod bo'lmasa (limit, server xatosi) — holat bo'yicha; matn tanlangan tilda chiqadi.
+    const code = json.code ?? (res.status === 429 ? "rate" : res.status >= 500 ? "server" : undefined);
+    if (!res.ok) throw Object.assign(new Error(json.error || ""), { code });
     avatar.setState("idle");
     say("say.success", { emotion: "happy" });
     setTimeout(() => window.location.assign(safeNext()), REDIRECT_MS);

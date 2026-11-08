@@ -106,7 +106,7 @@ export function createFishAudio({ env = process.env, fetchImpl = fetch } = {}) {
         latency: "balanced",
         temperature,
         prosody: { speed },
-        language: lang === "ru" ? "ru" : "uz",
+        ...(lang === "auto" ? {} : { language: lang === "ru" ? "ru" : "uz" }), // "auto" — til o'rganish (aralash nutq)
       }),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });

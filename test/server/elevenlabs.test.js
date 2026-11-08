@@ -265,3 +265,12 @@ test("transcribe tanlangan tilni yuboradi, noma'lum til — uz", async () => {
   await el.transcribe(Buffer.from([1]), "audio/webm", { lang: "xx" });
   assert.deepEqual(langs, ["ru", "uz"]);
 });
+
+test("til o'rganish rejimi: lang \"auto\" — TTS va STT tilni o'zi aniqlaydi (language_code yuborilmaydi)", async () => {
+  const { fetchImpl, calls } = fakeFetch({ json: { text: "Привет" } });
+  const eleven = createElevenLabs({ env: ENV, fetchImpl });
+  await eleven.synthesize("Salom! Привет!", { lang: "auto" });
+  assert.equal("language_code" in JSON.parse(calls[0].init.body), false);
+  await eleven.transcribe(Buffer.from([1, 2, 3]), "audio/webm", { lang: "auto" });
+  assert.equal(calls[1].init.body.get("language_code"), null);
+});

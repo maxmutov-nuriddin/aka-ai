@@ -27,6 +27,17 @@ const MIGRATIONS = [
      key   TEXT PRIMARY KEY,
      value TEXT NOT NULL
    );`,
+  // Kunlik sarf (tarif limiti): foydalanuvchi × kun (Toshkent vaqti) — nechta savol berildi.
+  `CREATE TABLE usage_daily (
+     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     day     TEXT    NOT NULL,
+     chats   INTEGER NOT NULL DEFAULT 0,
+     PRIMARY KEY (user_id, day)
+   );`,
+  // Daqiqa limiti uchun: Jigar ovozga aylantirgan belgilar (~900 belgi = 1 daqiqa).
+  `ALTER TABLE usage_daily ADD COLUMN tts_chars INTEGER NOT NULL DEFAULT 0;`,
+  // Support bloklagan hisob: kira olmaydi, sessiyalari bekor qilinadi.
+  `ALTER TABLE users ADD COLUMN blocked INTEGER NOT NULL DEFAULT 0;`,
 ];
 
 /**

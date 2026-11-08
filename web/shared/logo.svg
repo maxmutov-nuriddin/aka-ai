@@ -1,28 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Jigar">
+  <!-- Jigar belgisi: robot-ustozning boshi (web/shared/avatar.js bilan bir uslub) — oq dubulg'a, qorong'i ekran-yuz,
+       yonib turgan ko'zlar va tabassum, antenna. Fon — tekis brend binafsha (#7c74ff). -->
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#7c74ff" />
-      <stop offset="1" stop-color="#2ee6c8" />
-    </linearGradient>
-    <linearGradient id="shell" x1="0" y1="0" x2="0" y2="1">
+    <linearGradient id="jg-head" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#ffffff" />
-      <stop offset="1" stop-color="#dfe3f6" />
+      <stop offset="1" stop-color="#e3e3f6" />
     </linearGradient>
-    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="1.6" result="b" />
-      <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
-    </filter>
   </defs>
-  <rect width="128" height="128" rx="30" fill="url(#bg)" />
-  <line x1="64" y1="34" x2="64" y2="22" stroke="#ffffff" stroke-width="5" stroke-linecap="round" />
-  <circle cx="64" cy="19" r="6" fill="#ffffff" />
-  <rect x="14" y="58" width="12" height="24" rx="6" fill="#ffffff" opacity="0.9" />
-  <rect x="102" y="58" width="12" height="24" rx="6" fill="#ffffff" opacity="0.9" />
-  <rect x="21" y="32" width="86" height="72" rx="28" fill="url(#shell)" />
-  <rect x="31" y="42" width="66" height="50" rx="19" fill="#0b0d1d" />
-  <g fill="#5ff5dc" filter="url(#glow)">
-    <rect x="45" y="52" width="12" height="17" rx="6" />
-    <rect x="71" y="52" width="12" height="17" rx="6" />
-  </g>
-  <path d="M54 78 Q64 86 74 78" fill="none" stroke="#5ff5dc" stroke-width="4.5" stroke-linecap="round" filter="url(#glow)" />
+  <rect width="128" height="128" rx="30" fill="#7c74ff" />
+  <!-- antenna -->
+  <rect x="61.5" y="20" width="5" height="14" rx="2.5" fill="#ffffff" />
+  <circle cx="64" cy="18" r="7.5" fill="#ffffff" />
+  <circle cx="64" cy="18" r="4" fill="#7c74ff" />
+  <!-- quloqlar -->
+  <rect x="15" y="56" width="13" height="27" rx="6.5" fill="#ffffff" />
+  <rect x="100" y="56" width="13" height="27" rx="6.5" fill="#ffffff" />
+  <rect x="19" y="62" width="5" height="15" rx="2.5" fill="#7c74ff" />
+  <rect x="104" y="62" width="5" height="15" rx="2.5" fill="#7c74ff" />
+  <!-- bosh va ekran-yuz -->
+  <rect x="24" y="32" width="80" height="72" rx="30" fill="url(#jg-head)" />
+  <rect x="32" y="42" width="64" height="50" rx="22" fill="#0b0e22" />
+  <rect x="44" y="53" width="13" height="17" rx="6" fill="#5ff5dc" />
+  <rect x="71" y="53" width="13" height="17" rx="6" fill="#5ff5dc" />
+  <ellipse cx="41" cy="77" rx="4.5" ry="2.6" fill="#ff7ab6" opacity="0.5" />
+  <ellipse cx="87" cy="77" rx="4.5" ry="2.6" fill="#ff7ab6" opacity="0.5" />
+  <path d="M56 77q8 6 16 0" fill="none" stroke="#5ff5dc" stroke-width="4.5" stroke-linecap="round" />
 </svg>

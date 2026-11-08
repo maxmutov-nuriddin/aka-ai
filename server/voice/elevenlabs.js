@@ -59,6 +59,7 @@ const SAFE_VOICE_TAGS = new Set(["laughs", "chuckles", "sighs", "curious", "exci
 const TAG_RE = /[ \t]*\[([a-z]+(?:[ ,'-]+[a-z]+){0,4})\][ \t]*/g;
 
 const langOf = (lang) => (LANGUAGES.has(lang) ? lang : "uz");
+export const AUTO_LANG = "auto"; // til o'rganish rejimi: o'zbekcha va ruscha aralash nutq
 
 /**
  * ElevenLabs belgi vaqtlaridan so'z boshlanish vaqtlarini chiqaradi. [laughs] kabi teglar so'z hisoblanmaydi —
@@ -166,7 +167,8 @@ export function createElevenLabs({ env = process.env, fetchImpl = fetch } = {}) 
       text: clean,
       model_id: model,
       voice_settings: voiceSettingsFor(persona),
-      ...(LANGUAGE_CODE_MODEL_RE.test(model) ? { language_code: langOf(lang) } : {}),
+      // "auto" (til o'rganish: ikki til aralash) — model tilni o'zi aniqlaydi.
+      ...(LANGUAGE_CODE_MODEL_RE.test(model) && lang !== AUTO_LANG ? { language_code: langOf(lang) } : {}),
     });
   }
 
@@ -209,15 +211,21 @@ export function createElevenLabs({ env = process.env, fetchImpl = fetch } = {}) 
     return { audio: Buffer.from(data.audio_base64, "base64"), wordStarts: wordStartsFromAlignment(data.alignment) };
   }
 
-  /** O'quvchining ovoz yozuvini o'zbekcha matnga aylantiradi. */
-  async function transcribe(audio, mimeType, { lang } = {}) {
+  /** O'quvchining ovoz yozuvini matnga aylantiradi. */
+  async function transcribe(audio, mimeType, options = {}) {
+    return (await transcribeDetailed(audio, mimeType, options)).text;
+  }
+
+  /** Matn + so'zlar (har biri logprob bilan — talaffuz ishorasi uchun) + aniqlangan til ("rus", "uzb"). */
+  async function transcribeDetailed(audio, mimeType, { lang } = {}) {
     const { key } = requireConfig();
     validateAudio(audio, mimeType);
     const form = new FormData();
     form.append("model_id", STT_MODEL);
-    form.append("language_code", langOf(lang));
+    if (lang !== AUTO_LANG) form.append("language_code", langOf(lang));
     form.append("tag_audio_events", "false");
-    form.append("file", new Blob([audio], { type: mimeType }), "speech.webm");
+    const ext = /wav/.test(mimeType) ? "wav" : /mp4|m4a/.test(mimeType) ? "m4a" : /ogg/.test(mimeType) ? "ogg" : "webm";
+    form.append("file", new Blob([audio], { type: mimeType }), `speech.${ext}`);
 
     const res = await fetchImpl(`${API_BASE}/speech-to-text`, {
       method: "POST",
@@ -227,8 +235,12 @@ export function createElevenLabs({ env = process.env, fetchImpl = fetch } = {}) 
     });
     if (!res.ok) await failWith("ElevenLabs STT", res);
     const data = await res.json();
-    return typeof data?.text === "string" ? data.text.trim() : "";
+    return {
+      text: typeof data?.text === "string" ? data.text.trim() : "",
+      words: Array.isArray(data?.words) ? data.words : [],
+      languageCode: typeof data?.language_code === "string" ? data.language_code : "",
+    };
   }
 
-  return { configured: Boolean(config), voiceFor, synthesize, synthesizeTimed, transcribe };
+  return { configured: Boolean(config), voiceFor, synthesize, synthesizeTimed, transcribe, transcribeDetailed };
 }

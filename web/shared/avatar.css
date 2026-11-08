@@ -41,6 +41,29 @@
 .avatar[data-persona="kinoyali"] { --eye: #c58cff; --accent: #a45cff; }
 .avatar[data-persona="jahldor"] { --eye: #ff8a3d; --accent: #ff6a2a; }
 .avatar[data-persona="romantik"] { --eye: #ff6fae; --accent: #ff4f98; --cheek: rgba(255, 111, 174, 0.65); }
+/* Romantik: robot atrofida suzib, ko'tarilib yo'qoladigan yurakchalar (faqat shu xarakterda) */
+.av-hearts { position: absolute; inset: 0; pointer-events: none; display: none; }
+.avatar[data-persona="romantik"] .av-hearts { display: block; }
+.av-hearts span {
+  position: absolute; bottom: 30%; color: var(--eye); font-size: 22px; opacity: 0;
+  text-shadow: 0 0 10px color-mix(in srgb, var(--eye) 60%, transparent);
+  animation: av-heart 5s ease-in infinite;
+}
+.av-hearts span:nth-child(1) { left: 8%; animation-delay: 0s; }
+.av-hearts span:nth-child(2) { left: 84%; animation-delay: -0.8s; font-size: 17px; }
+.av-hearts span:nth-child(3) { left: 20%; animation-delay: -1.7s; font-size: 14px; }
+.av-hearts span:nth-child(4) { left: 74%; animation-delay: -2.6s; }
+.av-hearts span:nth-child(5) { left: 4%; animation-delay: -3.4s; font-size: 14px; }
+.av-hearts span:nth-child(6) { left: 90%; animation-delay: -4.2s; font-size: 17px; }
+/* Gapirayotganda yurakchalar tezroq chiqadi */
+.avatar[data-persona="romantik"][data-state="speaking"] .av-hearts span { animation-duration: 3s; }
+@keyframes av-heart {
+  0% { transform: translateY(0) scale(0.6) rotate(-8deg); opacity: 0; }
+  15% { opacity: 0.9; }
+  100% { transform: translateY(-260px) scale(1.15) rotate(10deg); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .av-hearts { display: none !important; } }
+
 /* Kayfiyat ko'z rangini ham o'zgartiradi */
 .avatar[data-emotion="angry"] { --eye: #ff4d5e; }
 .avatar[data-emotion="furious"] { --eye: #ff2a3d; }

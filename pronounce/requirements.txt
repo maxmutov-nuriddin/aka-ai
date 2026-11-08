@@ -1,0 +1,5 @@
+# Talaffuz xizmati (pronounce/server.py)
+torch>=2.5
+transformers>=4.45
+numpy>=1.26
+phonemizer>=3.3  # faqat model lug'atini chiqarish uchun (setup.sh)

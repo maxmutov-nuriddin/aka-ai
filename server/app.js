@@ -5,13 +5,20 @@ import express from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { createJigar, normalizeLang, normalizeLevel, normalizePersona, ValidationError } from "./core/jigar.js";
+import { createJigar, normalizeLang, normalizeLevel, normalizePersona, targetLanguageOf, ValidationError } from "./core/jigar.js";
 import { TtsNotConfiguredError } from "./core/errors.js";
 import { createTts } from "./voice/azure.js";
-import { createElevenLabs } from "./voice/elevenlabs.js";
+import { createElevenLabs, AUTO_LANG } from "./voice/elevenlabs.js";
+import { createAzurePronunciation } from "./voice/azure-pronunciation.js";
+import { createGeminiTts } from "./voice/gemini-tts.js";
+import { createGeminiLlm } from "./core/gemini-llm.js";
+import { createLocalPronunciation } from "./voice/local-pronunciation.js";
+import { fromScribeWords } from "./core/pronunciation.js";
 import { openDatabase } from "./db/database.js";
 import { createAuthStore, parseSupportEmails } from "./auth/store.js";
 import { createSettingsStore } from "./settings/store.js";
+import { createUsageStore } from "./usage/store.js";
+import { TARIFFS, tariffFor, dailyMinutes } from "./usage/tariffs.js";
 import { createAdminRouter } from "./admin/routes.js";
 import { createFishAudio } from "./voice/fishaudio.js";
 import { authenticate, requireUser, requireUserPage } from "./auth/session.js";
@@ -52,9 +59,18 @@ export function createVoiceServices(env) {
   const azure = createTts({ env });
   const preferAzure = env.AKA_TTS === "azure" && azure.configured;
   return {
-    providers: { elevenlabs: eleven.configured && !preferAzure ? eleven : azure, fishaudio: createFishAudio({ env }) },
+    providers: {
+      elevenlabs: eleven.configured && !preferAzure ? eleven : azure,
+      fishaudio: createFishAudio({ env }),
+      gemini: createGeminiTts({ env }),
+    },
     stt: eleven,
   };
+}
+
+/** Til o'rganish yo'nalishida nutq ikki tilda aralash — ovoz xizmati tilni o'zi aniqlaydi. */
+function voiceLang(user, lang) {
+  return user?.profile?.goal === "language" ? AUTO_LANG : lang;
 }
 
 /** Standart baza fayli: data/jigar.db (AKA_DB_FILE bilan o'zgartiriladi). */
@@ -66,7 +82,7 @@ export function defaultDbFile(env) {
  * @param {{ jigar?: object, env?: Record<string, string | undefined>, tts?: object, stt?: object,
  *           db?: import("node:sqlite").DatabaseSync }} [options]
  */
-export function createApp({ jigar = createJigar(), env = process.env, tts, stt, ttsProviders, db } = {}) {
+export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env }), jigar = createJigar({ gemini: geminiLlm }), tts, stt, ttsProviders, db, pronunciation = [createLocalPronunciation({ env }), createAzurePronunciation({ env })] } = {}) {
   const defaults = (tts || ttsProviders) && stt ? null : createVoiceServices(env);
   const providers = ttsProviders ?? (tts ? { elevenlabs: tts } : defaults.providers);
   const database = db ?? openDatabase(defaultDbFile(env));
@@ -80,9 +96,11 @@ export function createApp({ jigar = createJigar(), env = process.env, tts, stt, 
 
   /** Ovoz (+ bo'lsa so'z vaqtlari). Tanlangan xizmat xato bersa — o'sha so'rov ElevenLabs'ga o'tadi. */
   async function speakWith(service, text, options) {
+    // contentType: Gemini — WAV, qolganlari — MP3.
     const run = (s) => (s.synthesizeTimed
       ? s.synthesizeTimed(text, options)
-      : s.synthesize(text, options).then((audio) => ({ audio, wordStarts: null })));
+      : s.synthesize(text, options).then((audio) => ({ audio, wordStarts: null })))
+      .then((r) => ({ ...r, contentType: s.contentType ?? "audio/mpeg" }));
     try {
       return await run(service);
     } catch (err) {
@@ -93,6 +111,17 @@ export function createApp({ jigar = createJigar(), env = process.env, tts, stt, 
     }
   }
   const store = createAuthStore(database, { supportEmails: parseSupportEmails(env.SUPPORT_EMAILS) });
+  const usage = createUsageStore(database);
+  /** Foydalanuvchining bugungi sarfi (daqiqa) va tarif limiti. Support — limit yo'q. */
+  function dailyUsage(user) {
+    const provider = settings.ttsProvider();
+    const usedMinutes = usage.minutesToday(user.id);
+    const tariff = tariffFor(user.profile?.goal);
+    if (user.role === "support") return { usedMinutes, limitMinutes: null, remainingMinutes: null, provider, tariff };
+    const limitMinutes = dailyMinutes(tariff.goal, provider);
+    const remainingMinutes = Math.max(0, Math.round((limitMinutes - usedMinutes) * 10) / 10);
+    return { usedMinutes, limitMinutes, remainingMinutes, provider, tariff };
+  }
   const app = express();
   app.disable("x-powered-by");
   if (env.TRUST_PROXY) app.set("trust proxy", env.TRUST_PROXY);
@@ -118,7 +147,9 @@ export function createApp({ jigar = createJigar(), env = process.env, tts, stt, 
     }),
   );
 
-  app.use("/api/admin", createAdminRouter({ settings, providers }));
+  // Miya: Claude (kalit bo'lsa) yoki Gemini — support panelida tanlanadi.
+  const llms = { claude: { configured: Boolean(env.ANTHROPIC_API_KEY?.trim()) }, gemini: geminiLlm };
+  app.use("/api/admin", createAdminRouter({ settings, providers, store, usage, llms }));
 
   app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
@@ -135,15 +166,16 @@ export function createApp({ jigar = createJigar(), env = process.env, tts, stt, 
 
   app.post("/api/tts", requireUser, ttsLimiter, async (req, res) => {
     try {
-      const lang = normalizeLang(req.body?.lang);
+      const lang = voiceLang(req.user, normalizeLang(req.body?.lang));
       const persona = normalizePersona(req.body?.persona); // ovoz va ohang xarakterga mos
       const level = normalizeLevel(req.body?.level); // ovoz o'quvchi yoshiga mos (yosh / katta)
       // model — support tanlagan Fish modeli (ElevenLabs uni e'tiborsiz qoldiradi).
       const options = { lang, persona, level, model: settings.fishModel() };
-      const { audio, wordStarts } = await speakWith(voice.tts, req.body?.text, options);
+      const { audio, wordStarts, contentType } = await speakWith(voice.tts, req.body?.text, options);
+      usage.addSpeech(req.user.id, String(req.body?.text ?? "").length); // daqiqa limiti — Jigarning ovozi
       // Har so'z boshlanish vaqti (soniya) — brauzer yozuv va robot yuzini ovozga aniq moslaydi.
       if (wordStarts?.length) res.set("X-Word-Starts", wordStarts.map((t) => t.toFixed(2)).join(","));
-      res.set("Content-Type", "audio/mpeg");
+      res.set("Content-Type", contentType);
       res.set("Cache-Control", "no-store");
       res.send(audio);
     } catch (err) {
@@ -153,9 +185,39 @@ export function createApp({ jigar = createJigar(), env = process.env, tts, stt, 
     }
   });
 
+  // Til o'rganish: matn + talaffuz tahlili. Navbat: o'z modelimiz (ru, uz) -> Azure (faqat ru) -> Scribe so'z ishonchi (taxminiy).
+  const SCRIBE_LANG = { ru: "rus", uz: "uzb" };
+  /** Scribe qisqa o'zbekchani ba'zan boshqa til deb aniqlaydi ("dan") — til kodi bilan birga yozuvga ham qaraladi. */
+  function spokeTargetLanguage({ text, languageCode }, target) {
+    const letters = text.match(/\p{L}/gu) ?? [];
+    const cyrillic = letters.filter((c) => /\p{Script=Cyrillic}/u.test(c)).length / (letters.length || 1);
+    if (target === "ru") return cyrillic >= 0.5 && languageCode !== SCRIBE_LANG.uz;
+    return languageCode === SCRIBE_LANG.uz || (cyrillic < 0.5 && languageCode !== SCRIBE_LANG.ru);
+  }
+  const assessors = [pronunciation].flat().filter(Boolean);
+  async function languageStt(audio, type, profile) {
+    const target = targetLanguageOf(profile?.lang);
+    const detail = await voice.stt.transcribeDetailed(audio, type, { lang: AUTO_LANG });
+    // O'quvchi ona tilida gapirgan bo'lsa — talaffuz baholanmaydi.
+    if (!detail.text || !spokeTargetLanguage(detail, target)) return { text: detail.text, pronunciation: null };
+    for (const assessor of assessors) {
+      if (!assessor.configured || !/wav/.test(type) || !(assessor.supports?.(target) ?? target === "ru")) continue;
+      try {
+        const assessed = await assessor.assess(audio, { referenceText: detail.text, lang: target });
+        if (assessed?.words?.length) return { text: detail.text, pronunciation: assessed };
+      } catch (err) {
+        console.warn(`[/api/stt] talaffuz bahosi ishlamadi — keyingisiga o'tiladi: ${err.message}`);
+      }
+    }
+    return { text: detail.text, pronunciation: fromScribeWords(detail.words) };
+  }
+
   app.post("/api/stt", requireUser, ttsLimiter, express.raw({ type: "audio/*", limit: "10mb" }), async (req, res) => {
     try {
-      const lang = normalizeLang(req.query.lang);
+      if (req.user?.profile?.goal === "language" && voice.stt.transcribeDetailed) {
+        return res.json(await languageStt(req.body, req.get("Content-Type"), req.user.profile));
+      }
+      const lang = voiceLang(req.user, normalizeLang(req.query.lang));
       const text = await voice.stt.transcribe(req.body, req.get("Content-Type"), { lang });
       res.json({ text });
     } catch (err) {
@@ -165,11 +227,34 @@ export function createApp({ jigar = createJigar(), env = process.env, tts, stt, 
     }
   });
 
+  app.get("/api/usage", requireUser, (req, res) => res.json(dailyUsage(req.user)));
+  // Ochiq: landing narxlar bo'limi — kunlik daqiqa joriy ovoz xizmatiga bog'liq (ElevenLabs — 40%).
+  app.get("/api/tariffs", (_req, res) => {
+    const provider = settings.ttsProvider();
+    const tariffs = Object.entries(TARIFFS).map(([goal, t]) => ({ goal, price: t.price, minutes: dailyMinutes(goal, provider) }));
+    res.set("Cache-Control", "public, max-age=300");
+    res.json({ provider, tariffs });
+  });
+
   app.post("/api/chat", requireUser, limiter, async (req, res) => {
     try {
-      const { page, history, selection, mode, heardAlt, lang, length, simple, persona, goal, level } = req.body ?? {};
-      const result = await jigar.chat({ page, history, selection, mode, heardAlt, lang, length, simple, persona, goal, level });
-      res.json(result);
+      // Tarif: kunlik savol limiti (support — cheksiz). Xato bergan so'rov hisobga olinmaydi.
+      const before = dailyUsage(req.user);
+      if (before.limitMinutes !== null && before.remainingMinutes <= 0) {
+        return res.status(429).json({
+          error: `Bugungi limit tugadi (${before.limitMinutes} daqiqa). Ertaga yana davom etamiz!`,
+          code: "daily_limit",
+          dailyUsage: before,
+        });
+      }
+      const { page, history, selection, mode, heardAlt, pronunciation, lang, length, simple, persona, goal, level } = req.body ?? {};
+      // studentName — hisobdagi ism: Jigar o'quvchini ismi bilan chaqiradi.
+      const result = await jigar.chat({
+        page, history, selection, mode, heardAlt, pronunciation, lang, length, simple, persona, goal, level,
+        studentName: req.user?.name, llm: settings.llmProvider(),
+      });
+      usage.addChat(req.user.id);
+      res.json({ ...result, dailyUsage: dailyUsage(req.user) });
     } catch (err) {
       const [status, message] = apiErrorResponse(err);
       if (status >= 500) console.error("[/api/chat]", err);
@@ -180,7 +265,7 @@ export function createApp({ jigar = createJigar(), env = process.env, tts, stt, 
   app.post("/api/summary", requireUser, limiter, async (req, res) => {
     try {
       const { pageTitle, items, mode, lang, simple, persona, goal, level } = req.body ?? {};
-      const result = await jigar.summary({ pageTitle, items, mode, lang, simple, persona, goal, level });
+      const result = await jigar.summary({ pageTitle, items, mode, lang, simple, persona, goal, level, llm: settings.llmProvider() });
       res.json({ text: result.text, refused: result.refused, usage: result.usage });
     } catch (err) {
       const [status, message] = apiErrorResponse(err);
@@ -196,9 +281,13 @@ export function createApp({ jigar = createJigar(), env = process.env, tts, stt, 
   // Express "/app" ni "/app/" bilan ham moslaydi — faqat oxirida "/" bo'lmasa yo'naltiramiz (aks holda cheksiz aylanadi).
   app.get("/app", (req, res, next) => (req.path === "/app" ? res.redirect(301, "/app/") : next()));
   app.get(["/app/", "/app/index.html"], requireUserPage, page("app", "index.html"));
+  // Support paneli: boshqalar ilovaga qaytariladi.
+  const requireSupportPage = (req, res, next) => (req.user?.role === "support" ? next() : res.redirect(302, "/app/"));
+  app.get(["/admin", "/admin/", "/admin/index.html"], requireUserPage, requireSupportPage, page("admin", "index.html"));
 
   // Umumiy fayllar: javobni ajratish brauzerda ham ishlatiladi, chizma kutubxonasi node_modules'dan.
   app.get("/shared/parse.js", (_req, res) => res.sendFile(path.join(here, "core", "parse.js")));
+  app.get("/shared/levels.js", (_req, res) => res.sendFile(path.join(here, "core", "levels.js"))); // yo'nalish -> sinflar
   app.get("/vendor/mermaid.min.js", (_req, res) =>
     res.sendFile(path.join(root, "node_modules", "mermaid", "dist", "mermaid.min.js")),
   );

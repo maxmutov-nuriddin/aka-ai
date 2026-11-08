@@ -133,6 +133,9 @@ input[aria-invalid="true"] { border-color: var(--danger); }
 .ob-options.is-many .ob-choice-check { display: none; }
 
 /* Til kodi (UZ/RU) — ikonka o'rnida yozuv */
+.ob-choice-icon.is-svg { background: color-mix(in srgb, currentColor 14%, transparent); }
+.ob-choice-icon.is-svg svg { width: 26px; height: 26px; }
+.ob-options.is-many .ob-choice-icon.is-svg svg { width: 22px; height: 22px; }
 .ob-choice-icon.is-code { font: 900 15px/1 var(--font-display); letter-spacing: 0.04em; color: var(--accent-2); }
 
 /* Xarakter yuzi (SVG): rangli hoshiyali ekran, ko'z va og'iz yonib turadi */

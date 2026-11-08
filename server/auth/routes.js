@@ -2,7 +2,7 @@
 import express from "express";
 import { ValidationError } from "../core/errors.js";
 import { rateLimiter } from "../http/rate-limit.js";
-import { DuplicateEmailError, SESSION_DAYS } from "./store.js";
+import { BlockedError, DuplicateEmailError, SESSION_DAYS } from "./store.js";
 import { sessionCookie } from "./session.js";
 
 const AUTH_WINDOW_MS = 15 * 60_000;
@@ -49,6 +49,7 @@ export function createAuthRouter({ store, secureCookies, authMax = AUTH_MAX }) {
       startSession(req, res, user);
     } catch (err) {
       if (err instanceof ValidationError) return res.status(400).json({ error: err.message, code: "invalid" });
+      if (err instanceof BlockedError) return res.status(403).json({ error: err.message, code: "blocked" });
       console.error("[/api/auth/login]", err);
       res.status(500).json({ error: "Kirib bo'lmadi.", code: "server" });
     }

@@ -2,3 +2,7 @@ node_modules/
 dist/
 .env
 data/
+
+# Talaffuz xizmati (Python muhiti va model keshi)
+pronounce/.venv/
+pronounce/__pycache__/
