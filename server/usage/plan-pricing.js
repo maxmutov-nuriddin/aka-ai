@@ -85,6 +85,20 @@ const PRICE_STEP = 1000; // so'm — narx shu qadamga yaxlitlanadi
 const EXTRA_GOAL_MINUTES = 3; // tavsiya: har qo'shimcha yo'nalishga +3 daqiqa
 const GOAL_ORDER = Object.keys(TARIFFS);
 
+// Yo'nalishning qo'shimcha xarajati: Til o'rganishda o'quvchi ham ko'p gapiradi (nutqni tanish, talaffuz bahosi).
+export const GOAL_COST_FACTOR = { language: 1.25 };
+/** Rejaning xarajat koeffitsiyenti — yo'nalishlarning eng kattasi. */
+export const costFactor = (goals) => Math.max(1, ...goals.map((g) => GOAL_COST_FACTOR[g] ?? 1));
+
+/**
+ * O'quvchi oladigan kunlik daqiqa (joriy miya + ovoz juftligida): to'lov x minutesPerSom / koeffitsiyent, 0.1 ga pastga.
+ * minutesPerSom serverdan keladi (/api/tariffs) — server limiti ham AYNAN shu funksiya bilan hisoblanadi, shuning uchun
+ * konstruktor ko'rsatgani tarif kartasi va haqiqiy limit bilan bir xil.
+ */
+export function effectiveMinutes(price, goals, minutesPerSom) {
+  return Math.floor(((price * minutesPerSom) / costFactor(goals)) * 10 + 1e-9) / 10;
+}
+
 /** Kunlik 1 daqiqa uchun oylik narx (so'm): tanlangan yo'nalishlarning eng qimmati. */
 function planRate(goals) {
   return Math.max(...goals.map((g) => TARIFFS[g].price / TARIFFS[g].minutes));

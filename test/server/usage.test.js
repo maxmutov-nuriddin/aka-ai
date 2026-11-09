@@ -98,8 +98,9 @@ test("/api/tariffs: ochiq (kirishsiz) — narx va joriy ovoz xizmatidagi kunlik 
   try {
     const res = await fetch(`${s.base}/api/tariffs`);
     assert.equal(res.status, 200);
-    const { tariffs, provider } = await res.json();
+    const { tariffs, provider, minutesPerSom } = await res.json();
     assert.equal(tariffs.length, 6);
+    assert.ok(minutesPerSom > 0); // konstruktor shu bilan daqiqani karta bilan bir xil hisoblaydi
     const exam = tariffs.find((t) => t.goal === "exam");
     assert.equal(exam.price, 299000);
     assert.equal(exam.minutes, provider === "elevenlabs" ? 5.9 : 15);

@@ -141,6 +141,8 @@ export function createBilling({ apiBase, authHeaders }) {
     $("payState").textContent = "";
     $("payPlanStep").hidden = false;
     builder = createPlanBuilder($("payPlan"), { lang: getLang(), initial: initialPlan() });
+    // Kunlik daqiqa — tarif kartasi va haqiqiy limit bilan bir xil (joriy miya + ovoz juftligi).
+    fetch(`${apiBase()}/api/tariffs`, { cache: "no-cache" }).then((r) => r.json()).then((d) => builder?.setRate(d.minutesPerSom)).catch(() => {});
     setMode(mode);
     if (!dialog.open) dialog.showModal();
   }

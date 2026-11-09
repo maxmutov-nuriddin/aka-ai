@@ -4,7 +4,7 @@
 // "Suhbatga tayyorgarlik" tanlansa — PAKET rejimi: oylik emas, bir martalik hajm (30..300 daqiqa) va muddat.
 import {
   PACKAGES, PACKAGE_MAX_MINUTES, PACKAGE_MIN_MINUTES, PACKAGE_STEP, PLAN_MAX_MINUTES, PLAN_MIN_MINUTES, TARIFFS,
-  minutesForBudget, packageDays, packageFor, packageMinutesForBudget, packagePrice, planPrice, recommendedMinutes,
+  effectiveMinutes, minutesForBudget, packageDays, packageFor, packageMinutesForBudget, packagePrice, planPrice, recommendedMinutes,
 } from "./plan-pricing.js"; // serverda /shared/plan-pricing.js, kengaytmada — shared/ ichiga nusxalanadi
 import { GOAL_COLORS, iconSvg } from "./icons.js";
 
@@ -61,10 +61,13 @@ function el(tag, className, text) {
 
 /**
  * @param {HTMLElement} root
- * @param {{ lang?: "uz" | "ru", initial?: { goals: string[], minutes: number },
+ * @param {{ lang?: "uz" | "ru", initial?: { goals: string[], minutes: number }, minutesPerSom?: number,
  *           onChange?: (plan: { goals: string[], minutes: number }, price: number) => void }} options
+ *   minutesPerSom — /api/tariffs dan: ko'rsatiladigan kunlik daqiqa joriy miya + ovoz juftligida (tarif kartasi bilan
+ *   bir xil). Berilmaguncha — rejaning asosiy daqiqasi ko'rinadi.
  */
-export function createPlanBuilder(root, { lang = "uz", initial, onChange } = {}) {
+export function createPlanBuilder(root, { lang = "uz", initial, onChange, minutesPerSom = null } = {}) {
+  let rate = minutesPerSom;
   let goals = initial?.goals?.length ? GOAL_KEYS.filter((g) => initial.goals.includes(g)) : ["study"];
   if (goals.includes(PACKAGE_GOAL)) goals = [PACKAGE_GOAL];
   const isPackage = () => goals[0] === PACKAGE_GOAL;
@@ -105,6 +108,11 @@ export function createPlanBuilder(root, { lang = "uz", initial, onChange } = {})
     render();
   }
 
+  /** O'quvchi haqiqatda oladigan kunlik daqiqa (rate bo'lsa) yoki rejaning asosiy daqiqasi. */
+  function shownMinutes(base) {
+    return rate ? effectiveMinutes(planPrice(goals, base), goals, rate) : base;
+  }
+
   /** Narx, birlik va eslatmalar — oylik reja yoki paket. */
   function priceInfo() {
     if (isPackage()) {
@@ -116,7 +124,8 @@ export function createPlanBuilder(root, { lang = "uz", initial, onChange } = {})
     const notes = [];
     if (goals.length === 1 && TARIFFS[goals[0]].minutes === minutes) notes.push(L.same.replace("{name}", L.names[goals[0]]));
     if (goals.includes("language")) notes.push(L.voice);
-    return { price: planPrice(goals, minutes), unit: L.price, minutesText: `${minutes} ${L.perDay}`, notes };
+    const price = planPrice(goals, minutes);
+    return { price, unit: L.price, minutesText: `${shownMinutes(minutes)} ${L.perDay}`, notes };
   }
 
   function renderChips() {
@@ -145,7 +154,8 @@ export function createPlanBuilder(root, { lang = "uz", initial, onChange } = {})
     const { price, unit, minutesText, notes } = priceInfo();
     minutesOut.textContent = minutesText;
     const rec = recommended();
-    recommend.textContent = minutes === rec ? L.recommend.replace("{n}", rec) : `${L.useRecommend} (${rec})`;
+    const recShown = isPackage() ? rec : shownMinutes(rec);
+    recommend.textContent = minutes === rec ? L.recommend.replace("{n}", recShown) : `${L.useRecommend} (${recShown})`;
     recommend.disabled = minutes === rec;
     if (document.activeElement !== budget) budget.value = String(price);
     priceOut.textContent = fmt.format(price);
@@ -177,6 +187,11 @@ export function createPlanBuilder(root, { lang = "uz", initial, onChange } = {})
     getPurchase: () => (isPackage() ? { package: `custom:${minutes}` } : { plan: { goals: [...goals], minutes } }),
     setLang(next) {
       L = TEXT[next] ?? TEXT.uz;
+      render();
+    },
+    /** Joriy miya + ovoz juftligining koeffitsiyenti (/api/tariffs → minutesPerSom). */
+    setRate(next) {
+      rate = Number(next) > 0 ? Number(next) : null;
       render();
     },
   };

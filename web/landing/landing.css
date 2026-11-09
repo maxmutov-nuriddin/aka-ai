@@ -232,6 +232,9 @@ section { position: relative; }
 .builder-head p { margin: 0; color: var(--muted); line-height: 1.6; }
 .pill-new { display: inline-block; padding: 4px 10px; border-radius: 999px; background: var(--accent-2); color: #06201c; font-size: 12px; font-weight: 800; }
 .builder-cta { grid-column: 2; justify-self: start; }
+/* Narxlar to'ri ichida: paket kartasi yonida 2 ustunni egallaydi, ichi bitta ustun */
+.price-grid > .builder-card { grid-column: span 2; margin-top: 0; grid-template-columns: 1fr; gap: 16px; padding: 24px; }
+.price-grid > .builder-card .builder-cta { grid-column: 1; }
 @media (max-width: 860px) {
   .builder-card { grid-template-columns: 1fr; padding: 20px; }
   .builder-cta { grid-column: 1; }
@@ -266,6 +269,7 @@ section { position: relative; }
 }
 @media (max-width: 640px) {
   .dir-grid, .price-grid { grid-template-columns: 1fr; }
+  .price-grid > .builder-card { grid-column: 1 / -1; }
   .per-grid { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 520px) {

@@ -1,5 +1,5 @@
 // Tannarx va kunlik limit (faqat server). Narxlar va konstruktor — plan-pricing.js (brauzer bilan umumiy).
-import { TARIFFS, planPrice, tariffFor } from "./plan-pricing.js"; // packageFor va boshqalar — pastdagi re-export orqali
+import { TARIFFS, effectiveMinutes, planPrice, tariffFor } from "./plan-pricing.js"; // packageFor va boshqalar — pastdagi re-export orqali
 
 export * from "./plan-pricing.js";
 
@@ -26,16 +26,18 @@ export function costPerMinute(llm, tts) {
 const BASE_LLM = "claude";
 const PROFIT_MARGIN = 0.17; // to'lovning 17% i foyda (soliq, server va to'lov xizmati shundan chiqadi)
 const DAYS_PER_MONTH = 30;
-// Yo'nalishning qo'shimcha xarajati: Til o'rganishda o'quvchi ham ko'p gapiradi (nutqni tanish, talaffuz bahosi).
-const GOAL_COST_FACTOR = { language: 1.25 };
 
-const costFactor = (goals) => Math.max(1, ...goals.map((g) => GOAL_COST_FACTOR[g] ?? 1));
+/**
+ * 1 so'm to'lovga kunlik necha daqiqa: (1 - foyda) / (daqiqa narxi x 30). Brauzerga /api/tariffs orqali beriladi —
+ * tannarxning o'zi emas, faqat narxni daqiqaga aylantirish koeffitsiyenti.
+ */
+export function minutesPerSom(llm, tts) {
+  return (1 - PROFIT_MARGIN) / (costPerMinute(llm, tts) * DAYS_PER_MONTH);
+}
 
-/** Oylik to'lovga mos kunlik daqiqa: (to'lov - foyda) / (daqiqa narxi x 30). Pastga yaxlitlanadi — foyda kamaymaydi. */
+/** Oylik to'lovga mos kunlik daqiqa (yo'nalish koeffitsiyenti bilan). Pastga yaxlitlanadi — foyda kamaymaydi. */
 function minutesForPayment(price, goals, tts, llm) {
-  const spend = price * (1 - PROFIT_MARGIN);
-  const monthlyCostPerDailyMinute = costPerMinute(llm, tts) * costFactor(goals) * DAYS_PER_MONTH;
-  return Math.floor((spend / monthlyCostPerDailyMinute) * 10 + 1e-9) / 10;
+  return effectiveMinutes(price, goals, minutesPerSom(llm, tts));
 }
 
 /** Kunlik daqiqa limiti — tarif narxi, ovoz va miya juftligiga qarab (0.1 aniqlikda). Miya berilmasa — Claude. */

@@ -1,9 +1,21 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  TARIFFS, minutesForBudget, normalizePlan, planDailyMinutes, planPrice, recommendedMinutes, standardPlan,
+  TARIFFS, comboKeys, dailyMinutes, effectiveMinutes, minutesForBudget, minutesPerSom, normalizePlan, planDailyMinutes, planPrice,
+  recommendedMinutes, standardPlan,
 } from "../../server/usage/tariffs.js";
 import { systemPromptFor } from "../../server/core/jigar.js";
+
+test("konstruktor ko'rsatadigan daqiqa (brauzer) — tarif kartasi bilan aynan bir xil, har juftlikda", () => {
+  for (const { llm, tts } of comboKeys()) {
+    const rate = minutesPerSom(llm, tts); // /api/tariffs beradi
+    for (const [goal, t] of Object.entries(TARIFFS)) {
+      assert.equal(effectiveMinutes(planPrice([goal], t.minutes), [goal], rate), dailyMinutes(goal, tts, llm), `${goal} ${llm}+${tts}`);
+    }
+    const plan = { goals: ["study", "language"], minutes: 18 };
+    assert.equal(effectiveMinutes(planPrice(plan.goals, plan.minutes), plan.goals, rate), planDailyMinutes(plan, tts, llm));
+  }
+});
 
 test("konstruktor narxi: tayyor tarifni yig'sa — narx aynan bir xil", () => {
   for (const [goal, t] of Object.entries(TARIFFS)) {

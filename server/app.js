@@ -23,7 +23,7 @@ import { openDatabase } from "./db/database.js";
 import { createAuthStore, parseSupportEmails } from "./auth/store.js";
 import { createSettingsStore } from "./settings/store.js";
 import { createUsageStore, minutesPerChatFrom } from "./usage/store.js";
-import { TARIFFS, dailyMinutes, planDailyMinutes, tariffOf } from "./usage/tariffs.js";
+import { TARIFFS, dailyMinutes, minutesPerSom, planDailyMinutes, tariffOf } from "./usage/tariffs.js";
 import { createAdminRouter } from "./admin/routes.js";
 import { createFishAudio } from "./voice/fishaudio.js";
 import { authenticate, requireUser, requireUserPage } from "./auth/session.js";
@@ -260,9 +260,11 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
   // Ochiq: landing narxlar bo'limi — kunlik daqiqa joriy ovoz xizmatiga bog'liq (ElevenLabs — 40%).
   app.get("/api/tariffs", (_req, res) => {
     const provider = settings.ttsProvider();
-    const tariffs = Object.entries(TARIFFS).map(([goal, t]) => ({ goal, price: t.price, minutes: dailyMinutes(goal, provider, settings.llmProvider()) }));
+    const llm = settings.llmProvider();
+    const tariffs = Object.entries(TARIFFS).map(([goal, t]) => ({ goal, price: t.price, minutes: dailyMinutes(goal, provider, llm) }));
     res.set("Cache-Control", "public, max-age=300");
-    res.json({ provider, tariffs });
+    // minutesPerSom — konstruktor daqiqani kartalar va haqiqiy limit bilan bir xil hisoblashi uchun (plan-pricing.js).
+    res.json({ provider, tariffs, minutesPerSom: minutesPerSom(llm, provider) });
   });
 
   // Obuna to'lovi (PayGate) — /api/payments, /api/subscription; PAYWALL=1 bo'lsa chat obuna/sinov talab qiladi.

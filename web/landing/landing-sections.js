@@ -148,9 +148,13 @@ function packageCard(lang) {
   return card;
 }
 
+/** Konstruktor kartasi (index.html dagi .builder-card) — narxlar to'riga joylanadi. */
+const builderCard = () => document.querySelector(".builder-card");
+
 let tariffsPromise = null;
 const loadTariffs = () => {
-  tariffsPromise ??= fetch("/api/tariffs").then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))));
+  // no-cache: har safar server bilan tekshiriladi (ETag, 304) — support juftlikni almashtirsa, darhol yangi daqiqa.
+  tariffsPromise ??= fetch("/api/tariffs", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))));
   return tariffsPromise;
 };
 
@@ -172,10 +176,11 @@ export async function renderPricing(lang) {
       card.append(head, amount, el("p", "price-daily", t(lang, "price.daily").replace("{n}", tariff.minutes)), featureList(goal, lang), cta);
       return card;
     });
-    grid.replaceChildren(...cards, packageCard(lang));
+    // Konstruktor narxlar to'rining oxirgi qatoriga — paket kartasi yonida, 2 ustun (DOM tuguni ko'chadi, holati saqlanadi).
+    grid.replaceChildren(...cards, packageCard(lang), builderCard());
   } catch {
     tariffsPromise = null; // keyingi safar qayta urinadi
-    grid.replaceChildren(el("p", "price-error", t(lang, "price.error")));
+    grid.replaceChildren(el("p", "price-error", t(lang, "price.error")), builderCard());
   }
 }
 
@@ -193,6 +198,8 @@ export function renderBuilder(lang) {
       }
     },
   });
+  // Daqiqa tarif kartalari bilan bir xil ko'rinsin — joriy juftlik koeffitsiyenti.
+  loadTariffs().then((d) => builder.setRate(d.minutesPerSom)).catch(() => {});
 }
 
 // ---------- Savol-javob ----------
