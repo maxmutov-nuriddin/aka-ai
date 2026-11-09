@@ -81,6 +81,13 @@
         </label>
         <p class="error" id="error" role="alert" hidden></p>
         <button type="submit" class="submit" id="submit">Kirish</button>
+        <!-- Ro'yxatdan o'tish = ofertani qabul qilish (aksept). auth.js: matn tilga qarab -->
+        <p class="consent" id="consent" hidden>
+          <span id="consentText">Ro'yxatdan o'tib, siz</span>
+          <a href="/oferta" target="_blank" rel="noopener" id="consentOffer">ommaviy oferta</a>
+          <span id="consentAnd">va</span>
+          <a href="/maxfiylik" target="_blank" rel="noopener" id="consentPrivacy">maxfiylik siyosati</a><span id="consentEnd">ga rozilik bildirasiz.</span>
+        </p>
       </form>
 
       <p class="switch-note">

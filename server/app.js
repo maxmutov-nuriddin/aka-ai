@@ -295,6 +295,9 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
   // ---------- Sahifalar ----------
   const page = (...parts) => (_req, res) => res.sendFile(path.join(webDir, ...parts));
   app.get("/", page("landing", "index.html"));
+  // Huquqiy sahifalar: ommaviy oferta va maxfiylik siyosati (UZ/RU).
+  app.get("/oferta", page("legal", "oferta.html"));
+  app.get("/maxfiylik", page("legal", "maxfiylik.html"));
   app.get("/login", (req, res, next) => (req.user ? res.redirect(302, "/app/") : next()), page("auth", "index.html"));
   // Express "/app" ni "/app/" bilan ham moslaydi — faqat oxirida "/" bo'lmasa yo'naltiramiz (aks holda cheksiz aylanadi).
   app.get("/app", (req, res, next) => (req.path === "/app" ? res.redirect(301, "/app/") : next()));

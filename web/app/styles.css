@@ -403,3 +403,5 @@ code { font: 0.92em ui-monospace, monospace; background: rgba(255, 255, 255, 0.0
   width: 100%; margin-top: 16px; padding: 12px; border: 0; border-radius: var(--radius-sm); cursor: pointer;
   background: var(--accent); color: var(--accent-ink); font: 700 15px var(--font);
 }
+.pay-legal { margin: 10px 0 0; color: var(--muted); font-size: 12px; text-align: center; }
+.pay-legal a { color: var(--accent-2); }

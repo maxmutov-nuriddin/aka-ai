@@ -161,3 +161,7 @@ input[aria-invalid="true"] { border-color: var(--danger); }
   .ob-step { animation: none; }
   .ob-choice:hover { transform: none; }
 }
+
+/* Ro'yxatdan o'tishda oferta va maxfiylikka rozilik yozuvi */
+.consent { margin: 4px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; text-align: center; }
+.consent a { color: var(--accent-2); }

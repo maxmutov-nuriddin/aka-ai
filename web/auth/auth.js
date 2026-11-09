@@ -21,6 +21,8 @@ const DICT = {
     "submit.login": "Kirish", "submit.register": "Ro'yxatdan o'tish", "submit.wait": "Bir lahza…",
     "switch.toRegister": "Hisobing yo'qmi?", "switch.registerLink": "Ro'yxatdan o't",
     "switch.toLogin": "Hisobing bormi?", "switch.loginLink": "Kirish",
+    "consent.text": "Ro'yxatdan o'tib, siz", "consent.offer": "ommaviy oferta", "consent.and": "va",
+    "consent.privacy": "maxfiylik siyosati", "consent.end": "ga rozilik bildirasiz.",
     "say.hello": "Salom! Keling, tanishamiz",
     "say.welcomeBack": "Qaytganingdan xursandman!",
     "say.name": "Tanishganimdan xursandman, {name}!",
@@ -50,6 +52,8 @@ const DICT = {
     "submit.login": "Войти", "submit.register": "Зарегистрироваться", "submit.wait": "Секунду…",
     "switch.toRegister": "Нет аккаунта?", "switch.registerLink": "Зарегистрируйся",
     "switch.toLogin": "Уже есть аккаунт?", "switch.loginLink": "Войти",
+    "consent.text": "Регистрируясь, вы принимаете", "consent.offer": "публичную оферту", "consent.and": "и",
+    "consent.privacy": "политику конфиденциальности", "consent.end": ".",
     "say.hello": "Привет! Давай знакомиться",
     "say.welcomeBack": "Рад, что ты вернулся!",
     "say.name": "Приятно познакомиться, {name}!",
@@ -117,6 +121,10 @@ function render() {
   $("tabLogin").setAttribute("aria-selected", String(!register));
   $("tabRegister").setAttribute("aria-selected", String(register));
   $("nameField").hidden = !register;
+  $("consent").hidden = !register;
+  for (const [id, key] of [["consentText", "consent.text"], ["consentOffer", "consent.offer"], ["consentAnd", "consent.and"], ["consentPrivacy", "consent.privacy"], ["consentEnd", "consent.end"]]) {
+    $(id).textContent = t(key);
+  }
   $("passHint").hidden = !register;
   $("password").autocomplete = register ? "new-password" : "current-password";
   $("submit").textContent = t(register ? "submit.register" : "submit.login");

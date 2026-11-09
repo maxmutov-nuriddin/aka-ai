@@ -71,6 +71,15 @@ test("sahifalar: landing va kirish ochiq, /app/ faqat kirganlarga", async () => 
   assert.equal((await fetch(srv.base + "/app/index.html", { redirect: "manual" })).status, 302);
 });
 
+test("huquqiy sahifalar: oferta va maxfiylik hammaga ochiq, UZ va RU matni bilan", async () => {
+  for (const [path, uz, ru] of [["/oferta", "Ommaviy oferta", "Публичная оферта"], ["/maxfiylik", "Maxfiylik siyosati", "Политика конфиденциальности"]]) {
+    const res = await fetch(srv.base + path);
+    assert.equal(res.status, 200, path);
+    const html = await res.text();
+    assert.ok(html.includes(uz) && html.includes(ru), path);
+  }
+});
+
 test("API kirmaganlarga yopiq: 401", async () => {
   for (const p of ["/api/chat", "/api/summary", "/api/tts"]) {
     const r = await fetch(srv.base + p, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });

@@ -11,6 +11,8 @@ const LOCALES = { uz: "uz-UZ", ru: "ru-RU" };
 const VOICE_PREFERENCE = { uz: ["uz", "tr"], ru: ["ru"] };
 const SERVER_CHUNK = 300;
 const FIRST_CHUNK = 120; // birinchi bo'lak qisqa — ovoz tezroq boshlanadi
+// Bir vaqtda oldindan yuklanadigan bo'laklar: sekin TTS (Gemini ~4-7 s/bo'lak) o'qish orasida pauza qoldirmasin.
+const PREFETCH_AHEAD = 3;
 const MIN_RECORDING_MS = 400; // bundan qisqasi — tasodifiy bosish
 const MAX_RECORDING_MS = 60_000;
 // Brauzer tanishi: gap o'rtasidagi qisqa pauzada uzilmaydi, shuncha jimlikdan keyin yuboradi.
@@ -508,12 +510,14 @@ export function createVoice({
       return p;
     };
 
-    let next = load(0);
+    // Oldinga PREFETCH_AHEAD tagacha bo'lak parallel yuklanadi — biri o'qilayotganda keyingilari tayyor bo'ladi.
+    let pending = chunks.slice(0, PREFETCH_AHEAD).map((_, i) => load(i));
     for (let i = 0; i < chunks.length; i++) {
       try {
-        const { url, wordStarts } = await next;
+        const { url, wordStarts } = await pending[0];
         if (token !== speakToken) return URL.revokeObjectURL(url);
-        next = i + 1 < chunks.length ? load(i + 1) : null; // keyingi bo'lak o'qilayotganda yuklanadi
+        const nextIndex = i + PREFETCH_AHEAD;
+        pending = [...pending.slice(1), ...(nextIndex < chunks.length ? [load(nextIndex)] : [])];
         await playUrl(url, beginChunk(chunks[i]), wordStarts);
       } catch (err) {
         if (token !== speakToken) return;

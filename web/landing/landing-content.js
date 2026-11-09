@@ -57,6 +57,7 @@ export const DICT = {
     "final.cta": "Jigar bilan tanishish",
     "foot.tagline": "Gapirib tushuntiradigan robot-ustoz",
     "foot.sections": "Bo'limlar", "foot.account": "Hisob",
+    "foot.legal": "Hujjatlar", "foot.offer": "Ommaviy oferta", "foot.privacy": "Maxfiylik siyosati",
   },
   ru: {
     "nav.how": "Как это работает", "nav.directions": "Направления", "nav.personas": "Характеры",
@@ -113,6 +114,7 @@ export const DICT = {
     "final.cta": "Познакомиться с Джигаром",
     "foot.tagline": "Робот-наставник, который объясняет голосом",
     "foot.sections": "Разделы", "foot.account": "Аккаунт",
+    "foot.legal": "Документы", "foot.offer": "Публичная оферта", "foot.privacy": "Политика конфиденциальности",
   },
 };
 
