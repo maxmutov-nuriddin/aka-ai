@@ -33,6 +33,7 @@ export function createUsageStore(db, { now = () => new Date(), minutesPerChat = 
        FROM usage_daily WHERE day >= ? GROUP BY day`,
     ),
     lastDays: db.prepare("SELECT user_id AS userId, MAX(day) AS day FROM usage_daily GROUP BY user_id"),
+    since: db.prepare("SELECT COALESCE(SUM(chats), 0) AS chats, COALESCE(SUM(tts_chars), 0) AS ttsChars FROM usage_daily WHERE user_id = ? AND day >= ?"),
   };
   const today = () => todayInTashkent(now());
 
@@ -41,6 +42,25 @@ export function createUsageStore(db, { now = () => new Date(), minutesPerChat = 
     const row = q.get.get(userId, today());
     if (!row) return 0;
     return Math.round((row.chats * minutesPerChat + row.tts_chars / CHARS_PER_MINUTE) * 10) / 10;
+  }
+
+  /** Berilgan kundan (shu kun ham) beri sarf daqiqada — paket qoldig'i uchun. */
+  function minutesSince(userId, day) {
+    const r = q.since.get(userId, day);
+    return Math.round((r.chats * minutesPerChat + r.ttsChars / CHARS_PER_MINUTE) * 10) / 10;
+  }
+
+  /**
+   * Faol paket holati: { key, minutes, used, remaining, until } yoki null (paket yo'q, muddati o'tgan yoki tugagan).
+   * @param {number} userId
+   * @param {{ key: string, minutes: number, startDay: string, until: string } | null | undefined} pkg
+   */
+  function packageStatus(userId, pkg) {
+    if (!pkg || Date.parse(pkg.until) <= now().getTime()) return null;
+    const used = minutesSince(userId, pkg.startDay);
+    const remaining = Math.max(0, Math.round((pkg.minutes - used) * 10) / 10);
+    if (remaining <= 0) return null;
+    return { key: pkg.key, minutes: pkg.minutes, used, remaining, until: pkg.until };
   }
 
   /** Muvaffaqiyatli javobdan keyin. */
@@ -75,5 +95,5 @@ export function createUsageStore(db, { now = () => new Date(), minutesPerChat = 
     return new Map(q.lastDays.all().map((r) => [r.userId, r.day]));
   }
 
-  return { minutesToday, addChat, addSpeech, resetToday, dailyTotals, lastActiveDays };
+  return { minutesToday, addChat, addSpeech, resetToday, dailyTotals, lastActiveDays, minutesSince, packageStatus };
 }

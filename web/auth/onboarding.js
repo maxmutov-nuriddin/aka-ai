@@ -35,6 +35,8 @@ export const QUESTIONS = [
       { value: "university", icon: "university", label: "Universitet yoki kurs", hint: "Ma'ruza, seminar, kurs ishi", ru: ["Университет или курсы", "Лекции, семинары, курсовые"] },
       // Til o'rganish: o'zbekcha tanlagan — rus tilini, ruscha tanlagan — o'zbek tilini o'rganadi (server/core/jigar.js).
       { value: "language", icon: "language", label: "Rus tilini o'rganish", hint: "Erkin gapirish, so'zlar, talaffuz, rolli o'yin", ru: ["Изучение узбекского языка", "Разговор, слова, произношение, ролевые игры"] },
+      // Suhbatga tayyorgarlik — oylik emas, paket (server/usage/plan-pricing.js: PACKAGES).
+      { value: "interview", icon: "interview", label: "Suhbatga tayyorgarlik", hint: "Ish, OTM yoki grant suhbati — paket bilan", ru: ["Подготовка к собеседованию", "Работа, вуз или грант — разовый пакет"] },
       { value: "curious", icon: "curious", label: "Qiziqish, umumiy bilim", hint: "Qiziqarli faktlar va dunyoqarash (darslarsiz)", ru: ["Интерес, общие знания", "Интересные факты и кругозор (без уроков)"] },
     ],
   },

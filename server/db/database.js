@@ -57,6 +57,9 @@ const MIGRATIONS = [
   // Konstruktor tarifi: o'quvchi to'lagan reja ({ goals, minutes }) — to'lovda va foydalanuvchida.
   `ALTER TABLE users ADD COLUMN plan TEXT;
    ALTER TABLE payments ADD COLUMN plan TEXT;`,
+  // Paket (Suhbatga tayyorgarlik): foydalanuvchida { key, minutes, startDay, until }, to'lovda — paket kaliti.
+  `ALTER TABLE users ADD COLUMN package TEXT;
+   ALTER TABLE payments ADD COLUMN package TEXT;`,
 ];
 
 /**

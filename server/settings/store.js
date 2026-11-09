@@ -4,8 +4,9 @@ import { FISH_MODELS } from "../voice/fishaudio.js";
 
 // Ovoz xizmati: ElevenLabs (so'z vaqtlari bilan), Fish Audio (o'zbekchada eng aniq), Gemini TTS yoki OpenAI TTS (arzon).
 export const TTS_PROVIDERS = ["elevenlabs", "fishaudio", "gemini", "openai"];
-// Jigarning "miyasi": Claude (asosiy), Gemini yoki OpenAI (ChatGPT). Muqobili xato bersa — Claude'ga o'tadi.
-export const LLM_PROVIDERS = ["claude", "gemini", "openai"];
+// Jigarning "miyasi": Claude (asosiy, Sonnet), Claude Haiku (arzon), Gemini yoki OpenAI (ChatGPT).
+// Gemini yoki OpenAI xato bersa — Claude'ga o'tadi.
+export const LLM_PROVIDERS = ["claude", "haiku", "gemini", "openai"];
 const DEFAULT_LLM_PROVIDER = "claude";
 const DEFAULT_TTS_PROVIDER = "elevenlabs";
 // Fish modeli: Drama 3 — o'zbekchada yagona aniq model (2026-11 sinovi).

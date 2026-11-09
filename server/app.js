@@ -125,11 +125,27 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
   const usage = createUsageStore(database, { minutesPerChat: minutesPerChatFrom(env) });
   const payments = createPaymentStore(database);
   /** Foydalanuvchining bugungi sarfi (daqiqa) va tarif limiti. Support — limit yo'q. */
+  /** Faol paket (Suhbatga tayyorgarlik): { key, minutes, used, remaining, until } yoki null. */
+  const packageOf = (user) => usage.packageStatus(user.id, user.package);
+
+  /** Jigar doirasi: to'langan reja yoki profil yo'nalishi; faol paket bo'lsa — suhbat mashqi ham qo'shiladi. */
+  function goalsOf(user) {
+    const base = user?.plan?.goals ?? (user?.profile?.goal ? [user.profile.goal] : []);
+    if (!user || !packageOf(user)) return user?.plan?.goals;
+    return base.includes("interview") ? base : [...base, "interview"];
+  }
+
   function dailyUsage(user) {
     const provider = settings.ttsProvider();
     const usedMinutes = usage.minutesToday(user.id);
     const tariff = tariffOf(user.profile?.goal, user.plan); // konstruktor rejasi yoki tayyor tarif
     if (user.role === "support") return { usedMinutes, limitMinutes: null, remainingMinutes: null, provider, tariff };
+    // Paket faol bo'lsa — kunlik limit o'rniga paket qoldig'i (daqiqalar o'quvchiga va'da qilingan — juftlikka bog'liq emas).
+    const pkg = packageOf(user);
+    if (pkg) {
+      const limitMinutes = Math.round((usedMinutes + pkg.remaining) * 10) / 10;
+      return { usedMinutes, limitMinutes, remainingMinutes: pkg.remaining, provider, tariff, package: pkg };
+    }
     const limitMinutes = planDailyMinutes(tariff, provider, settings.llmProvider());
     const remainingMinutes = Math.max(0, Math.round((limitMinutes - usedMinutes) * 10) / 10);
     return { usedMinutes, limitMinutes, remainingMinutes, provider, tariff };
@@ -160,7 +176,8 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
   );
 
   // Miya: Claude (kalit bo'lsa), Gemini yoki OpenAI — support panelida tanlanadi.
-  const llms = { claude: { configured: Boolean(env.ANTHROPIC_API_KEY?.trim()) }, gemini: geminiLlm, openai: openaiLlm };
+  const claude = { configured: Boolean(env.ANTHROPIC_API_KEY?.trim()) };
+  const llms = { claude, haiku: claude, gemini: geminiLlm, openai: openaiLlm }; // Haiku — o'sha Anthropic kaliti
   app.use("/api/admin", createAdminRouter({ settings, providers, store, usage, llms }));
 
   app.get("/api/health", (_req, res) => res.json({ ok: true }));
@@ -249,7 +266,7 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
   });
 
   // Obuna to'lovi (PayGate) — /api/payments, /api/subscription; PAYWALL=1 bo'lsa chat obuna/sinov talab qiladi.
-  const billing = createPaymentRouter({ paygate, payments, env, limiter });
+  const billing = createPaymentRouter({ paygate, payments, env, limiter, packageOf });
   app.use("/api", billing.router);
 
   app.post("/api/chat", requireUser, limiter, async (req, res) => {
@@ -272,7 +289,7 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
       const result = await jigar.chat({
         page, history, selection, mode, heardAlt, pronunciation, lang, length, simple, persona, goal, level,
         studentName: req.user?.name, llm: settings.llmProvider(),
-        goals: req.user?.plan?.goals, // konstruktor: bir nechta yo'nalish (to'langan reja)
+        goals: goalsOf(req.user), // konstruktor rejasi; faol paketda — suhbat mashqi ham
       });
       usage.addChat(req.user.id);
       res.json({ ...result, dailyUsage: dailyUsage(req.user) });
@@ -286,7 +303,7 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
   app.post("/api/summary", requireUser, limiter, async (req, res) => {
     try {
       const { pageTitle, items, mode, lang, simple, persona, goal, level } = req.body ?? {};
-      const result = await jigar.summary({ pageTitle, items, mode, lang, simple, persona, goal, level, llm: settings.llmProvider(), goals: req.user?.plan?.goals });
+      const result = await jigar.summary({ pageTitle, items, mode, lang, simple, persona, goal, level, llm: settings.llmProvider(), goals: goalsOf(req.user) });
       res.json({ text: result.text, refused: result.refused, usage: result.usage });
     } catch (err) {
       const [status, message] = apiErrorResponse(err);

@@ -12,6 +12,59 @@ export const TARIFFS = {
   // Til o'rganish (gapirish): o'quvchi ham, Jigar ham ko'p gapiradi — daqiqa xarajati ~1.5x, shuning uchun limit kamroq.
   language: { price: 299_000, minutes: 12 },
 };
+// Suhbatga tayyorgarlik (ish, OTM, grant suhbati, ommaviy chiqish) — oylik emas, bir martalik PAKET:
+// daqiqa balansi va amal qilish muddati. Faol paketga yangisi qo'shilsa — daqiqa yig'iladi, muddat qisqarmaydi.
+// Narx qiymatga qarab (natija uchun): to'liq ishlatilsa ham ~45-55% foyda (Claude + Gemini TTS, xarajat x1.25).
+export const PACKAGES = {
+  start: { minutes: 60, days: 14, price: 59_000 },
+  pro: { minutes: 150, days: 30, price: 129_000 },
+};
+
+// Paket konstruktori: hajm 30..300 daqiqa (10 qadam). Narx va muddat Start va Pro nuqtalari orqali chiziqli —
+// 60 daqiqa yig'ilsa aynan Start, 150 — aynan Pro (narx tayyor paket bilan bir xil bo'lsin).
+export const PACKAGE_MIN_MINUTES = 30;
+export const PACKAGE_MAX_MINUTES = 300;
+export const PACKAGE_STEP = 10;
+const PACKAGE_PRICE_STEP = 1000;
+const CUSTOM_PREFIX = "custom:";
+const lineThrough = (field) => (minutes) => {
+  const { start, pro } = PACKAGES;
+  return start[field] + ((minutes - start.minutes) * (pro[field] - start[field])) / (pro.minutes - start.minutes);
+};
+const priceLine = lineThrough("price");
+const daysLine = lineThrough("days");
+
+/** Paket narxi hajmga qarab (1000 so'mga yaxlitlangan). */
+export const packagePrice = (minutes) => Math.round(priceLine(minutes) / PACKAGE_PRICE_STEP) * PACKAGE_PRICE_STEP;
+/** Paket muddati (kun) hajmga qarab. */
+export const packageDays = (minutes) => Math.round(daysLine(minutes));
+
+/** Summaga sig'adigan eng katta hajm (10 daqiqa qadam, 30..300). */
+export function packageMinutesForBudget(budget) {
+  const { start, pro } = PACKAGES;
+  const exact = start.minutes + ((Number(budget) - start.price) * (pro.minutes - start.minutes)) / (pro.price - start.price);
+  const stepped = Math.floor(exact / PACKAGE_STEP + 1e-9) * PACKAGE_STEP;
+  return Math.min(PACKAGE_MAX_MINUTES, Math.max(PACKAGE_MIN_MINUTES, stepped));
+}
+
+/** Konstruktor hajmi to'g'rimi: butun, 30..300, 10 ga karrali. */
+const validPackageMinutes = (m) => Number.isInteger(m) && m >= PACKAGE_MIN_MINUTES && m <= PACKAGE_MAX_MINUTES && m % PACKAGE_STEP === 0;
+
+/**
+ * Paket: tayyor ("start", "pro") yoki konstruktor ("custom:90"). Konstruktor tayyor paket hajmini bersa — o'sha paket.
+ * Noma'lum yoki noto'g'ri — null.
+ */
+export function packageFor(key) {
+  if (Object.hasOwn(PACKAGES, key ?? "")) return { key, ...PACKAGES[key] };
+  if (typeof key !== "string" || !key.startsWith(CUSTOM_PREFIX)) return null;
+  const raw = key.slice(CUSTOM_PREFIX.length);
+  const minutes = /^\d+$/.test(raw) ? Number(raw) : NaN;
+  if (!validPackageMinutes(minutes)) return null;
+  const ready = Object.entries(PACKAGES).find(([, p]) => p.minutes === minutes);
+  if (ready) return { key: ready[0], ...ready[1] };
+  return { key, minutes, days: packageDays(minutes), price: packagePrice(minutes) };
+}
+
 const DEFAULT_GOAL = "study";
 const LEGACY_GOAL = "curious"; // olib tashlangan yo'nalish (IT) — eng arzon tarifga
 

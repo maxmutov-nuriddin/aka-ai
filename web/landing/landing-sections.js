@@ -5,6 +5,7 @@ import { FACE_COLORS, faceSvg } from "/shared/faces.js";
 import { GOAL_COLORS, iconSvg } from "/shared/icons.js";
 import { DICT, DIRECTIONS, FAQ, PERSONAS, TARIFF_FEATURES } from "./landing-content.js";
 import { createPlanBuilder } from "/shared/plan-builder.js";
+import { PACKAGES } from "/shared/plan-pricing.js";
 
 const PLAN_KEY = "jigar.plan"; // konstruktorda yig'ilgan reja — ilovadagi to'lov oynasi shundan boshlaydi
 
@@ -100,6 +101,53 @@ function featureList(goal, lang) {
   }
   return list;
 }
+/**
+ * "Suhbatga tayyorgarlik" — oylik emas, paket. Start / Pro tanlanadi; "Tanlash" tanlovni saqlaydi —
+ * ilovaning to'lov oynasi (konstruktor) shu paket bilan ochiladi.
+ */
+function packageCard(lang) {
+  const direction = DIRECTIONS.find((d) => d.goal === "interview");
+  const card = el("article", "price-card");
+  card.dataset.goal = "interview";
+  const head = el("div", "price-head");
+  head.append(goalIcon("interview"), el("h3", null, direction[lang][0]));
+  const picker = el("div", "package-pick");
+  picker.setAttribute("role", "radiogroup");
+  const priceValue = el("strong");
+  const amount = el("p", "price-amount");
+  amount.append(priceValue, el("span", null, ` ${t(lang, "price.package")}`));
+  const info = el("p", "price-daily");
+  const cta = el("a", "btn btn-quiet price-cta", t(lang, "price.cta"));
+  cta.href = "/login?mode=register";
+
+  let selected = "start";
+  const buttons = Object.keys(PACKAGES).map((key) => {
+    const b = el("button", null, t(lang, `price.package.${key}`));
+    b.type = "button";
+    b.setAttribute("role", "radio");
+    b.addEventListener("click", () => select(key));
+    return [key, b];
+  });
+  function select(key) {
+    selected = key;
+    const p = PACKAGES[key];
+    for (const [k, b] of buttons) b.setAttribute("aria-checked", String(k === key));
+    priceValue.textContent = priceFmt.format(p.price);
+    info.textContent = t(lang, "price.packageInfo").replace("{n}", p.minutes).replace("{d}", p.days);
+  }
+  picker.append(...buttons.map(([, b]) => b));
+  cta.addEventListener("click", () => {
+    try {
+      localStorage.setItem(PLAN_KEY, JSON.stringify({ goals: ["interview"], minutes: PACKAGES[selected].minutes }));
+    } catch {
+      /* saqlab bo'lmasa — to'lov oynasida qayta tanlanadi */
+    }
+  });
+  select(selected);
+  card.append(head, picker, amount, info, featureList("interview", lang), cta);
+  return card;
+}
+
 let tariffsPromise = null;
 const loadTariffs = () => {
   tariffsPromise ??= fetch("/api/tariffs").then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))));
@@ -124,7 +172,7 @@ export async function renderPricing(lang) {
       card.append(head, amount, el("p", "price-daily", t(lang, "price.daily").replace("{n}", tariff.minutes)), featureList(goal, lang), cta);
       return card;
     });
-    grid.replaceChildren(...cards);
+    grid.replaceChildren(...cards, packageCard(lang));
   } catch {
     tariffsPromise = null; // keyingi safar qayta urinadi
     grid.replaceChildren(el("p", "price-error", t(lang, "price.error")));

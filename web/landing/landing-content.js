@@ -43,6 +43,10 @@ export const DICT = {
     "price.month": "so'm / oy",
     "price.daily": "kuniga {n} daqiqa suhbat",
     "price.cta": "Tanlash",
+    "price.package": "so'm / paket",
+    "price.packageInfo": "{n} daqiqa mashq · {d} kun amal qiladi",
+    "price.package.start": "Start",
+    "price.package.pro": "Pro",
     "price.error": "Narxlarni yuklab bo'lmadi. Sahifani yangilang.",
     "builder.title": "Konstruktor — tarifni o'zing yig'",
     "builder.lead": "Kerakli yo'nalishlarni tanla va kunlik vaqtni yoki oylik summani ber — ikkinchisi o'zi hisoblanadi. Narx faqat vaqtga bog'liq: tayyor tarifni yig'sang, narxi aynan bir xil.",
@@ -99,6 +103,10 @@ export const DICT = {
     "price.lead": "У каждого направления свой тариф. Минуты — время разговора с Джигаром, обновляются каждый день в полночь.",
     "price.month": "сум / мес",
     "price.daily": "{n} мин разговора в день",
+    "price.package": "сум / пакет",
+    "price.packageInfo": "{n} минут практики · действует {d} дн.",
+    "price.package.start": "Старт",
+    "price.package.pro": "Про",
     "price.cta": "Выбрать",
     "price.error": "Не удалось загрузить цены. Обнови страницу.",
     "builder.title": "Конструктор — собери тариф сам",
@@ -125,6 +133,7 @@ export const DIRECTIONS = [
   { goal: "olympiad", uz: ["Olimpiada", "Nostandart masalalar, isbot va chuqur tushuncha. Avval o'zing o'ylaysan — Jigar keyin yordam beradi."], ru: ["Олимпиада", "Нестандартные задачи, доказательства и глубокое понимание. Сначала думаешь сам — Джигар помогает потом."] },
   { goal: "university", uz: ["Universitet yoki kurs", "Ma'ruza, seminar va kurs ishi: aniq atamalar, ta'riflar va formulalar."], ru: ["Университет или курсы", "Лекции, семинары и курсовые: точные термины, определения и формулы."] },
   { goal: "language", isNew: true, uz: ["Til o'rganish", "O'zbeklar uchun rus tili, ruslar uchun o'zbek tili: erkin suhbat, rolli o'yin, yangi so'zlar va talaffuz bahosi."], ru: ["Изучение языка", "Русский для узбекоговорящих, узбекский для русскоговорящих: свободный разговор, ролевые игры, новые слова и оценка произношения."] },
+  { goal: "interview", isNew: true, uz: ["Suhbatga tayyorgarlik", "Ishga kirish, OTM yoki grant suhbati: haqiqiy suhbat simulyatsiyasi, har javobga baho va o'ziga ishonch. Bir martalik paket."], ru: ["Подготовка к собеседованию", "Работа, вуз или грант: симуляция настоящего собеседования, разбор каждого ответа и уверенность в себе. Разовый пакет."] },
   { goal: "curious", uz: ["Qiziqish, umumiy bilim", "Ilm-fan, tarix, texnika va tabiatdan qiziqarli faktlar — darslar va testlarsiz."], ru: ["Интерес, общие знания", "Интересные факты из науки, истории, техники и природы — без уроков и тестов."] },
 ];
 
@@ -199,6 +208,10 @@ export const TARIFF_FEATURES = {
   language: {
     uz: ["+Rus (yoki o'zbek) tilida erkin suhbat", "+Talaffuz bahosi: har so'z va tovush", "+Xatolarni yumshoq tuzatish", "+Rolli o'yin va yangi so'zlar", "-Fan darslari (matematika va h.k.)"],
     ru: ["+Свободный разговор на русском (или узбекском)", "+Оценка произношения: каждое слово и звук", "+Мягкое исправление ошибок", "+Ролевые игры и новые слова", "-Школьные предметы (математика и т.д.)"],
+  },
+  interview: {
+    uz: ["+Haqiqiy suhbat simulyatsiyasi (HR, komissiya)", "+Har javobga baho: tuzilma, aniqlik, parazit so'zlar", "+«O'zing haqingda» taqdimotini sayqallash", "+Yakuniy hisobot va tayyor javob rejalari", "-Oylik obuna emas — bir martalik paket"],
+    ru: ["+Симуляция настоящего собеседования (HR, комиссия)", "+Разбор каждого ответа: структура, точность, слова-паразиты", "+Отточенная самопрезентация", "+Итоговый отчёт и планы ответов", "-Не подписка — разовый пакет"],
   },
   curious: {
     uz: ["+Qiziqarli faktlar va dunyoqarash", "+Ilm-fan, tarix, texnika, tabiat", "-Maktab darslari va uy vazifasi", "-DTM va olimpiada", NO_LANG.uz],

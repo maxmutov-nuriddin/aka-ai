@@ -8,6 +8,7 @@ const PATHS = {
   olympiad: '<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5.5a3 3 0 0 0 3 4.5M16 6h2.5a3 3 0 0 1-3 4.5"/><path d="M12 13v4M8.5 20h7M10 17h4"/>',
   university: '<path d="M2.5 9 12 4.5 21.5 9 12 13.5z"/><path d="M6.5 11v4.5c0 1.6 2.5 3 5.5 3s5.5-1.4 5.5-3V11"/><path d="M21.5 9v5"/>',
   language: '<path d="M3 5h11v8H8.5L5 16v-3H3z"/><path d="M14 9h7v8h-2v3l-3.5-3H10v-4"/><path d="M6 8.5h5M6 10.5h3"/>',
+  interview: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21M8.5 21h7"/>',
   curious: '<path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3z"/><path d="M9.5 19h5M10.5 21.5h3"/>',
   // Javob uzunligi
   qisqa: '<path d="M13 2.5 4.5 13.5H11l-1 8 8.5-11H12z"/>',
@@ -37,5 +38,6 @@ export const GOAL_COLORS = {
   olympiad: "#fbbf24",
   university: "#ff6fae",
   language: "#2ee6c8",
+  interview: "#ffb547",
   curious: "#c58cff",
 };

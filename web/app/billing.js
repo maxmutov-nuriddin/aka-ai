@@ -1,7 +1,9 @@
 // Obuna va to'lov oynasi (PayGate): sozlamalardagi "Obuna" qatori va to'lov dialogi.
+// 1-qadamda tanlov: oylik tarif (konstruktor) yoki bir martalik "Suhbatga tayyorgarlik" paketi.
 // O'quvchi kartaga aniq summani o'tkazadi; holat har 5 soniyada so'raladi — tushishi bilan obuna ochiladi.
 import { getLang, t } from "./i18n.js";
 import { createPlanBuilder } from "../shared/plan-builder.js";
+import { PACKAGES } from "../shared/plan-pricing.js";
 
 const PLAN_KEY = "jigar.plan"; // landing konstruktorida yig'ilgan reja
 
@@ -20,6 +22,8 @@ export function createBilling({ apiBase, authHeaders }) {
   let current = null; // joriy to'lov
   let builder = null;
   let tariff = null; // o'quvchining hozirgi tarifi (/api/subscription)
+  let mode = "plan"; // "plan" — oylik tarif, "package" — suhbat paketi
+  let selectedPackage = "start";
 
   async function request(path, method = "GET") {
     const res = await fetch(`${apiBase()}${path}`, { method, headers: { "Content-Type": "application/json", ...authHeaders() } });
@@ -34,8 +38,13 @@ export function createBilling({ apiBase, authHeaders }) {
       const s = await request("/api/subscription");
       tariff = s.tariff;
       const row = $("billingRow");
-      row.hidden = !s.configured || (!s.paywall && !s.paid);
+      row.hidden = !s.configured || (!s.paywall && !s.paid && !s.package);
       if (row.hidden) return s;
+      if (s.package) {
+        $("billingStatus").textContent = t("pay.packageLeft").replace("{n}", s.package.remaining).replace("{date}", formatDate(s.package.until));
+        $("billingStatus").classList.remove("is-warn");
+        return s;
+      }
       $("billingStatus").textContent = s.paid
         ? t("pay.activeUntil").replace("{date}", formatDate(s.paidUntil))
         : s.trial
@@ -69,7 +78,7 @@ export function createBilling({ apiBase, authHeaders }) {
       if (p.status === "paid") {
         stop();
         $("payDetails").hidden = true;
-        $("payState").textContent = t("pay.success").replace("{date}", formatDate(p.paidUntil));
+        $("payState").textContent = p.package ? t("pay.packageSuccess") : t("pay.success").replace("{date}", formatDate(p.paidUntil));
         $("payState").classList.add("is-ok");
         refresh();
         return;
@@ -97,7 +106,32 @@ export function createBilling({ apiBase, authHeaders }) {
     return tariff ? { goals: tariff.goals ?? [tariff.goal], minutes: tariff.minutes } : undefined;
   }
 
-  /** To'lov oynasi: 1-qadam — reja (tayyor tarif yoki konstruktor). */
+  /** Paket kartalari (Start / Pro): bittasi tanlanadi. */
+  function renderPackages() {
+    const fmt = (key, n) => t(key).replace("{n}", n);
+    const cards = Object.entries(PACKAGES).map(([key, p]) => `
+      <button type="button" class="pay-package" role="radio" data-package="${key}" aria-checked="${key === selectedPackage}">
+        <strong>${t(`pay.package${key[0].toUpperCase()}${key.slice(1)}`)}</strong>
+        <span class="price">${priceFmt.format(p.price)} ${t("pay.som")}</span>
+        <small>${fmt("pay.packageMinutes", p.minutes)} · ${fmt("pay.packageDays", p.days)}</small>
+      </button>`).join("");
+    // Matnlar — i18n lug'atidan (statik), narxlar — PACKAGES'dan: foydalanuvchi kiritgan ma'lumot yo'q.
+    $("payPackages").innerHTML = `<p class="intro">${t("pay.packageIntro")}</p>
+      <div role="radiogroup" class="pay-packages">${cards}</div>
+      <p class="features">${t("pay.packageFeatures")}</p>`;
+  }
+
+  /** Oylik tarif yoki paket ko'rinishi. */
+  function setMode(next) {
+    mode = next;
+    $("payTabPlan").setAttribute("aria-pressed", String(mode === "plan"));
+    $("payTabPackage").setAttribute("aria-pressed", String(mode === "package"));
+    $("payPlan").hidden = mode !== "plan";
+    $("payPackages").hidden = mode !== "package";
+    if (mode === "package") renderPackages();
+  }
+
+  /** To'lov oynasi: 1-qadam — reja (tayyor tarif yoki konstruktor) yoki paket. */
   function open() {
     const dialog = $("payDialog");
     stop();
@@ -107,12 +141,14 @@ export function createBilling({ apiBase, authHeaders }) {
     $("payState").textContent = "";
     $("payPlanStep").hidden = false;
     builder = createPlanBuilder($("payPlan"), { lang: getLang(), initial: initialPlan() });
+    setMode(mode);
     if (!dialog.open) dialog.showModal();
   }
 
-  /** 2-qadam: tanlangan reja bo'yicha to'lov (kutilayotgani bo'lsa — o'shani ko'rsatadi). */
+  /** 2-qadam: tanlangan reja yoki paket bo'yicha to'lov (kutilayotgani bo'lsa — o'shani ko'rsatadi). */
   async function pay() {
-    const plan = builder.getPlan();
+    // Konstruktor o'zi paketni ham yig'adi ("Suhbatga tayyorgarlik" tanlansa) — getPurchase shuni qaytaradi.
+    const purchase = mode === "package" ? { package: selectedPackage } : builder.getPurchase();
     $("payPlanStep").hidden = true;
     $("payRetry").hidden = true;
     $("payState").textContent = t("pay.creating");
@@ -120,7 +156,7 @@ export function createBilling({ apiBase, authHeaders }) {
       const res = await fetch(`${apiBase()}/api/payments`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify(purchase),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.code === "payments_off" ? t("pay.off") : t("pay.failed"));
@@ -149,6 +185,14 @@ export function createBilling({ apiBase, authHeaders }) {
   };
 
   $("payBtn").addEventListener("click", open);
+  $("payTabPlan").addEventListener("click", () => setMode("plan"));
+  $("payTabPackage").addEventListener("click", () => setMode("package"));
+  $("payPackages").addEventListener("click", (e) => {
+    const card = e.target.closest("[data-package]");
+    if (!card) return;
+    selectedPackage = card.dataset.package;
+    renderPackages();
+  });
   $("payRetry").addEventListener("click", open);
   $("payContinue").addEventListener("click", pay);
   $("payClose").addEventListener("click", () => {

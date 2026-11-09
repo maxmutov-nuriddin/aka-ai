@@ -10,6 +10,7 @@ const LEVELS_BY_GOAL = {
   olympiad: SCHOOL, // fan olimpiadalari — maktab o'quvchilari
   exam: ["8-9", "10-11", "student"], // nazorat, attestatsiya, DTM; "student" — maktabni bitirgan abituriyent
   university: ["student"], // faqat talaba — savol so'ralmaydi
+  interview: ["10-11", "student"], // suhbatga tayyorgarlik: OTM/grant suhbati yoki ish — katta yoshdagilar
   // language, curious va boshqalar — hamma yosh
 };
 

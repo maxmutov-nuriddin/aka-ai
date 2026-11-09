@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  buildMessages, buildSummaryMessage, createJigar, normalizeHistory, normalizePage, normalizeMode, systemPromptFor, withHeardAlternative, withBeparvoOpener, BEPARVO_OPENERS, normalizeLang, normalizeLength, normalizePersona, PERSONAS, normalizeGoal, normalizeLevel, GOALS, LEVELS, LIMITS, SYSTEM_PROMPT, ValidationError,
+  buildMessages, buildSummaryMessage, createJigar, getConfig, normalizeHistory, normalizePage, normalizeMode, systemPromptFor, withHeardAlternative, withBeparvoOpener, BEPARVO_OPENERS, normalizeLang, normalizeLength, normalizePersona, PERSONAS, normalizeGoal, normalizeLevel, GOALS, LEVELS, LIMITS, SYSTEM_PROMPT, ValidationError,
 } from "../../server/core/jigar.js";
 
 function fakeClient(response) {
@@ -139,6 +139,20 @@ test("chat: fallbacks o'chirilsa oddiy messages.create ishlatiladi", async () =>
   };
   await createJigar({ client, config: { ...config, fallbacks: false } }).chat({ history: [{ role: "user", content: "Salom" }] });
   assert.deepEqual(calls, { beta: 0, plain: 1 });
+});
+
+test("chat: llm=haiku — Claude Haiku modeli, server zaxirasisiz (Haiku uni qo'llamaydi)", async () => {
+  const calls = { beta: 0, plain: [] };
+  const client = {
+    messages: { create: async (p) => { calls.plain.push(p); return okResponse("ok"); } },
+    beta: { messages: { create: async () => { calls.beta++; return okResponse("ok"); } } },
+  };
+  await createJigar({ client, config: { ...config, haikuModel: "claude-haiku-5-5" } }).chat({ history: [{ role: "user", content: "Salom" }], llm: "haiku" });
+  assert.equal(calls.beta, 0);
+  assert.equal(calls.plain[0].model, "claude-haiku-5-5");
+  assert.deepEqual(calls.plain[0].thinking, { type: "disabled" }); // tez va arzon
+  assert.equal(getConfig({}).haikuModel, "claude-haiku-5-5");
+  assert.equal(getConfig({ AKA_HAIKU_MODEL: "claude-haiku-4-5" }).haikuModel, "claude-haiku-4-5");
 });
 
 test("chat: refusal bo'lsa yumshoq rad javobi qaytadi", async () => {

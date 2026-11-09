@@ -207,7 +207,13 @@
     <h2 id="payTitle" data-i18n="pay.dialogTitle">Obunani to'lash</h2>
     <!-- 1-qadam: reja (tayyor tarif yoki konstruktor) — billing.js -->
     <div id="payPlanStep" hidden>
+      <!-- Oylik tarif (konstruktor) yoki bir martalik "Suhbatga tayyorgarlik" paketi: billing.js -->
+      <div class="seg pay-tabs" role="group" aria-label="To'lov turi">
+        <button type="button" id="payTabPlan" aria-pressed="true" data-i18n="pay.tabPlan">Oylik tarif</button>
+        <button type="button" id="payTabPackage" aria-pressed="false" data-i18n="pay.tabPackage">Suhbat paketi</button>
+      </div>
       <div id="payPlan"></div>
+      <div id="payPackages" class="pay-packages" hidden></div>
       <button type="button" class="pay-continue" id="payContinue" data-i18n="pay.continue">To'lashga o'tish</button>
       <p class="pay-legal"><span data-i18n="pay.legal">To'lov orqali siz shartlarga rozilik bildirasiz:</span> <a href="/oferta" target="_blank" rel="noopener" data-i18n="pay.offer">ommaviy oferta</a></p>
     </div>

@@ -1,5 +1,9 @@
 // To'lovlar va obuna (repository). Obuna — users.paid_until (ISO vaqt); har to'lov +30 kun.
+// Paket (Suhbatga tayyorgarlik) — users.package: { key, minutes, startDay, until }; obunaga tegmaydi.
 // Bir to'lov faqat bir marta hisoblanadi: holat "pending" -> "paid" o'tishi tranzaksiyada.
+
+import { packageFor } from "../usage/plan-pricing.js";
+import { todayInTashkent } from "../usage/store.js";
 
 export const SUBSCRIPTION_DAYS = 30;
 const DAY_MS = 86_400_000;
@@ -11,8 +15,8 @@ const DAY_MS = 86_400_000;
 export function createPaymentStore(db, { now = () => new Date() } = {}) {
   const q = {
     insert: db.prepare(
-      `INSERT INTO payments (payment_id, order_id, user_id, goal, amount, card, card_holder, expire_at, plan)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO payments (payment_id, order_id, user_id, goal, amount, card, card_holder, expire_at, plan, package)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ),
     byId: db.prepare("SELECT * FROM payments WHERE payment_id = ?"),
     pendingFor: db.prepare(
@@ -27,11 +31,13 @@ export function createPaymentStore(db, { now = () => new Date() } = {}) {
     expire: db.prepare("UPDATE payments SET expire_at = ? WHERE payment_id = ?"),
     user: db.prepare("SELECT created_at, paid_until FROM users WHERE id = ?"),
     setPaidUntil: db.prepare("UPDATE users SET paid_until = ?, plan = COALESCE(?, plan) WHERE id = ?"),
+    userPackage: db.prepare("SELECT package FROM users WHERE id = ?"),
+    setPackage: db.prepare("UPDATE users SET package = ? WHERE id = ?"),
   };
   const nowSec = () => Math.floor(now().getTime() / 1000);
 
-  function create({ paymentId, orderId, userId, goal, amount, card, cardHolder, expireAt, plan = null }) {
-    q.insert.run(paymentId, orderId, userId, goal, amount, card ?? null, cardHolder ?? null, expireAt, plan ? JSON.stringify(plan) : null);
+  function create({ paymentId, orderId, userId, goal, amount, card, cardHolder, expireAt, plan = null, pkg = null }) {
+    q.insert.run(paymentId, orderId, userId, goal, amount, card ?? null, cardHolder ?? null, expireAt, plan ? JSON.stringify(plan) : null, pkg);
     return q.byId.get(paymentId);
   }
 
@@ -52,16 +58,42 @@ export function createPaymentStore(db, { now = () => new Date() } = {}) {
         db.exec("ROLLBACK");
         return false;
       }
-      const current = Date.parse(q.user.get(payment.user_id)?.paid_until ?? "") || 0;
-      const from = Math.max(current, now().getTime());
-      // To'langan reja (konstruktor yoki tayyor tarif) o'quvchiga o'tadi — limit va Jigar doirasi shundan.
-      q.setPaidUntil.run(new Date(from + SUBSCRIPTION_DAYS * DAY_MS).toISOString(), payment.plan ?? null, payment.user_id);
+      if (payment.package) {
+        grantPackage(payment.user_id, payment.package);
+      } else {
+        const current = Date.parse(q.user.get(payment.user_id)?.paid_until ?? "") || 0;
+        const from = Math.max(current, now().getTime());
+        // To'langan reja (konstruktor yoki tayyor tarif) o'quvchiga o'tadi — limit va Jigar doirasi shundan.
+        q.setPaidUntil.run(new Date(from + SUBSCRIPTION_DAYS * DAY_MS).toISOString(), payment.plan ?? null, payment.user_id);
+      }
       db.exec("COMMIT");
       return true;
     } catch (err) {
       db.exec("ROLLBACK");
       throw err;
     }
+  }
+
+  /**
+   * Paketni beradi: faol paket bo'lsa — daqiqa qo'shiladi (sarf hisobi o'sha kundan davom etadi), muddat qisqarmaydi;
+   * aks holda — bugundan yangi paket.
+   */
+  function grantPackage(userId, key) {
+    const pkg = packageFor(key);
+    if (!pkg) throw new Error(`Noma'lum paket: ${key}`);
+    let current = null;
+    try {
+      current = JSON.parse(q.userPackage.get(userId)?.package ?? "null");
+    } catch {
+      current = null;
+    }
+    const t = now().getTime();
+    const until = new Date(t + pkg.days * DAY_MS).toISOString();
+    const active = current && Date.parse(current.until) > t;
+    const next = active
+      ? { key, minutes: current.minutes + pkg.minutes, startDay: current.startDay, until: Date.parse(current.until) > Date.parse(until) ? current.until : until }
+      : { key, minutes: pkg.minutes, startDay: todayInTashkent(now()), until };
+    q.setPackage.run(JSON.stringify(next), userId);
   }
 
   const markCancelled = (paymentId) => q.markCancelled.run(paymentId).changes > 0;

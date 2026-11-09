@@ -18,6 +18,7 @@ const BEPARVO_PROMPT = readPrompt("beparvo-mode.md");
 // Rus tili tanlansa — oxiriga qo'shiladi va til qoidalarini almashtiradi.
 const RUSSIAN_PROMPT = readPrompt("lang-ru.md");
 const LANGUAGE_MODE_PROMPT = readPrompt("mode-language.md");
+const INTERVIEW_MODE_PROMPT = readPrompt("mode-interview.md"); // Suhbatga tayyorgarlik (paket)
 const LANGUAGE_NAMES = { uz: "o'zbek tili", ru: "rus tili" };
 
 /** Til o'rganish yo'nalishi: ona tili (interfeys) va o'rganiladigan til — o'zbek <-> rus. */
@@ -65,6 +66,8 @@ const GOAL_GUIDE = {
     + "Bunday so'rov bo'lsa: 1-2 gapda umumiy tushuncha ber, misol yoki masalani yechib berma va muloyim ayt: \"Buni chuqur o'rganish uchun Maktab darslari yoki Imtihon tarifi kerak — u yerda qadamma-qadam o'rgatamiz.\"",
   // Til o'rganish (gapirish mashqi): o'zbek o'quvchi — rus tili, rus o'quvchi — o'zbek tili. Batafsil: prompts/mode-language.md.
   language: "Til o'rganish, gapirish mashqi. DOIRA va qoidalar — pastdagi \"TIL O'RGANISH\" bo'limida.",
+  // Suhbatga tayyorgarlik (paket): ish, OTM yoki grant suhbati, ommaviy chiqish. Batafsil: prompts/mode-interview.md.
+  interview: "Suhbatga tayyorgarlik. DOIRA va qoidalar — pastdagi \"SUHBATGA TAYYORGARLIK\" bo'limida.",
   // Eski (olib tashlangan) yo'nalish — mavjud profillar buzilmasin; tarif: qiziqish.
   it: "Qiziqish, umumiy bilim. DOIRA: har qanday ta'limiy mavzu. Misollarni texnologiyadan olsang bo'ladi.",
 };
@@ -108,6 +111,7 @@ const GOAL_SCOPE = {
   university: "Universitet yoki kurs — oliy ta'lim fanlari, ma'ruza, seminar, kurs ishi.",
   language: "Til o'rganish — gapirish mashqi (pastdagi \"TIL O'RGANISH\" bo'limi).",
   curious: "Qiziqish — ilm-fan, tarix, texnika, tabiat haqida qiziqarli faktlar.",
+  interview: "Suhbatga tayyorgarlik — ish, OTM yoki grant suhbati mashqi (pastdagi \"SUHBATGA TAYYORGARLIK\" bo'limi).",
 };
 const MULTI_OFF_SCOPE = "Bu yo'nalishlardan tashqaridagi savolga 1-2 gapda qisqa javob ber va o'quvchini muloyimlik bilan o'z yo'nalishlariga qaytar.";
 
@@ -179,6 +183,7 @@ export function systemPromptFor(
   if (profile) parts.push(profile);
   if (lang === "ru") parts.push(RUSSIAN_PROMPT);
   if (allGoals.includes("language")) parts.push(languageModePrompt(lang)); // ikki tilda gapirish — til qoidasidan keyin, ustun
+  if (allGoals.includes("interview")) parts.push(INTERVIEW_MODE_PROMPT); // suhbat mashqi — uzunlik va quiz qoidalaridan ustun
   return parts.join("\n\n");
 }
 
@@ -207,6 +212,8 @@ function normalizeImage(image) {
 export function getConfig(env = process.env) {
   return {
     model: env.AKA_MODEL || "claude-opus-5-5",
+    // Arzon Claude (support panelida "Claude Haiku" tanlansa). Server zaxirasini qo'llamaydi — u o'chiq yuboriladi.
+    haikuModel: env.AKA_HAIKU_MODEL || "claude-haiku-5-5",
     effort: env.AKA_EFFORT || "medium",
     maxTokens: Number(env.AKA_MAX_TOKENS) || 16000,
     // Server tomonidagi zaxira model (refusal bo'lsa). Faqat Claude API'da ishlaydi.
@@ -382,20 +389,23 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ra
   }
 
   async function call(messages, mode = "oddiy", lang = "uz", style = {}, llm = "claude") {
-    if (llm !== "claude" && alternatives[llm]?.configured) {
+    if (alternatives[llm]?.configured) {
       const viaAlternative = await callAlternative(llm, messages, systemPromptFor(mode, lang, style));
       if (viaAlternative) return viaAlternative;
     }
+    const haiku = llm === "haiku";
     const params = {
-      model: config.model,
+      model: haiku ? config.haikuModel : config.model,
       max_tokens: config.maxTokens,
       system: systemPromptFor(mode, lang, style),
       cache_control: { type: "ephemeral" }, // tizim prompti + sahifa keshlanadi
       output_config: { effort: config.effort },
+      // Haiku: ichki o'ylash o'chiq — javob ~2 baravar tez va arzon (tushuntirish uchun o'ylash shart emas).
+      ...(haiku ? { thinking: { type: "disabled" } } : {}),
       messages,
     };
     let message;
-    if (config.fallbacks) {
+    if (config.fallbacks && !haiku) {
       message = await client.beta.messages.create({
         ...params,
         betas: ["server-side-fallback-2026-07-01"],

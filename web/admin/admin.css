@@ -23,6 +23,7 @@
 [data-goal="olympiad"] { --gc: var(--g-olympiad); }
 [data-goal="university"] { --gc: var(--g-university); }
 [data-goal="language"] { --gc: var(--g-language); }
+[data-goal="interview"] { --gc: #ffb547; }
 
 body { background: var(--bg); min-height: 100vh; }
 .i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -216,7 +217,9 @@ button { font: inherit; color: inherit; }
 /* Tariflar jadvali: miya guruhlari (ikki qatorli sarlavha) */
 .table .grp { border-left: 1px solid var(--line); }
 .table th.group { text-align: center; border-bottom: 1px solid var(--line); }
-#tariffBody td, #tariffHead th { padding-left: 12px; padding-right: 12px; }
+#tariffBody td, #tariffHead th { padding-left: 6px; padding-right: 6px; }
+#tariffBody td { font-size: 13px; }
+#tariffBody td, #tariffHead th { white-space: nowrap; }
 .table td .sub { display: block; font-size: 12px; }
 #usersBody tr { cursor: pointer; transition: background var(--dur-fast); }
 #usersBody tr:hover, #usersBody tr.is-open { background: rgba(255, 255, 255, 0.035); }

@@ -2,16 +2,17 @@
 import express from "express";
 import { randomBytes } from "node:crypto";
 import { requireUser } from "../auth/session.js";
-import { normalizePlan, planPrice, standardPlan, tariffOf } from "../usage/tariffs.js";
+import { normalizePlan, packageFor, planPrice, standardPlan, tariffOf } from "../usage/tariffs.js";
 
 const DEFAULT_TRIAL_DAYS = 3;
 
 /**
  * @param {{ paygate: ReturnType<import("./paygate.js").createPaygate>,
  *           payments: ReturnType<import("./store.js").createPaymentStore>,
- *           env: Record<string, string | undefined>, limiter: import("express").RequestHandler }} options
+ *           env: Record<string, string | undefined>, limiter: import("express").RequestHandler,
+ *           packageOf?: (user: object) => object | null }} options  packageOf — faol paket holati (yoki null)
  */
-export function createPaymentRouter({ paygate, payments, env, limiter }) {
+export function createPaymentRouter({ paygate, payments, env, limiter, packageOf = () => null }) {
   const router = express.Router();
   const trialSetting = Number(env.TRIAL_DAYS);
   const trialDays = env.TRIAL_DAYS != null && env.TRIAL_DAYS !== "" && Number.isFinite(trialSetting) ? trialSetting : DEFAULT_TRIAL_DAYS;
@@ -28,6 +29,7 @@ export function createPaymentRouter({ paygate, payments, env, limiter }) {
     status: p.status,
     goal: p.goal,
     plan: p.plan ? JSON.parse(p.plan) : null,
+    package: p.package ?? null,
   });
 
   /** To'lov tasdiqlansa — obuna; bekor bo'lsa — belgilanadi. */
@@ -52,21 +54,32 @@ export function createPaymentRouter({ paygate, payments, env, limiter }) {
   router.get("/subscription", requireUser, async (req, res) => {
     if (paygate.configured) await reconcile(req.user.id);
     const access = payments.access(req.user.id, trialDays);
-    res.json({ paywall, ...access, tariff: tariffOf(req.user.profile?.goal, req.user.plan), configured: paygate.configured });
+    res.json({
+      paywall, ...access, tariff: tariffOf(req.user.profile?.goal, req.user.plan), package: packageOf(req.user), configured: paygate.configured,
+    });
   });
 
-  // Yangi to'lov: reja (konstruktor) yoki o'quvchining tayyor tarifi narxida.
-  // Xuddi shu rejaga kutilayotgan (muddati o'tmagan) to'lov bo'lsa — o'sha qaytariladi.
+  /** To'lov nima uchun: paket ({ package }) yoki oylik reja ({ plan } / o'quvchining tayyor tarifi). Noto'g'ri — null. */
+  function purchaseOf(user, body) {
+    if (body?.package !== undefined) {
+      const pkg = packageFor(body.package);
+      return pkg && { amount: pkg.price, goal: "interview", plan: null, pkg: pkg.key };
+    }
+    const plan = body?.plan === undefined ? standardPlan(user.profile?.goal) : normalizePlan(body.plan);
+    return plan && { amount: planPrice(plan.goals, plan.minutes), goal: plan.goals[0], plan, pkg: null };
+  }
+
+  // Yangi to'lov: paket, reja (konstruktor) yoki o'quvchining tayyor tarifi narxida.
+  // Xuddi shu narsaga kutilayotgan (muddati o'tmagan) to'lov bo'lsa — o'sha qaytariladi.
   router.post("/payments", requireUser, limiter, async (req, res) => {
     if (!paygate.configured) return res.status(503).json({ error: "To'lov hozircha ulanmagan.", code: "payments_off" });
-    const requested = req.body?.plan;
-    const plan = requested === undefined ? standardPlan(req.user.profile?.goal) : normalizePlan(requested);
-    if (!plan) return res.status(400).json({ error: "Reja noto'g'ri: yo'nalishlar va 5–30 daqiqa kerak.", code: "invalid" });
-    const amount = planPrice(plan.goals, plan.minutes);
+    const purchase = purchaseOf(req.user, req.body);
+    if (!purchase) return res.status(400).json({ error: "Reja yoki paket noto'g'ri.", code: "invalid" });
+    const { amount, plan, pkg } = purchase;
     const pending = payments.pendingFor(req.user.id);
-    if (pending && pending.plan === JSON.stringify(plan)) return res.json(view(pending));
+    if (pending && pending.plan === (plan ? JSON.stringify(plan) : null) && (pending.package ?? null) === pkg) return res.json(view(pending));
     const orderId = `JIGAR_${req.user.id}_${randomBytes(6).toString("hex")}`;
-    const tariff = { goal: plan.goals[0], price: amount };
+    const tariff = { goal: purchase.goal, price: amount };
     try {
       const p = await paygate.create({ amount, orderId, completeUrl });
       const saved = payments.create({
@@ -79,6 +92,7 @@ export function createPaymentRouter({ paygate, payments, env, limiter }) {
         cardHolder: p.card_holder,
         expireAt: Number(p.expire_at) || Math.floor(Date.now() / 1000) + (Number(p.expires_in) || 300),
         plan,
+        pkg,
       });
       res.status(201).json(view(saved));
     } catch (err) {
@@ -118,7 +132,7 @@ export function createPaymentRouter({ paygate, payments, env, limiter }) {
   });
 
   /** Chat uchun: paywall yoqilgan va obuna/sinov yo'q bo'lsa — false (support — har doim ruxsat). */
-  const canUse = (user) => !paywall || user.role === "support" || payments.access(user.id, trialDays).active;
+  const canUse = (user) => !paywall || user.role === "support" || payments.access(user.id, trialDays).active || Boolean(packageOf(user));
 
   return { router, canUse, reconcile };
 }
