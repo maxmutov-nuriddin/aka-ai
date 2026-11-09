@@ -824,6 +824,25 @@ for (const btn of el.settingsPop.querySelectorAll("[data-length]")) {
 }
 el.simpleToggle.addEventListener("change", () => updatePrefs({ simple: el.simpleToggle.checked }));
 
+$("nameForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const input = $("accountNameInput");
+  const name = input.value.trim();
+  try {
+    const res = await fetch(`${host.apiBase}/api/auth/name`, {
+      method: "PUT", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify({ name }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Ismni saqlab bo'lmadi.");
+    $("accountName").textContent = data.user.name;
+    input.value = data.user.name;
+  } catch (err) {
+    input.setCustomValidity(err.message);
+    input.reportValidity();
+    input.setCustomValidity("");
+  }
+});
+
 // ---------- Support ----------
 // Ovoz xizmati, xarakter, sinf va foydalanuvchilar — Support panelida (/admin).
 // Ilovada support faqat panelga havolani ko'radi.
@@ -846,6 +865,7 @@ async function loadAccount() {
     if (!res.ok) return;
     const { user } = await res.json();
     $("accountName").textContent = user.name;
+    $("accountNameInput").value = user.name;
     $("accountEmail").textContent = user.email;
     syncServerProfile(user.profile);
     renderSupport(user);

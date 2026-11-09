@@ -91,9 +91,16 @@
             </div>
             <div class="setting account">
               <span class="setting-label" data-i18n="settings.account">Hisob</span>
+              <form class="name-form" id="nameForm">
+                <label class="setting-label" for="accountNameInput" data-i18n="settings.name">Ism</label>
+                <div class="name-controls">
+                  <input id="accountNameInput" type="text" maxlength="60" minlength="2" autocomplete="name" required>
+                  <button type="submit" class="primary" data-i18n="settings.save">Saqlash</button>
+                </div>
+              </form>
               <div class="account-row">
-                <span class="account-who"><strong id="accountName">—</strong><small id="accountEmail"></small></span>
-                <button type="button" class="ghost" id="logoutBtn" data-i18n="settings.logout">Chiqish</button>
+                <span id="accountName" hidden>—</span><small class="account-email" id="accountEmail"></small>
+                <button type="button" class="ghost logout-btn" id="logoutBtn" data-i18n="settings.logout">Chiqish</button>
               </div>
             </div>
           </div>

@@ -59,12 +59,9 @@ export function normalizeEmail(email) {
 
 /** Ro'yxatdan o'tish ma'lumotini tekshiradi. Qaytaradi: tozalangan {name, email, password}. */
 export function validateRegistration({ name, email, password } = {}) {
-  const cleanName = str(name).trim().replace(/\s+/g, " ");
+  const cleanName = validateName(name);
   const cleanEmail = normalizeEmail(email);
   const pass = str(password);
-  if (cleanName.length < LIMITS.nameMin || cleanName.length > LIMITS.nameMax) {
-    throw new ValidationError(`Ism ${LIMITS.nameMin}-${LIMITS.nameMax} belgi bo'lsin.`);
-  }
   if (!EMAIL_RE.test(cleanEmail) || cleanEmail.length > LIMITS.emailMax) {
     throw new ValidationError("Email noto'g'ri.");
   }
@@ -72,6 +69,15 @@ export function validateRegistration({ name, email, password } = {}) {
     throw new ValidationError(`Parol kamida ${LIMITS.passwordMin} belgi bo'lsin.`);
   }
   return { name: cleanName, email: cleanEmail, password: pass };
+}
+
+/** Ismni ro'yxatdan o'tish va hisob sozlamalarida bir xil qoida bilan tekshiradi. */
+export function validateName(name) {
+  const cleanName = str(name).trim().replace(/\s+/g, " ");
+  if (cleanName.length < LIMITS.nameMin || cleanName.length > LIMITS.nameMax) {
+    throw new ValidationError(`Ism ${LIMITS.nameMin}-${LIMITS.nameMax} belgi bo'lsin.`);
+  }
+  return cleanName;
 }
 
 /** SUPPORT_EMAILS ("a@x.uz, b@y.uz") — kichik harfli to'plam. */
@@ -111,6 +117,7 @@ export function createAuthStore(db, { now = () => new Date(), supportEmails = ne
        WHERE s.token_hash = ? AND s.expires_at > ? AND u.blocked = 0`,
     ),
     updateProfile: db.prepare("UPDATE users SET profile = ? WHERE id = ?"),
+    updateName: db.prepare("UPDATE users SET name = ? WHERE id = ?"),
     userById: db.prepare("SELECT id, name, email, profile, plan, package FROM users WHERE id = ?"),
     deleteSession: db.prepare("DELETE FROM sessions WHERE token_hash = ?"),
     deleteExpired: db.prepare("DELETE FROM sessions WHERE expires_at <= ?"),
@@ -157,6 +164,13 @@ export function createAuthStore(db, { now = () => new Date(), supportEmails = ne
     return toPublic(q.userById.get(userId));
   }
 
+  /** Foydalanuvchi o'z hisobidagi ismni o'zgartirishi mumkin. */
+  function updateName(userId, input) {
+    const name = validateName(input);
+    q.updateName.run(name, userId);
+    return toPublic(q.userById.get(userId));
+  }
+
   // ---------- Support (admin panel) ----------
   const adminView = (row) => ({ ...toPublic(row), blocked: Boolean(row.blocked), createdAt: row.created_at, paidUntil: row.paid_until ?? null });
 
@@ -186,5 +200,5 @@ export function createAuthStore(db, { now = () => new Date(), supportEmails = ne
     q.deleteExpired.run(now().toISOString());
   }
 
-  return { createUser, verifyCredentials, createSession, userForToken, updateProfile, listUsers, setBlocked, deleteUser, deleteSession, deleteExpiredSessions };
+  return { createUser, verifyCredentials, createSession, userForToken, updateProfile, updateName, listUsers, setBlocked, deleteUser, deleteSession, deleteExpiredSessions };
 }

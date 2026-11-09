@@ -140,6 +140,25 @@ test("PUT /api/auth/profile: oddiy foydalanuvchi o'zgartira olmaydi (403), role 
   }
 });
 
+test("PUT /api/auth/name: har bir kirgan foydalanuvchi ismini yangilaydi", async () => {
+  const s = await startServer(appOptions, { login: false });
+  try {
+    const registered = await fetch(`${s.base}/api/auth/register`, json(TEST_USER));
+    const cookie = registered.headers.get("set-cookie").split(";")[0];
+    const put = (body, headers = { Cookie: cookie }) => fetch(`${s.base}/api/auth/name`, {
+      method: "PUT", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body),
+    });
+    const ok = await put({ name: "  Ali   Valiyev " });
+    assert.equal(ok.status, 200);
+    assert.equal((await ok.json()).user.name, "Ali Valiyev");
+    assert.equal((await (await fetch(`${s.base}/api/auth/me`, { headers: { Cookie: cookie } })).json()).user.name, "Ali Valiyev");
+    assert.equal((await put({ name: "A" })).status, 400);
+    assert.equal((await put({ name: "Ali" }, {})).status, 401);
+  } finally {
+    s.close();
+  }
+});
+
 test("support (SUPPORT_EMAILS): role qaytadi, ovoz xizmatini hammaga tanlaydi; oddiy foydalanuvchi — 403", async () => {
   const seen = [];
   const synth = (tag) => ({ configured: true, async synthesize(_t, o) { seen.push(o); return Buffer.from(tag); } });

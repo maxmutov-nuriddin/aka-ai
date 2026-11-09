@@ -128,6 +128,16 @@ h1 { font: 800 18px/1.1 var(--font-display); margin: 0; }
 .account-who { display: flex; flex-direction: column; min-width: 0; }
 .account-who strong { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .account-who small { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.name-form { display: flex; flex-direction: column; gap: 6px; }
+.name-controls { display: flex; flex-direction: column; gap: 8px; }
+.name-form input { min-width: 0; width: 100%; height: 38px; padding: 0 12px; color: var(--text); background: var(--glass); border: 1px solid var(--line); border-radius: 10px; font: inherit; font-size: 14px; }
+.name-form input:focus { outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: 1px; }
+.name-controls .primary { width: 100%; height: 38px; justify-content: center; }
+.account-row .ghost { width: 100%; height: 36px; }
+.account-row { flex-direction: column; align-items: stretch; gap: 10px; padding-top: 4px; }
+.account-email { min-width: 0; overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; font-size: 12px; padding: 2px 1px; }
+.account-row .logout-btn { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, var(--glass)); border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }
+.account-row .logout-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 22%, var(--glass)); border-color: var(--danger); }
 
 .mode-toggle { border-radius: 999px; padding: 0 14px 0 9px; font-weight: 700; }
 .mode-dot { width: 30px; height: 18px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); position: relative; transition: background var(--dur) var(--ease); }

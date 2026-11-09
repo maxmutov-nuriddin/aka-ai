@@ -75,6 +75,18 @@ export function createAuthRouter({ store, secureCookies, authMax = AUTH_MAX }) {
     }
   });
 
+  // Ism — hisobning shaxsiy maydoni; uni har bir kirgan foydalanuvchi yangilay oladi.
+  router.put("/name", (req, res) => {
+    if (!req.user) return res.status(401).json({ error: "Kirilmagan.", code: "auth_required" });
+    try {
+      res.json({ user: store.updateName(req.user.id, req.body?.name) });
+    } catch (err) {
+      if (err instanceof ValidationError) return res.status(400).json({ error: err.message, code: "invalid" });
+      console.error("[/api/auth/name]", err);
+      res.status(500).json({ error: "Ismni saqlab bo'lmadi.", code: "server" });
+    }
+  });
+
   router.get("/me", (req, res) => {
     if (!req.user) return res.status(401).json({ error: "Kirilmagan.", code: "auth_required" });
     res.json({ user: req.user });
