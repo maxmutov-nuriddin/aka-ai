@@ -1,7 +1,15 @@
 // Kunlik sarf (repository): tarif limiti uchun har foydalanuvchining bugungi savollari va ovoz belgilari.
 const TASHKENT_OFFSET_MS = 5 * 60 * 60_000; // UTC+5, yozgi vaqt yo'q
 const CHARS_PER_MINUTE = 900; // o'zbekcha nutq: ~900 belgi ≈ 1 daqiqa ovoz
-const MINUTES_PER_CHAT = 0.5; // har savol (Claude xarajati) — 0.5 daqiqa
+// Har savol (LLM xarajati) — standart 0.5 daqiqa: tarif tannarxi shunga hisoblangan (1 savol-javob ≈ 1 daqiqa); .env: MINUTES_PER_CHAT
+const DEFAULT_MINUTES_PER_CHAT = 0.5;
+
+/** .env dagi MINUTES_PER_CHAT: manfiy bo'lmagan chekli son; bo'sh yoki noto'g'ri bo'lsa — standart. */
+export function minutesPerChatFrom(env = {}) {
+  const raw = String(env.MINUTES_PER_CHAT ?? "").trim();
+  const value = Number(raw);
+  return raw && Number.isFinite(value) && value >= 0 ? value : DEFAULT_MINUTES_PER_CHAT;
+}
 
 /** Bugungi sana (YYYY-MM-DD) Toshkent vaqti bo'yicha — limit yarim tunda yangilanadi. */
 export function todayInTashkent(now = new Date()) {
@@ -10,9 +18,9 @@ export function todayInTashkent(now = new Date()) {
 
 /**
  * @param {import("node:sqlite").DatabaseSync} db
- * @param {{ now?: () => Date }} [options]
+ * @param {{ now?: () => Date, minutesPerChat?: number }} [options]
  */
-export function createUsageStore(db, { now = () => new Date() } = {}) {
+export function createUsageStore(db, { now = () => new Date(), minutesPerChat = DEFAULT_MINUTES_PER_CHAT } = {}) {
   const q = {
     get: db.prepare("SELECT chats, tts_chars FROM usage_daily WHERE user_id = ? AND day = ?"),
     add: db.prepare(
@@ -32,7 +40,7 @@ export function createUsageStore(db, { now = () => new Date() } = {}) {
   function minutesToday(userId) {
     const row = q.get.get(userId, today());
     if (!row) return 0;
-    return Math.round((row.chats * MINUTES_PER_CHAT + row.tts_chars / CHARS_PER_MINUTE) * 10) / 10;
+    return Math.round((row.chats * minutesPerChat + row.tts_chars / CHARS_PER_MINUTE) * 10) / 10;
   }
 
   /** Muvaffaqiyatli javobdan keyin. */
@@ -57,7 +65,7 @@ export function createUsageStore(db, { now = () => new Date() } = {}) {
     const rows = new Map(q.totals.all(list[0]).map((r) => [r.day, r]));
     return list.map((day) => {
       const r = rows.get(day);
-      const minutes = r ? Math.round((r.chats * MINUTES_PER_CHAT + r.ttsChars / CHARS_PER_MINUTE) * 10) / 10 : 0;
+      const minutes = r ? Math.round((r.chats * minutesPerChat + r.ttsChars / CHARS_PER_MINUTE) * 10) / 10 : 0;
       return { day, users: r?.users ?? 0, minutes };
     });
   }

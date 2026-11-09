@@ -34,9 +34,9 @@ test("summadan daqiqa, tavsiya va tekshiruv", () => {
   assert.deepEqual(standardPlan("exam"), { goals: ["exam"], minutes: 15 });
 });
 
-test("kunlik limit rejadan: teng xarajat qoidasi saqlanadi", () => {
-  assert.equal(planDailyMinutes({ goals: ["study"], minutes: 20 }, "fishaudio", "claude"), 20);
-  assert.equal(planDailyMinutes({ goals: ["study"], minutes: 20 }, "gemini", "claude"), 29.9);
+test("kunlik limit rejadan: teng foyda qoidasi — reja narxidan (415 000 x 0.83 / daqiqa narxi x 30)", () => {
+  assert.equal(planDailyMinutes({ goals: ["study"], minutes: 20 }, "fishaudio", "claude"), 20.8);
+  assert.equal(planDailyMinutes({ goals: ["study"], minutes: 20 }, "gemini", "claude"), 31.2);
 });
 
 test("Jigar: bir nechta yo'nalish — hammasi doirada; til tanlangan bo'lsa — gapirish murabbiyi ham", () => {

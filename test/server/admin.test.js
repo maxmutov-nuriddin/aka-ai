@@ -35,7 +35,7 @@ test("admin panel: ro'yxat, ko'rsatkichlar, tahrirlash, bugungi limitni tiklash"
     const { users } = await (await req(s, "GET", "/api/admin/users", boss)).json();
     const u = users.find((x) => x.email === "u@x.uz");
     assert.equal(u.profile.goal, "study");
-    assert.equal(u.usedMinutes, 0.5);
+    assert.equal(u.usedMinutes, 0.5); // 1 savol × MINUTES_PER_CHAT (standart 0.5)
     assert.equal(u.tariff.price, 249000);
     assert.equal(u.blocked, false);
     assert.ok(u.createdAt);

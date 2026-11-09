@@ -1,8 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { startServer, TEST_USER } from "./helpers.js";
-import { todayInTashkent } from "../../server/usage/store.js";
-import { TARIFFS, comboKeys, dailyMinutes, tariffFor } from "../../server/usage/tariffs.js";
+import { createUsageStore, minutesPerChatFrom, todayInTashkent } from "../../server/usage/store.js";
+import { openDatabase } from "../../server/db/database.js";
+import { TARIFFS, comboKeys, costPerMinute, dailyMinutes, tariffFor } from "../../server/usage/tariffs.js";
 
 const voice = (tag) => ({ configured: true, async synthesize() { return Buffer.from(tag); } });
 const fakeJigar = { async chat() { return { text: "ok", parsed: {} }; }, async summary() { return { text: "x" }; } };
@@ -22,6 +23,21 @@ async function register(s, email, profile) {
 test("todayInTashkent: kun Toshkent vaqti (UTC+5) bo'yicha almashadi", () => {
   assert.equal(todayInTashkent(new Date("2026-11-08T18:59:00Z")), "2026-11-08");
   assert.equal(todayInTashkent(new Date("2026-11-08T19:00:00Z")), "2026-11-09");
+});
+
+test("MINUTES_PER_CHAT env'dan: to'g'ri son olinadi, bo'sh yoki noto'g'ri bo'lsa 0.5", () => {
+  assert.equal(minutesPerChatFrom({ MINUTES_PER_CHAT: "1.2" }), 1.2);
+  assert.equal(minutesPerChatFrom({ MINUTES_PER_CHAT: "0" }), 0);
+  for (const bad of [undefined, "", "abc", "-1", "Infinity"]) assert.equal(minutesPerChatFrom({ MINUTES_PER_CHAT: bad }), 0.5, String(bad));
+});
+
+test("usage store: har savol minutesPerChat daqiqa hisoblanadi", () => {
+  const db = openDatabase(":memory:");
+  db.prepare("INSERT INTO users (id, email, name, password_hash) VALUES (1, 'a@x.uz', 'A', 'x')").run();
+  const store = createUsageStore(db, { minutesPerChat: 2 });
+  store.addChat(1);
+  store.addChat(1);
+  assert.equal(store.minutesToday(1), 4);
 });
 
 test("tariflar: 6 yo'nalish, narx va kunlik daqiqa; eski/noma'lum maqsad — qiziqish", () => {
@@ -92,13 +108,19 @@ test("/api/tariffs: ochiq (kirishsiz) — narx va joriy ovoz xizmatidagi kunlik 
   }
 });
 
-test("teng xarajat: kunlik limit miya + ovoz juftligiga qarab — xarajat Claude + Fish bilan bir xil", () => {
-  assert.equal(dailyMinutes("study", "fishaudio", "claude"), 12);
-  assert.equal(dailyMinutes("study", "gemini", "claude"), 17.9);
-  assert.equal(dailyMinutes("study", "gemini", "gemini"), 15.6);
-  assert.equal(dailyMinutes("study", "fishaudio", "gemini"), 10.9);
-  assert.equal(dailyMinutes("study", "elevenlabs", "claude"), 4.7);
-  assert.equal(dailyMinutes("olympiad", "gemini", "claude"), 29.9);
-  assert.equal(dailyMinutes("study", "fishaudio"), 12); // miya berilmasa — Claude
+test("teng foyda: kunlik limit narxdan — har tarif va har juftlikda foyda 17% (to'liq ishlatilsa ham)", () => {
+  assert.equal(dailyMinutes("study", "fishaudio", "claude"), 12.5);
+  assert.equal(dailyMinutes("study", "gemini", "claude"), 18.7);
+  assert.equal(dailyMinutes("curious", "gemini", "claude"), 14.9);
+  assert.equal(dailyMinutes("language", "gemini", "claude"), 17.9); // talaffuz: xarajat x1.25
+  assert.equal(dailyMinutes("study", "fishaudio"), 12.5); // miya berilmasa — Claude
+  for (const goal of Object.keys(TARIFFS)) {
+    for (const { llm, tts } of comboKeys()) {
+      const factor = goal === "language" ? 1.25 : 1;
+      const cost = dailyMinutes(goal, tts, llm) * costPerMinute(llm, tts) * factor * 30;
+      const margin = 1 - cost / TARIFFS[goal].price;
+      assert.ok(margin >= 0.17 && margin < 0.19, `${goal} ${llm}+${tts}: ${margin}`); // 0.1 daqiqaga pastga yaxlitlash — foyda biroz ortadi, kamaymaydi
+    }
+  }
   assert.equal(comboKeys().length, 6);
 });

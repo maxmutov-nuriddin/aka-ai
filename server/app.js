@@ -20,7 +20,7 @@ import { fromScribeWords } from "./core/pronunciation.js";
 import { openDatabase } from "./db/database.js";
 import { createAuthStore, parseSupportEmails } from "./auth/store.js";
 import { createSettingsStore } from "./settings/store.js";
-import { createUsageStore } from "./usage/store.js";
+import { createUsageStore, minutesPerChatFrom } from "./usage/store.js";
 import { TARIFFS, dailyMinutes, planDailyMinutes, tariffOf } from "./usage/tariffs.js";
 import { createAdminRouter } from "./admin/routes.js";
 import { createFishAudio } from "./voice/fishaudio.js";
@@ -119,7 +119,7 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
     }
   }
   const store = createAuthStore(database, { supportEmails: parseSupportEmails(env.SUPPORT_EMAILS) });
-  const usage = createUsageStore(database);
+  const usage = createUsageStore(database, { minutesPerChat: minutesPerChatFrom(env) });
   const payments = createPaymentStore(database);
   /** Foydalanuvchining bugungi sarfi (daqiqa) va tarif limiti. Support — limit yo'q. */
   function dailyUsage(user) {

@@ -153,7 +153,7 @@ test("konstruktor rejasi bilan to'lov: summa rejadan, to'langach reja va limit o
     assert.deepEqual(me.user.plan, { goals: ["study", "language"], minutes: 18 });
     const usage = await (await call("GET", "/api/usage")).json();
     assert.equal(usage.tariff.custom, true);
-    assert.equal(usage.limitMinutes, 7.1); // 18 x 550/1400 (standart: Claude + ElevenLabs)
+    assert.equal(usage.limitMinutes, 7); // 449000 x 0.83 / (1400 x 1.25 til x 30) — teng foyda (Claude + ElevenLabs)
   } finally {
     s.close();
   }

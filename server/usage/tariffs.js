@@ -1,5 +1,5 @@
 // Tannarx va kunlik limit (faqat server). Narxlar va konstruktor — plan-pricing.js (brauzer bilan umumiy).
-import { TARIFFS, tariffFor } from "./plan-pricing.js";
+import { TARIFFS, planPrice, tariffFor } from "./plan-pricing.js";
 
 export * from "./plan-pricing.js";
 
@@ -15,26 +15,33 @@ export function costPerMinute(llm, tts) {
   return (LLM_COST_SOM[llm] ?? LLM_COST_SOM.claude) + (TTS_COST_SOM[tts] ?? TTS_COST_SOM.fishaudio);
 }
 
-// ---------- Teng xarajat qoidasi ----------
-// Tarif daqiqalari Claude + Fish narxida (550 so'm/daq) belgilangan. Boshqa juftlikda o'quvchiga xuddi shu pulga
-// mos daqiqa beriladi: arzon juftlik — ko'proq, qimmati — kamroq. Foyda foizi hamma juftlikda bir xil qoladi.
+// ---------- Teng foyda qoidasi ----------
+// Kunlik limit to'lovdan hisoblanadi: o'quvchi har kuni limitni oxirigacha ishlatsa ham, har tarifda, har konstruktor
+// rejasida va har miya + ovoz juftligida foyda bir xil — PROFIT_MARGIN. Arzon juftlik — ko'proq daqiqa, qimmati — kamroq.
 const BASE_LLM = "claude";
-const BASE_TTS = "fishaudio";
+const PROFIT_MARGIN = 0.17; // to'lovning 17% i foyda (soliq, server va to'lov xizmati shundan chiqadi)
+const DAYS_PER_MONTH = 30;
+// Yo'nalishning qo'shimcha xarajati: Til o'rganishda o'quvchi ham ko'p gapiradi (nutqni tanish, talaffuz bahosi).
+const GOAL_COST_FACTOR = { language: 1.25 };
 
-/** Asosiy daqiqani juftlik narxiga moslaydi (teng xarajat): arzon juftlik — ko'proq, qimmati — kamroq. */
-function scaleMinutes(baseMinutes, tts, llm = BASE_LLM) {
-  const ratio = costPerMinute(BASE_LLM, BASE_TTS) / costPerMinute(llm, tts);
-  return Math.round(baseMinutes * ratio * 10) / 10;
+const costFactor = (goals) => Math.max(1, ...goals.map((g) => GOAL_COST_FACTOR[g] ?? 1));
+
+/** Oylik to'lovga mos kunlik daqiqa: (to'lov - foyda) / (daqiqa narxi x 30). Pastga yaxlitlanadi — foyda kamaymaydi. */
+function minutesForPayment(price, goals, tts, llm) {
+  const spend = price * (1 - PROFIT_MARGIN);
+  const monthlyCostPerDailyMinute = costPerMinute(llm, tts) * costFactor(goals) * DAYS_PER_MONTH;
+  return Math.floor((spend / monthlyCostPerDailyMinute) * 10 + 1e-9) / 10;
 }
 
-/** Kunlik daqiqa limiti — tarif, ovoz va miya juftligiga qarab (0.1 aniqlikda). Miya berilmasa — Claude. */
+/** Kunlik daqiqa limiti — tarif narxi, ovoz va miya juftligiga qarab (0.1 aniqlikda). Miya berilmasa — Claude. */
 export function dailyMinutes(goal, tts, llm = BASE_LLM) {
-  return scaleMinutes(tariffFor(goal).minutes, tts, llm);
+  const tariff = tariffFor(goal);
+  return minutesForPayment(tariff.price, [tariff.goal], tts, llm);
 }
 
-/** Reja (konstruktor yoki tayyor tarif) bo'yicha kunlik daqiqa limiti. */
+/** Reja (konstruktor yoki tayyor tarif) bo'yicha kunlik daqiqa limiti — reja narxidan. */
 export function planDailyMinutes(plan, tts, llm = BASE_LLM) {
-  return scaleMinutes(plan.minutes, tts, llm);
+  return minutesForPayment(planPrice(plan.goals, plan.minutes), plan.goals, tts, llm);
 }
 
 /** Barcha juftliklar: [{ key: "claude+fishaudio", llm, tts }] (panel jadvali uchun). */
