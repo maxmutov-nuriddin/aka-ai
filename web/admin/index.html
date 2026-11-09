@@ -163,7 +163,7 @@
         <!-- Joriy juftlik (miya + ovoz) narxi: settings.js renderSettings -->
         <section class="panel combo" id="comboPanel" aria-live="polite"></section>
         <section class="panel">
-          <header class="panel-head"><div><h2>Miya (sun'iy intellekt)</h2><p class="sub">Jigar kim bilan o'ylaydi — hamma uchun; Gemini xato bersa, javobni Claude beradi</p></div></header>
+          <header class="panel-head"><div><h2>Miya (sun'iy intellekt)</h2><p class="sub">Jigar kim bilan o'ylaydi — hamma uchun; Gemini yoki OpenAI xato bersa, javobni Claude beradi</p></div></header>
           <div class="options" id="llmOptions"></div>
         </section>
         <section class="panel">
@@ -175,10 +175,10 @@
           <div class="options" id="fishOptions"></div>
         </section>
         <section class="panel flush">
-          <header class="panel-head pad"><div><h2>Tariflar</h2><p class="sub">Kunlik daqiqa — miya + ovoz juftligiga qarab: xarajat va foyda hammasida bir xil, arzon juftlikda o'quvchiga ko'proq daqiqa</p></div></header>
+          <header class="panel-head pad"><div><h2>Tariflar</h2><p class="sub">Kunlik daqiqa — barcha miya + ovoz juftliklari: foyda hammasida bir xil (17%), arzon juftlikda o'quvchiga ko'proq daqiqa. Yashil — joriy tanlov</p></div></header>
           <div class="table-wrap">
             <table class="table compact">
-              <thead><tr><th>Yo'nalish</th><th class="num">Narx / oy</th><th class="num">Claude + Fish</th><th class="num">Claude + Eleven</th><th class="num">Claude + Gemini</th><th class="num">Gemini + Fish</th><th class="num">Gemini + Eleven</th><th class="num">Gemini + Gemini</th><th class="num">Foydalanuvchi</th></tr></thead>
+              <thead id="tariffHead"></thead>
               <tbody id="tariffBody"></tbody>
             </table>
           </div>

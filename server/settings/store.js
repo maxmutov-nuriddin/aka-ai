@@ -2,10 +2,10 @@
 import { ValidationError } from "../core/errors.js";
 import { FISH_MODELS } from "../voice/fishaudio.js";
 
-// Ovoz xizmati: ElevenLabs (so'z vaqtlari bilan), Fish Audio (o'zbekchada eng aniq) yoki Gemini TTS (eng arzon).
-export const TTS_PROVIDERS = ["elevenlabs", "fishaudio", "gemini"];
-// Jigarning "miyasi": Claude (asosiy) yoki Gemini (arzonroq). Gemini xato bersa — Claude'ga o'tadi.
-export const LLM_PROVIDERS = ["claude", "gemini"];
+// Ovoz xizmati: ElevenLabs (so'z vaqtlari bilan), Fish Audio (o'zbekchada eng aniq), Gemini TTS yoki OpenAI TTS (arzon).
+export const TTS_PROVIDERS = ["elevenlabs", "fishaudio", "gemini", "openai"];
+// Jigarning "miyasi": Claude (asosiy), Gemini yoki OpenAI (ChatGPT). Muqobili xato bersa — Claude'ga o'tadi.
+export const LLM_PROVIDERS = ["claude", "gemini", "openai"];
 const DEFAULT_LLM_PROVIDER = "claude";
 const DEFAULT_TTS_PROVIDER = "elevenlabs";
 // Fish modeli: Drama 3 — o'zbekchada yagona aniq model (2026-11 sinovi).

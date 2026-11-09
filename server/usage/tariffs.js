@@ -7,8 +7,11 @@ export * from "./plan-pricing.js";
 // "1 daqiqa" ~ bitta savol-javob: ~8k token kirish, ~1k chiqish, Jigar ~30 soniya gapiradi; 1 $ ~ 12 800 so'm.
 // Claude Sonnet 5.5: $2 / $10 (kesh $0.20). Gemini 3.8 Flash: $1.50 / $7.50, 3.8 Flash TTS: $18 / 1M audio token
 // (2027-01-01 dan narxlar; 2026 oxirigacha ularning yarmi). Fish va ElevenLabs — Claude bilan jamidan ajratilgan.
-export const LLM_COST_SOM = { claude: 195, gemini: 250 };
-export const TTS_COST_SOM = { fishaudio: 355, elevenlabs: 1205, gemini: 173 };
+// OpenAI gpt-6.1-sol: $2 / $10 (kesh $0.10) — standart OPENAI_MODEL. Arzonroq model (gpt-6-luna) qo'yilsa ham limit
+// shu narxda qoladi (foyda faqat ortadi); qimmatrog'i (gpt-6-astra) qo'yilsa — bu qiymatni oshiring.
+// OpenAI gpt-4o-mini-tts: ~$0.015 / audio daqiqa (30 soniya ≈ 96 so'm); 2027-01-06 da o'chiriladi.
+export const LLM_COST_SOM = { claude: 195, gemini: 250, openai: 187 };
+export const TTS_COST_SOM = { fishaudio: 355, elevenlabs: 1205, gemini: 173, openai: 96 };
 
 /** Joriy tanlov (miya + ovoz) bo'yicha 1 daqiqa narxi (so'm). */
 export function costPerMinute(llm, tts) {

@@ -361,28 +361,30 @@ function extractText(message) {
 const REFUSAL_TEXT =
   "Ha-ha, bu savolga men javob bera olmayman, jigar. Keling, darsga qaytamiz: sahifadagi mavzu bo'yicha nima tushunarsiz bo'ldi?";
 
-export function createJigar({ client = new Anthropic(), config = getConfig(), random = Math.random, gemini = null } = {}) {
+export function createJigar({ client = new Anthropic(), config = getConfig(), random = Math.random, gemini = null, openai = null } = {}) {
+  // Muqobil miyalar (support tanlaydi). Claude — asosiy va zaxira: muqobili xato bersa, javobni Claude beradi.
+  const alternatives = { gemini, openai };
   function lastUserContent(content, heardAlt, mode, pronunciation = null) {
     // Til o'rganishda ovozli javobga talaffuz tahlili qo'shiladi (Azure yoki Scribe — server/core/pronunciation.js).
     const heard = withPronunciation(withHeardAlternative(content, heardAlt), normalizePronunciation(pronunciation));
     return mode === "beparvo" ? withBeparvoOpener(heard || "Shu sahifani tushuntirib ber.", random) : heard;
   }
 
-  /** Gemini bilan javob (support tanlagan bo'lsa). Xato bo'lsa — null: chaqiruvchi Claude'ga o'tadi. */
-  async function callGemini(messages, system) {
+  /** Muqobil miya bilan javob (Gemini yoki OpenAI). Xato bo'lsa — null: chaqiruvchi Claude'ga o'tadi. */
+  async function callAlternative(name, messages, system) {
     try {
-      const { text, model } = await gemini.generate({ system, messages, maxTokens: config.maxTokens });
+      const { text, model } = await alternatives[name].generate({ system, messages, maxTokens: config.maxTokens });
       return { text, stopReason: "end_turn", refused: false, truncated: false, model, usage: null };
     } catch (err) {
-      console.warn(`[jigar] Gemini ishlamadi — Claude'ga o'tildi: ${err.message}`);
+      console.warn(`[jigar] ${name} ishlamadi — Claude'ga o'tildi: ${err.message}`);
       return null;
     }
   }
 
   async function call(messages, mode = "oddiy", lang = "uz", style = {}, llm = "claude") {
-    if (llm === "gemini" && gemini?.configured) {
-      const viaGemini = await callGemini(messages, systemPromptFor(mode, lang, style));
-      if (viaGemini) return viaGemini;
+    if (llm !== "claude" && alternatives[llm]?.configured) {
+      const viaAlternative = await callAlternative(llm, messages, systemPromptFor(mode, lang, style));
+      if (viaAlternative) return viaAlternative;
     }
     const params = {
       model: config.model,

@@ -1,21 +1,24 @@
-// Support paneli — "Sozlamalar": miya (Claude / Gemini), ovoz xizmati, Fish modeli (hamma uchun) va tariflar jadvali.
+// Support paneli — "Sozlamalar": miya (Claude / Gemini / OpenAI), ovoz xizmati, Fish modeli (hamma uchun) va tariflar jadvali.
 // Narxlar serverdan (settings.costs: so'm / daqiqa) — 1 daqiqa = miya + ovoz.
 import { $, GOALS, LLMS, PROVIDERS, api, num, som, toast } from "./lib.js";
 
 const LLM_INFO = {
   claude: { title: "Claude", lines: ["O'zbekcha va xarakterlarda eng kuchli", "Javoblar sinalgan"], badge: "Tavsiya" },
   gemini: { title: "Gemini", lines: ["Arzonroq va tez", "Xato bersa — Claude javob beradi"], badge: "" },
+  openai: { title: "OpenAI (ChatGPT)", lines: ["Claude bilan bir narxda (gpt-6.1-sol)", "O'zbekcha sifati sinalmagan; xato bersa — Claude"], badge: "Yangi" },
 };
 const PROVIDER_INFO = {
   fishaudio: { title: "Fish Audio", lines: ["O'zbekchada eng aniq (10/10)", "Tarifdagi to'liq daqiqa limiti"], badge: "Tavsiya" },
   elevenlabs: { title: "ElevenLabs", lines: ["So'z vaqtlari bilan", "Qimmat — kunlik daqiqa ~2.5 barobar kam"], badge: "" },
-  gemini: { title: "Gemini TTS", lines: ["Eng arzon — kunlik daqiqa ~1.5 barobar ko'p", "O'zbekcha sifati sinalmagan"], badge: "Yangi" },
+  gemini: { title: "Gemini TTS", lines: ["Arzon — kunlik daqiqa ~1.5 barobar ko'p", "O'zbekchada sinalgan"], badge: "" },
+  openai: { title: "OpenAI TTS", lines: ["Eng arzon — kunlik daqiqa ~1.9 barobar ko'p", "O'zbekcha rasman yo'q; 2027-01-06 da o'chadi"], badge: "Yangi" },
 };
 const FISH_INFO = {
   "drama-3": { title: "Drama 3", lines: ["O'zbekchada aniq talaffuz", "Kulgi, pichirlash, his-tuyg'u teglari"], badge: "Tavsiya" },
   "s2.1-pro-free": { title: "S2.1 Pro Free", lines: ["Bepul", "O'zbekchada xato qiladi — faqat sinov uchun"], badge: "" },
 };
-const COMBOS = ["claude+fishaudio", "claude+elevenlabs", "claude+gemini", "gemini+fishaudio", "gemini+elevenlabs", "gemini+gemini"];
+// Tariflar jadvali: barcha juftlik — miya guruhi (yuqori sarlavha) x ovoz xizmati (pastki sarlavha).
+const TTS_SHORT = { fishaudio: "Fish", elevenlabs: "Eleven", gemini: "Gemini", openai: "OpenAI" };
 const DAYS = 30;
 
 function optionHtml(kind, value, info, { selected, disabled, status, price }) {
@@ -78,12 +81,22 @@ export function renderSettings({ state }) {
 
   const tariffs = state.stats?.tariffs ?? [];
   const current = `${s.llmProvider}+${s.ttsProvider}`;
+  const ttsKeys = Object.keys(PROVIDER_INFO);
+  const llmKeys = Object.keys(LLM_INFO);
+  // Har miya guruhining birinchi ustuni — chap chiziq bilan ajratiladi.
+  const combos = llmKeys.flatMap((llm) => ttsKeys.map((tts, i) => ({ key: `${llm}+${tts}`, llm, tts, first: i === 0 })));
+  const groupClass = (c, extra = "") => `num${c.first ? " grp" : ""}${c.key === current ? " is-current" : ""}${extra}`;
+  $("tariffHead").innerHTML = `
+    <tr><th rowspan="2">Yo'nalish</th><th rowspan="2" class="num">Narx / oy</th>${llmKeys
+      .map((llm) => `<th colspan="${ttsKeys.length}" class="grp group${llm === s.llmProvider ? " is-current" : ""}">${LLMS[llm]}</th>`).join("")}
+      <th rowspan="2" class="num grp">Foydalanuvchi</th></tr>
+    <tr>${combos.map((c) => `<th class="${groupClass(c)}">${TTS_SHORT[c.tts]}</th>`).join("")}</tr>`;
   $("tariffBody").innerHTML = tariffs
     .map((t) => {
       const count = state.users.filter((u) => u.role !== "support" && u.tariff.goal === t.goal).length;
-      const cell = (key) => `<td class="num${key === current ? " is-current" : ""}">${num(t.minutes[key] ?? 0)} daq</td>`;
+      const cell = (c) => `<td class="${groupClass(c)}">${num(t.minutes[c.key] ?? 0)}</td>`;
       return `<tr><td><span class="tariff"><span class="tariff-dot" data-goal="${t.goal}"></span>${GOALS[t.goal] ?? t.goal}</span></td>
-        <td class="num">${som(t.price)}</td>${COMBOS.map(cell).join("")}<td class="num">${count}</td></tr>`;
+        <td class="num">${som(t.price)}</td>${combos.map(cell).join("")}<td class="num grp">${count}</td></tr>`;
     })
     .join("");
 }

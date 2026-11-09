@@ -12,6 +12,8 @@ import { createElevenLabs, AUTO_LANG } from "./voice/elevenlabs.js";
 import { createAzurePronunciation } from "./voice/azure-pronunciation.js";
 import { createGeminiTts } from "./voice/gemini-tts.js";
 import { createGeminiLlm } from "./core/gemini-llm.js";
+import { createOpenAiTts } from "./voice/openai-tts.js";
+import { createOpenAiLlm } from "./core/openai-llm.js";
 import { createPaygate } from "./payments/paygate.js";
 import { createPaymentStore } from "./payments/store.js";
 import { createPaymentRouter } from "./payments/routes.js";
@@ -66,6 +68,7 @@ export function createVoiceServices(env) {
       elevenlabs: eleven.configured && !preferAzure ? eleven : azure,
       fishaudio: createFishAudio({ env }),
       gemini: createGeminiTts({ env }),
+      openai: createOpenAiTts({ env }),
     },
     stt: eleven,
   };
@@ -90,7 +93,7 @@ export function defaultDbFile(env) {
  * @param {{ jigar?: object, env?: Record<string, string | undefined>, tts?: object, stt?: object,
  *           db?: import("node:sqlite").DatabaseSync }} [options]
  */
-export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env }), jigar = createJigar({ gemini: geminiLlm }), tts, stt, ttsProviders, db, pronunciation = [createLocalPronunciation({ env }), createAzurePronunciation({ env })], paygate = createPaygate({ env }) } = {}) {
+export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env }), openaiLlm = createOpenAiLlm({ env }), jigar = createJigar({ gemini: geminiLlm, openai: openaiLlm }), tts, stt, ttsProviders, db, pronunciation = [createLocalPronunciation({ env }), createAzurePronunciation({ env })], paygate = createPaygate({ env }) } = {}) {
   const defaults = (tts || ttsProviders) && stt ? null : createVoiceServices(env);
   const providers = ttsProviders ?? (tts ? { elevenlabs: tts } : defaults.providers);
   const database = db ?? openDatabase(defaultDbFile(env));
@@ -156,8 +159,8 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
     }),
   );
 
-  // Miya: Claude (kalit bo'lsa) yoki Gemini — support panelida tanlanadi.
-  const llms = { claude: { configured: Boolean(env.ANTHROPIC_API_KEY?.trim()) }, gemini: geminiLlm };
+  // Miya: Claude (kalit bo'lsa), Gemini yoki OpenAI — support panelida tanlanadi.
+  const llms = { claude: { configured: Boolean(env.ANTHROPIC_API_KEY?.trim()) }, gemini: geminiLlm, openai: openaiLlm };
   app.use("/api/admin", createAdminRouter({ settings, providers, store, usage, llms }));
 
   app.get("/api/health", (_req, res) => res.json({ ok: true }));
