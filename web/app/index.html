@@ -205,6 +205,17 @@
         </div>
       </form>
     </dialog>
+
+    <dialog class="logout-dialog" id="logoutDialog" aria-labelledby="logoutTitle">
+      <form method="dialog">
+        <h2 id="logoutTitle" data-i18n="settings.logoutTitle">Hisobdan chiqilsinmi?</h2>
+        <p data-i18n="settings.logoutConfirm">Rostdan ham hisobdan chiqmoqchimisiz?</p>
+        <div class="logout-actions">
+          <button type="submit" class="ghost" value="cancel" data-i18n="settings.cancel">Bekor qilish</button>
+          <button type="submit" class="danger-action" value="confirm" data-i18n="settings.logout">Chiqish</button>
+        </div>
+      </form>
+    </dialog>
   </div>
 
   <script src="../vendor/mermaid.min.js"></script>

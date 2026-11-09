@@ -907,7 +907,7 @@ function syncServerProfile(profile) {
   updatePrefs(profilePrefs());
 }
 
-$("logoutBtn").addEventListener("click", async () => {
+async function logout() {
   voice.stopAll();
   try {
     await fetch(`${host.apiBase}/api/auth/logout`, { method: "POST", headers: authHeaders() });
@@ -915,6 +915,13 @@ $("logoutBtn").addEventListener("click", async () => {
     if (host.logout) host.logout();
     else window.location.href = "/";
   }
+}
+
+$("logoutBtn").addEventListener("click", () => {
+  if (!$("logoutDialog").open) $("logoutDialog").showModal();
+});
+$("logoutDialog").addEventListener("close", () => {
+  if ($("logoutDialog").returnValue === "confirm") logout();
 });
 setTimeout(loadAccount, 0);
 
