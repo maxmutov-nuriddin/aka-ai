@@ -48,6 +48,12 @@ test("admin panel: ro'yxat, ko'rsatkichlar, tahrirlash, bugungi limitni tiklash"
     assert.ok(stats.costTodaySom > 0);
     assert.equal(stats.days.length, 30);
     assert.equal(stats.tariffs.length, 6);
+    // Paketlar (Suhbatga tayyorgarlik): daqiqa qat'iy — har juftlikda foyda foizi (to'liq ishlatilsa); ElevenLabs — zarar.
+    assert.deepEqual(stats.packages.map((p) => p.key), ["start", "pro"]);
+    const start = stats.packages[0];
+    assert.equal(start.price, 59000);
+    assert.equal(start.margin["claude+gemini"], 63); // 1 - 60 x 368 / 59 000
+    assert.ok(start.margin["claude+elevenlabs"] < 0);
     assert.equal(stats.costPerMinuteSom, 1400); // standart: Claude + ElevenLabs
     assert.equal(stats.llmProvider, "claude");
 

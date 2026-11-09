@@ -220,6 +220,8 @@ button { font: inherit; color: inherit; }
 #tariffBody td, #tariffHead th { padding-left: 6px; padding-right: 6px; }
 #tariffBody td { font-size: 13px; }
 #tariffBody td, #tariffHead th { white-space: nowrap; }
+#tariffBody td.is-loss { color: var(--danger); font-weight: 700; } /* paket shu juftlikda zararli */
+#tariffBody .table-section td { padding-top: 14px; font-size: 12px; font-weight: 600; color: var(--muted); background: rgba(255, 255, 255, 0.02); }
 .table td .sub { display: block; font-size: 12px; }
 #usersBody tr { cursor: pointer; transition: background var(--dur-fast); }
 #usersBody tr:hover, #usersBody tr.is-open { background: rgba(255, 255, 255, 0.035); }

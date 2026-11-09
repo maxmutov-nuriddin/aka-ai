@@ -2,7 +2,7 @@
 import express from "express";
 import { ValidationError } from "../core/errors.js";
 import { FISH_MODELS } from "../voice/fishaudio.js";
-import { LLM_COST_SOM, TARIFFS, TTS_COST_SOM, comboKeys, costPerMinute, dailyMinutes, planDailyMinutes, tariffOf } from "../usage/tariffs.js";
+import { LLM_COST_SOM, PACKAGES, TARIFFS, TTS_COST_SOM, comboKeys, costPerMinute, dailyMinutes, planDailyMinutes, tariffOf } from "../usage/tariffs.js";
 
 /**
  * @param {{ settings: ReturnType<import("../settings/store.js").createSettingsStore>,
@@ -66,6 +66,16 @@ export function createAdminRouter({ settings, providers, store, usage, llms = {}
       // Har juftlik (miya + ovoz) uchun kunlik limit — teng xarajat qoidasi.
       minutes: Object.fromEntries(comboKeys().map(({ key, llm, tts }) => [key, dailyMinutes(goal, tts, llm)])),
     }));
+  // Paketlar: daqiqa qat'iy (o'quvchiga va'da) — har juftlikda to'liq ishlatilgandagi foyda foizi (manfiy — zarar).
+  const packageTable = () =>
+    Object.entries(PACKAGES).map(([key, p]) => ({
+      key,
+      price: p.price,
+      minutes: p.minutes,
+      days: p.days,
+      margin: Object.fromEntries(comboKeys().map(({ key: combo, llm, tts }) =>
+        [combo, Math.round((1 - (p.minutes * costPerMinute(llm, tts)) / p.price) * 100)])),
+    }));
   const fail = (res, status, error, code) => res.status(status).json({ error, code });
   const userId = (req) => Number.parseInt(req.params.id, 10);
   const isSelf = (req) => userId(req) === req.user.id;
@@ -90,6 +100,7 @@ export function createAdminRouter({ settings, providers, store, usage, llms = {}
       provider,
       llmProvider,
       tariffs: tariffTable(),
+      packages: packageTable(),
       days,
     });
   });

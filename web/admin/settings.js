@@ -20,6 +20,7 @@ const FISH_INFO = {
 };
 // Tariflar jadvali: barcha juftlik — miya guruhi (yuqori sarlavha) x ovoz xizmati (pastki sarlavha).
 const GROUP_LABEL = { claude: "Claude Sonnet", haiku: "Claude Haiku" };
+const PACKAGE_NAMES = { start: "Start", pro: "Pro" };
 const TTS_SHORT = { fishaudio: "Fish", elevenlabs: "Eleven", gemini: "Gemini", openai: "OpenAI" };
 const DAYS = 30;
 
@@ -100,7 +101,27 @@ export function renderSettings({ state }) {
       return `<tr><td><span class="tariff"><span class="tariff-dot" data-goal="${t.goal}"></span>${GOALS[t.goal] ?? t.goal}</span></td>
         <td class="num">${num(t.price)}</td>${combos.map(cell).join("")}<td class="num grp">${count}</td></tr>`;
     })
-    .join("");
+    .join("") + packageRows(state, combos, groupClass);
+}
+
+/**
+ * "Suhbatga tayyorgarlik" paketlari: daqiqa qat'iy, shuning uchun kataklarda — to'liq ishlatilgandagi foyda foizi.
+ * Manfiy (zarar) — qizil: bu juftlikda paket sotish zararli.
+ */
+function packageRows(state, combos, groupClass) {
+  const packages = state.stats?.packages ?? [];
+  if (!packages.length) return "";
+  const now = Date.now();
+  const head = `<tr class="table-section"><td colspan="${combos.length + 3}">${GOALS.interview} — paket: kataklarda foyda % (to'liq ishlatilsa)</td></tr>`;
+  return head + packages.map((p) => {
+    const count = state.users.filter((u) => u.package?.key === p.key && Date.parse(u.package.until) > now).length;
+    const cell = (c) => {
+      const m = p.margin[c.key] ?? 0;
+      return `<td class="${groupClass(c, m < 0 ? " is-loss" : "")}">${m}%</td>`;
+    };
+    return `<tr><td><span class="tariff"><span class="tariff-dot" data-goal="interview"></span>${PACKAGE_NAMES[p.key] ?? p.key} · ${p.minutes} daq / ${p.days} kun</span></td>
+      <td class="num">${num(p.price)}</td>${combos.map(cell).join("")}<td class="num grp">${count}</td></tr>`;
+  }).join("");
 }
 
 async function save(ctx, body, message) {
