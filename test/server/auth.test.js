@@ -186,7 +186,7 @@ test("support (SUPPORT_EMAILS): role qaytadi, ovoz xizmatini hammaga tanlaydi; o
       fishModel: "drama-3",
       fishModels: ["s2.1-pro-free", "drama-3"],
       providers: { elevenlabs: true, fishaudio: true },
-      costs: { llm: { claude: 195, haiku: 25, gemini: 250, openai: 187 }, tts: { fishaudio: 355, elevenlabs: 1205, gemini: 173, openai: 96 } },
+      costs: { llm: { claude: 195, haiku: 25, gemini: 250, openai: 187 }, tts: { fishaudio: 355, elevenlabs: 1205, gemini: 173, openai: 96, omnivoice: 20 } },
     });
     // Miya: Gemini tanlanadi va qaytariladi; noto'g'ri qiymat — 400.
     assert.equal((await (await call("PUT", "/api/admin/settings", support, { llmProvider: "gemini" })).json()).llmProvider, "gemini");

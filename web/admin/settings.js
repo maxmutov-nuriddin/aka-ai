@@ -13,6 +13,7 @@ const PROVIDER_INFO = {
   elevenlabs: { title: "ElevenLabs", lines: ["So'z vaqtlari bilan", "Qimmat — kunlik daqiqa ~2.5 barobar kam"], badge: "" },
   gemini: { title: "Gemini TTS", lines: ["Arzon — kunlik daqiqa ~1.5 barobar ko'p", "O'zbekchada sinalgan"], badge: "" },
   openai: { title: "OpenAI TTS", lines: ["Eng arzon — kunlik daqiqa ~1.9 barobar ko'p", "O'zbekcha rasman yo'q; 2027-01-06 da o'chadi"], badge: "Yangi" },
+  omnivoice: { title: "OmniVoice", lines: ["O'z serverimiz — API to'lovi yo'q, faqat GPU", "O'zbekcha sifati sinalmagan; xato bersa — ElevenLabs"], badge: "Yangi" },
 };
 const FISH_INFO = {
   "drama-3": { title: "Drama 3", lines: ["O'zbekchada aniq talaffuz", "Kulgi, pichirlash, his-tuyg'u teglari"], badge: "Tavsiya" },
@@ -21,7 +22,7 @@ const FISH_INFO = {
 // Tariflar jadvali: barcha juftlik — miya guruhi (yuqori sarlavha) x ovoz xizmati (pastki sarlavha).
 const GROUP_LABEL = { claude: "Claude Sonnet", haiku: "Claude Haiku" };
 const PACKAGE_NAMES = { start: "Start", pro: "Pro" };
-const TTS_SHORT = { fishaudio: "Fish", elevenlabs: "Eleven", gemini: "Gemini", openai: "OpenAI" };
+const TTS_SHORT = { fishaudio: "Fish", elevenlabs: "Eleven", gemini: "Gemini", openai: "OpenAI", omnivoice: "Omni" };
 const DAYS = 30;
 
 function optionHtml(kind, value, info, { selected, disabled, status, price }) {

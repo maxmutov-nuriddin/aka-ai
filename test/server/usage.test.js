@@ -123,7 +123,8 @@ test("teng foyda: kunlik limit narxdan — har tarif va har juftlikda foyda 17% 
       assert.ok(margin >= 0.17 && margin < 0.19, `${goal} ${llm}+${tts}: ${margin}`); // 0.1 daqiqaga pastga yaxlitlash — foyda biroz ortadi, kamaymaydi
     }
   }
-  assert.equal(comboKeys().length, 16); // 4 miya x 4 ovoz
+  assert.equal(comboKeys().length, 20); // 4 miya x 5 ovoz
   assert.equal(dailyMinutes("study", "gemini", "haiku"), 34.7); // Haiku + Gemini TTS: 25 + 173 so'm
   assert.equal(dailyMinutes("study", "openai", "claude"), 23.6); // Claude + OpenAI TTS: 195 + 96 so'm
+  assert.equal(dailyMinutes("study", "omnivoice", "claude"), 32); // Claude + OmniVoice: 195 + 20 so'm
 });

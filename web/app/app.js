@@ -2,6 +2,7 @@ import { iconSvg } from "../shared/icons.js";
 import { parseAkaResponse, variantLetter, stripAudioTags } from "../shared/parse.js";
 import { toSpeechText, toSpokenUzbek, toSpokenRussian, matchQuizAnswer } from "./speech.js";
 import { createVoice } from "./voice.js";
+import { createCamera } from "./camera.js";
 import { createAvatar } from "../shared/avatar.js";
 import { createCaption } from "./caption.js";
 import { LANGS, getLang, t, setLang, translatePage } from "./i18n.js";
@@ -46,10 +47,19 @@ const el = {
   settingsPop: $("settingsPop"),
   simpleToggle: $("simpleToggle"),
   stage: $("stage"),
+  visualSlot: $("visualSlot"),
+  visualDialog: $("visualDialog"),
+  visualFull: $("visualFull"),
+  camBtn: $("camBtn"),
+  lens: $("lens"),
+  lensVideo: $("lensVideo"),
+  lensFlip: $("lensFlip"),
+  lensClose: $("lensClose"),
 };
 
 const avatar = createAvatar($("avatar"));
 const caption = createCaption($("caption"));
+const camera = createCamera({ video: el.lensVideo }); // Jigarning "ko'zi" — pastda: tugmalar
 
 let state = freshState();
 
@@ -68,9 +78,9 @@ function freshState() {
 
 // ---------- Mermaid ----------
 let mermaidCounter = 0;
-const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
 if (window.mermaid) {
-  window.mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: prefersDark ? "dark" : "default" });
+  // Chizma doim oq qutida (.diagram) — "dark" mavzuda chiziq va yozuvlar oq fonda ko'rinmay qolardi.
+  window.mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: "default" });
 }
 
 async function renderMermaid(container, code) {
@@ -137,9 +147,15 @@ function scrollDown() {
 }
 
 // ---------- Xabarlarni chizish ----------
-function addUserBubble(text, selection) {
+function addUserBubble(text, selection, image = null) {
   el.empty.hidden = true;
   const b = node("div", "msg user");
+  if (image) {
+    const shot = node("img", "shot");
+    shot.src = image; // o'zimiz olgan kamera kadri (data:image/jpeg)
+    shot.alt = "";
+    b.appendChild(shot);
+  }
   if (selection) b.appendChild(node("div", "quote", selection.length > 200 ? selection.slice(0, 200) + "…" : selection));
   b.appendChild(node("div", null, text || t("msg.explainPage")));
   el.chat.appendChild(b);
@@ -168,10 +184,31 @@ function setQuiz(section) {
   el.stage.classList.remove("quiz-open");
 }
 
+/** Qiyin savolda chizma sahnada ham ko'rinadi (Mermaid, ixcham). null — yashiriladi. Bosilsa — katta oynada. */
+let stageVisual = null;
+function showVisual(code) {
+  stageVisual = code || null;
+  el.visualSlot.replaceChildren();
+  el.visualSlot.hidden = !stageVisual;
+  if (!stageVisual) return;
+  const box = node("div", "diagram");
+  el.visualSlot.appendChild(box);
+  renderMermaid(box, stageVisual);
+}
+/** Chizmani katta oynada ochadi (sahnadagi yoki tarixdagi chizma bosilganda). */
+function openVisual(code) {
+  if (!code) return;
+  el.visualFull.replaceChildren();
+  el.visualDialog.showModal();
+  renderMermaid(el.visualFull, code);
+}
+el.visualSlot.addEventListener("click", () => openVisual(stageVisual));
+
 function revealQuiz() {
   if (!el.quizSlot.hidden || !el.quizSlot.firstElementChild) return;
   el.quizSlot.hidden = false;
   el.stage.classList.add("quiz-open");
+  if (!prefs.chatOpen) updatePrefs({ chatOpen: true }); // savol "Suhbat" panelida — o'quvchi ko'rishi uchun ochiladi
 }
 
 function addAkaCard(parsed, itemIndex) {
@@ -193,7 +230,11 @@ function addAkaCard(parsed, itemIndex) {
   if (parsed.vizual) {
     const sec = node("section", "sec visual");
     sec.appendChild(node("h3", null, t("card.diagram")));
-    const box = node("div", "diagram");
+    // Tugma: bosilsa (yoki Enter) — chizma katta oynada ochiladi.
+    const box = node("button", "diagram zoomable");
+    box.type = "button";
+    box.title = t("card.zoom");
+    box.addEventListener("click", () => openVisual(parsed.vizual));
     sec.appendChild(box);
     card.appendChild(sec);
     renderMermaid(box, parsed.vizual);
@@ -369,7 +410,10 @@ function setSelection(text) {
 async function sendMessage(text, { fromQuiz = false, fromVoice = false, heardAlt = "", pronunciation = null } = {}) {
   if (state.busy || state.finished) return;
   showError("");
-  const message = (text ?? "").trim();
+  // Kamera yoqiq — joriy kadr shu savolga ilova qilinadi (quiz javobiga emas).
+  const image = !fromQuiz && camera.active ? camera.snapshot() : null;
+  if (!fromQuiz && camera.active && !image) return showError(t("cam.notReady"));
+  const message = (text ?? "").trim() || (image ? t("cam.ask") : "");
   setBusy(true);
 
   let page;
@@ -392,7 +436,8 @@ async function sendMessage(text, { fromQuiz = false, fromVoice = false, heardAlt
   if (!fromQuiz && !selection && host.getSelection) {
     selection = ((await host.getSelection().catch(() => "")) || "").trim().slice(0, 4000);
   }
-  addUserBubble(message, selection);
+  addUserBubble(message, selection, image);
+  showVisual(null);
   state.history.push({ role: "user", content: message });
   if (!fromQuiz) setSelection("");
   if (!fromQuiz && !fromVoice) {
@@ -403,7 +448,10 @@ async function sendMessage(text, { fromQuiz = false, fromVoice = false, heardAlt
   const typing = addTyping();
 
   try {
-    const data = await api("/api/chat", { page, history: state.history, selection, mode: prefs.mode, lang: prefs.lang, length: prefs.length, simple: prefs.simple, ...profileFields(), heardAlt, ...(pronunciation ? { pronunciation } : {}) });
+    const data = await api("/api/chat", {
+      page, history: state.history, selection, mode: prefs.mode, lang: prefs.lang, length: prefs.length, simple: prefs.simple,
+      ...profileFields(), heardAlt, ...(pronunciation ? { pronunciation } : {}), ...(image ? { image } : {}),
+    });
     typing.remove();
     // Tarif: kunlik limit tugashiga oz qolganda oldindan ogohlantiramiz.
     renderUsage(data.dailyUsage);
@@ -435,6 +483,7 @@ async function sendMessage(text, { fromQuiz = false, fromVoice = false, heardAlt
     state.pendingQuiz = null; // yangi kartada quiz bo'lsa, renderQuiz qayta o'rnatadi
     setQuiz(null);
     addAkaCard(shown, itemIndex);
+    showVisual(parsed.vizual);
     renderChatCount();
     if (data.truncated) addNotice(t("notice.answerTruncated"));
     speakReply(toSpeechText(parsed, prefs.lang), {
@@ -489,6 +538,7 @@ function resetChat() {
     $("pageTitle").readOnly = false;
   }
   setQuiz(null);
+  showVisual(null);
   caption.reset();
   avatar.setEmotion(null);
   updatePageUi();
@@ -720,9 +770,10 @@ function speakReply(text, { listenAfter, shownText }) {
     const auto = listenAfter && !voice.pushToTalk && voice.supported.listen;
     if (auto && !paused && !state.busy && !state.finished) voice.listen();
   };
-  // Ovoz o'chiq — javob sahnada yozuv bo'lib turadi. Yoqiq — yozuv ovoz bilan birga chiqadi.
+  // Javob matni sahnada chiqmaydi — "Suhbat" panelida. Ovoz o'chiq bo'lsa, o'qish uchun panel o'zi ochiladi.
   if (prefs.muted || !voice.supported.speak) {
     caption.showStatic(shownText);
+    if (!prefs.chatOpen) updatePrefs({ chatOpen: true });
     return listenAgain();
   }
   voice.speak(text, { onDone: listenAgain });
@@ -1004,6 +1055,46 @@ el.input.addEventListener("input", () => {
   el.send.textContent = el.input.value.trim() ? t("btn.send") : t("btn.explain");
 });
 el.newChat.addEventListener("click", resetChat);
+
+// ---------- Kamera (Jigarning ko'zi) ----------
+
+function renderCamera() {
+  el.lens.hidden = !camera.active;
+  el.camBtn.setAttribute("aria-pressed", String(camera.active));
+}
+
+function cameraError(err) {
+  if (err?.message === "unsupported") return t("cam.unsupported");
+  return err?.name === "NotAllowedError" || err?.name === "SecurityError" ? t("cam.denied") : t("cam.unsupported");
+}
+
+el.camBtn.hidden = !camera.supported;
+el.camBtn.addEventListener("click", async () => {
+  showError("");
+  if (camera.active) {
+    camera.stop();
+    return renderCamera();
+  }
+  try {
+    await camera.start();
+  } catch (err) {
+    showError(cameraError(err));
+  }
+  renderCamera();
+});
+el.lensClose.addEventListener("click", () => {
+  camera.stop();
+  renderCamera();
+});
+el.lensFlip.addEventListener("click", async () => {
+  try {
+    await camera.flip();
+  } catch {
+    showError(t("cam.noFlip"));
+  }
+  renderCamera();
+});
+window.addEventListener("pagehide", () => camera.stop()); // kamera chirog'i yonib qolmasin
 el.endLesson.addEventListener("click", endLesson);
 el.clearSelection.addEventListener("click", () => setSelection(""));
 

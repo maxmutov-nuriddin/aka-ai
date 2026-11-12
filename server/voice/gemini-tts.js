@@ -2,6 +2,7 @@
 // Interactions API: matn + uslub (speech_metadata.style) + ovoz nomi; javob — WAV (24 kHz, mono, 16-bit).
 // Til avtomatik aniqlanadi (o'zbekcha — "Northern Uzbek", ruscha).
 import { ValidationError } from "../core/errors.js";
+import { speechStyleFor } from "./persona-styles.js";
 
 const API_URL = "https://generativelanguage.googleapis.com/v1beta/interactions";
 const API_REVISION = "2026-05-20";
@@ -22,14 +23,7 @@ export const GEMINI_VOICES = {
   romantik: { yosh: "Zubenelgenubi", katta: "Sulafat" }, // samimiy / iliq
 };
 
-// Ohang — har xarakterga (speech_metadata.style; matn ichiga yozilmaydi, aks holda o'qib yuboradi).
-const STYLES = {
-  neytral: "calm, clear and even, like a friendly teacher",
-  mehribon: "warm, kind and encouraging, gentle smile in the voice",
-  kinoyali: "playful and lightly ironic, a smirk in the voice",
-  jahldor: "strict, impatient and irritated, loud and sharp",
-  romantik: "warm, soft and charming, unhurried",
-};
+// Ohang — xarakter va yoshga mos (speech_metadata.style): server/voice/persona-styles.js.
 
 // Jigarning ovoz teglari -> Gemini ichki teglari; qolganlari olib tashlanadi.
 const TAGS = { laughs: "<laugh>", chuckles: "<laugh>", sighs: "<sigh>" };
@@ -73,7 +67,7 @@ export function createGeminiTts({ env = process.env, fetchImpl = fetch } = {}) {
         store: false,
         input: [{
           type: "user_input",
-          content: [{ type: "text", text: spoken, annotations: [{ type: "speech_metadata", style: STYLES[who] }] }],
+          content: [{ type: "text", text: spoken, annotations: [{ type: "speech_metadata", style: speechStyleFor(who, level) }] }],
         }],
         response_format: { type: "audio" },
         generation_config: { speech_config: [{ voice: GEMINI_VOICES[who][bandOf(level)] }] },

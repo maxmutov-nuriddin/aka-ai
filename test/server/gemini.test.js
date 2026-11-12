@@ -68,6 +68,15 @@ test("Gemini TTS: teglar Gemini'nikiga, xarakter ovozi va uslubi, WAV qaytadi", 
   assert.equal(body.model, "gemini-3.8-flash-tts");
   assert.equal(body.generation_config.speech_config[0].voice, GEMINI_VOICES.jahldor.katta);
   assert.equal(body.input[0].content[0].text, "<laugh> Salom");
-  assert.match(body.input[0].content[0].annotations[0].style, /impatient/);
+  assert.match(body.input[0].content[0].annotations[0].style, /impatient/i);
   assert.equal(body.response_format.type, "audio");
+});
+
+test("speechStyleFor: har xarakter va yosh guruhiga alohida ohang; noma'lumi — neytral yosh", async () => {
+  const { speechStyleFor } = await import("../../server/voice/persona-styles.js");
+  const all = ["neytral", "mehribon", "kinoyali", "jahldor", "romantik"].flatMap((p) => [speechStyleFor(p, "8-9"), speechStyleFor(p, "student")]);
+  assert.equal(new Set(all).size, 10); // 5 xarakter x 2 yosh — takrorlanmaydi
+  for (const style of all) assert.match(style, /real person/); // jonli suhbat ohangi hammasida
+  assert.match(speechStyleFor("jahldor", "student"), /drill sergeant/);
+  assert.equal(speechStyleFor("yo'q", null), speechStyleFor("neytral", "5-7"));
 });

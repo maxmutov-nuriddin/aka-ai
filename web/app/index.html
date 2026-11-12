@@ -122,12 +122,24 @@
 
     <div class="layout">
       <main class="stage" id="stage" aria-label="Jigar">
+        <!-- Jigarning "ko'zi": kamera yoqiq bo'lsa, har savolga joriy kadr ilova qilinadi (camera.js) -->
+        <div class="lens" id="lens" hidden>
+          <video id="lensVideo" autoplay playsinline muted></video>
+          <div class="lens-actions">
+            <button type="button" class="lens-btn" id="lensFlip" data-i18n-title="cam.flip" title="Oldi / orqa kamera" data-i18n-aria="cam.flip" aria-label="Oldi / orqa kamera">
+              <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9a8 8 0 0 1 14-3l2 2M20 15a8 8 0 0 1-14 3l-2-2"/><path d="M20 4v4h-4M4 20v-4h4"/></svg>
+            </button>
+            <button type="button" class="lens-btn" id="lensClose" data-i18n-title="cam.close" title="Kamerani yopish" data-i18n-aria="cam.close" aria-label="Kamerani yopish">×</button>
+          </div>
+        </div>
         <div class="scene">
           <div class="avatar" id="avatar"></div>
           <p class="status-pill" id="voiceStatus" aria-live="polite">Mikrofonni bos va gapir</p>
         </div>
 
         <div class="dialogue">
+          <!-- Qiyin savolda chizma sahnada ham ko'rinadi (ixcham; bosilsa — kattalashadi). Tarixda ham saqlanadi. -->
+          <button type="button" class="visual-slot" id="visualSlot" hidden data-i18n-title="card.zoom" title="Kattalashtirish uchun bos"></button>
           <div class="caption" id="caption" aria-live="polite">
             <p class="caption-hello" id="emptyHint">
               <strong data-i18n="hello.title">Salom, jigar!</strong>
@@ -135,7 +147,6 @@
             </p>
           </div>
 
-          <div class="quiz-slot" id="quizSlot" hidden></div>
           <div class="page-chip" id="pageChip" hidden></div>
         </div>
 
@@ -154,9 +165,15 @@
                 <path fill="currentColor" d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z"/>
               </svg>
             </button>
-            <button type="button" class="pill" id="typeToggle" aria-expanded="false">
-              <span aria-hidden="true">⌨️</span><span>Yozish</span>
-            </button>
+            <div class="bar-group">
+              <button type="button" class="pill" id="typeToggle" aria-expanded="false">
+                <span aria-hidden="true">⌨️</span><span>Yozish</span>
+              </button>
+              <!-- Kamera: oldi yoki orqa — Jigarga narsani ko'rsatish (camera.js) -->
+              <button type="button" class="pill cam-btn" id="camBtn" aria-pressed="false" data-i18n-title="cam.title" title="Kamerada ko'rsatish" data-i18n-aria="cam.show" aria-label="Ko'rsatish">
+                <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+              </button>
+            </div>
           </div>
           <!-- Pauza: faqat suhbat boshlangach ko'rinadi (app.js: renderPauseBtn) -->
           <button type="button" class="pill pause-btn" id="pauseBtn" aria-pressed="false" hidden>
@@ -182,6 +199,8 @@
             <p data-i18n="chat.empty">Hali suhbat yo'q. Jigarning javoblari, chizmalar va "Esda qolsin" shu yerda saqlanadi.</p>
           </div>
         </div>
+        <!-- Savol (quiz): sahnani to'smasin — shu panel pastida chiqadi (app.js: revealQuiz panelni ochadi) -->
+        <div class="quiz-slot" id="quizSlot" hidden></div>
       </aside>
     </div>
 
@@ -203,6 +222,17 @@
         <div class="dialog-actions">
           <button type="submit" class="primary" value="save" data-i18n="btn.done">Tayyor</button>
         </div>
+      </form>
+    </dialog>
+
+    <!-- Chizmaning katta ko'rinishi (sahnadagi ixcham chizma bosilganda) -->
+    <dialog class="page-dialog visual-dialog" id="visualDialog" aria-labelledby="visualDialogTitle">
+      <form method="dialog" class="page-form">
+        <div class="visual-head">
+          <h2 id="visualDialogTitle" data-i18n="card.diagram">Chizma</h2>
+          <button type="submit" class="link" data-i18n-aria="btn.close" aria-label="Yopish">×</button>
+        </div>
+        <div class="diagram" id="visualFull"></div>
       </form>
     </dialog>
 

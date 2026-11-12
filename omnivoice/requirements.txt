@@ -1,0 +1,2 @@
+omnivoice
+numpy

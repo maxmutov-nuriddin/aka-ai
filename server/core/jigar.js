@@ -19,6 +19,8 @@ const BEPARVO_PROMPT = readPrompt("beparvo-mode.md");
 const RUSSIAN_PROMPT = readPrompt("lang-ru.md");
 const LANGUAGE_MODE_PROMPT = readPrompt("mode-language.md");
 const INTERVIEW_MODE_PROMPT = readPrompt("mode-interview.md"); // Suhbatga tayyorgarlik (paket)
+// Support (jamoa): mavzu doirasi yo'q — har qanday savolga to'liq yordam. Faqat serverda, rolga qarab yoqiladi.
+const SUPPORT_MODE_PROMPT = readPrompt("mode-support.md");
 const LANGUAGE_NAMES = { uz: "o'zbek tili", ru: "rus tili" };
 
 /** Til o'rganish yo'nalishi: ona tili (interfeys) va o'rganiladigan til — o'zbek <-> rus. */
@@ -168,10 +170,11 @@ export function normalizeMode(mode) {
 
 /** Rejim, til va uslubga mos tizim prompti. Har birikma alohida keshlanadi. Til qo'shimchasi doim oxirida. */
 export function systemPromptFor(
-  mode, lang = "uz", { length = "odatiy", simple = false, persona = null, goal = null, goals = null, level = null, name = null } = {},
+  mode, lang = "uz",
+  { length = "odatiy", simple = false, persona = null, goal = null, goals = null, level = null, name = null, unrestricted = false } = {},
 ) {
-  // goals — konstruktor rejasi (bir nechta yo'nalish); bo'lmasa — bitta goal.
-  const allGoals = goals?.length ? goals : goal ? [goal] : [];
+  // goals — konstruktor rejasi (bir nechta yo'nalish); bo'lmasa — bitta goal. Support — doirasiz.
+  const allGoals = unrestricted ? [] : goals?.length ? goals : goal ? [goal] : [];
   const parts = [SYSTEM_PROMPT];
   if (mode === "beparvo") parts.push(BEPARVO_PROMPT);
   else if (persona === "romantik" && ADULT_LEVELS.has(level)) parts.push(ROMANTIC_ADULT_PROMPT);
@@ -184,12 +187,16 @@ export function systemPromptFor(
   if (lang === "ru") parts.push(RUSSIAN_PROMPT);
   if (allGoals.includes("language")) parts.push(languageModePrompt(lang)); // ikki tilda gapirish — til qoidasidan keyin, ustun
   if (allGoals.includes("interview")) parts.push(INTERVIEW_MODE_PROMPT); // suhbat mashqi — uzunlik va quiz qoidalaridan ustun
+  if (unrestricted) parts.push(SUPPORT_MODE_PROMPT); // oxirida — doira va "darsga qaytar" qoidalaridan ustun
   return parts.join("\n\n");
 }
 
 export const LIMITS = {
   pageChars: 60_000, // sahifa matni (undan uzuni kesiladi va modelga aytiladi)
-  messageChars: 4_000, // o'quvchining bitta xabari
+  messageChars: 4_000, // o'quvchining bitta (yangi) xabari
+  // Tarixdagi eski xabar: server unga izoh qo'shgan bo'lishi mumkin (ikkinchi eshitilgan variant, talaffuz tahlili,
+  // kamera izohi) — mijoz aynan o'shani qaytaradi. Chegara kengroq bo'lmasa, uzun xabardan keyingi so'rov rad etilardi.
+  storedMessageChars: 10_000,
   assistantChars: 12_000, // tarixdagi Jigar javobi
   selectionChars: 4_000,
   historyTurns: 40, // jami xabarlar soni (user + assistant)
@@ -197,16 +204,24 @@ export const LIMITS = {
   imageBase64Chars: 1_500_000, // sahifa skrinshoti (~1.1 MB) — kengaytma 1568 px JPEG yuboradi (~200-400 KB)
 };
 
-// Sahifa skrinshoti (kengaytma): Figma, rasm, diagramma kabi matnsiz sahifalarni Claude ko'radi.
+// Sahifa skrinshoti (kengaytma) yoki kamera kadri: Figma, rasm, daftar, buyum — Claude ko'radi.
 const IMAGE_DATA_URL_RE = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/;
 
-function normalizeImage(image) {
+function normalizeImage(image, field = "page.image") {
   if (image == null || image === "") return null;
   const match = typeof image === "string" ? IMAGE_DATA_URL_RE.exec(image) : null;
-  if (!match) throw new ValidationError("page.image: data:image/(jpeg|png|webp);base64,... bo'lishi kerak");
-  if (match[2].length > LIMITS.imageBase64Chars) throw new ValidationError("page.image juda katta");
+  if (!match) throw new ValidationError(`${field}: data:image/(jpeg|png|webp);base64,... bo'lishi kerak`);
+  if (match[2].length > LIMITS.imageBase64Chars) throw new ValidationError(`${field} juda katta`);
   return { mediaType: match[1], data: match[2] };
 }
+
+/** Kamera kadri (Jigarning "ko'zi"): o'quvchi oldi yoki orqa kameradan ko'rsatgan narsa — faqat shu xabarga. */
+export const normalizeCameraImage = (image) => normalizeImage(image, "image");
+
+// Tarixda qoladi: keyingi javoblarda Jigar rasm ko'rsatilganini biladi (rasmning o'zi qayta yuborilmaydi).
+export const CAMERA_NOTE = "(O'quvchi kamerada narsa ko'rsatdi — rasm shu xabarga ilova qilingan.)";
+const withCameraNote = (text) => `${CAMERA_NOTE}\n${text}`;
+const imageBlock = (image) => ({ type: "image", source: { type: "base64", media_type: image.mediaType, data: image.data } });
 
 
 export function getConfig(env = process.env) {
@@ -255,7 +270,9 @@ export function normalizeHistory(history) {
     const expected = i % 2 === 0 ? "user" : "assistant";
     if (!m || m.role !== expected) throw new ValidationError(`history[${i}].role "${expected}" bo'lishi kerak`);
     const content = str(m.content).trim();
-    const max = expected === "user" ? LIMITS.messageChars : LIMITS.assistantChars;
+    const isNewMessage = i === history.length - 1;
+    const userMax = isNewMessage ? LIMITS.messageChars : LIMITS.storedMessageChars;
+    const max = expected === "user" ? userMax : LIMITS.assistantChars;
     if (content.length > max) throw new ValidationError(`history[${i}] juda uzun (ko'pi bilan ${max} belgi)`);
     // Faqat birinchi xabar bo'sh bo'lishi mumkin ("shu sahifani tushuntir" degani).
     if (!content && i !== 0) throw new ValidationError(`history[${i}] bo'sh`);
@@ -284,7 +301,7 @@ function pageBlock(page) {
  * Sahifa har doim birinchi user xabariga qo'shiladi — shu tufayli prefiks o'zgarmaydi va kesh ishlaydi.
  * Tanlangan qism (selection) faqat oxirgi xabarga qo'shiladi.
  */
-export function buildMessages({ page, history, selection }) {
+export function buildMessages({ page, history, selection, image = null }) {
   const msgs = history.map((m) => ({ role: m.role, content: m.content }));
   const sel = clip(str(selection).trim(), LIMITS.selectionChars);
   const last = msgs[msgs.length - 1];
@@ -292,12 +309,13 @@ export function buildMessages({ page, history, selection }) {
   last.content = sel ? `O'quvchi sahifadan shu qismni tanladi:\n"""\n${sel}\n"""\n\n${question}` : question;
   const firstText = `${pageBlock(page)}\n\n${msgs[0].content || "Shu sahifani tushuntirib ber."}`;
   // Skrinshot bo'lsa — birinchi xabar: rasm + matn (Claude ko'radi). Har so'rovda bir xil — kesh buzilmaydi.
-  msgs[0].content = page?.image
-    ? [
-        { type: "image", source: { type: "base64", media_type: page.image.mediaType, data: page.image.data } },
-        { type: "text", text: firstText },
-      ]
-    : firstText;
+  msgs[0].content = page?.image ? [imageBlock(page.image), { type: "text", text: firstText }] : firstText;
+  // Kamera kadri — faqat oxirgi xabarga (oldingi xabarlar o'zgarmaydi, kesh ishlaydi).
+  if (image) {
+    const lastMsg = msgs[msgs.length - 1];
+    const blocks = Array.isArray(lastMsg.content) ? lastMsg.content : [{ type: "text", text: lastMsg.content }];
+    msgs[msgs.length - 1] = { ...lastMsg, content: [imageBlock(image), ...blocks] };
+  }
   return msgs;
 }
 
@@ -435,7 +453,10 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ra
   }
 
   return {
-    async chat({ page, history, selection, mode, heardAlt, pronunciation, lang, length, simple, persona, goal, goals, level, studentName, llm }) {
+    async chat({
+      page, history, selection, mode, heardAlt, pronunciation, lang, length, simple, persona, goal, goals, level, studentName, llm,
+      image, unrestricted = false,
+    }) {
       const normLevel = normalizeLevel(level);
       const normMode = effectiveMode(normalizeMode(mode), normLevel);
       const normLang = normalizeLang(lang);
@@ -447,23 +468,31 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ra
         goals: normalizeGoals(goals),
         level: normLevel,
         name: studentName, // promptga tozalanib yoziladi (cleanName)
+        unrestricted: unrestricted === true,
       };
       const normPage = normalizePage(page);
+      const camera = normalizeCameraImage(image);
       const lastIndex = Array.isArray(history) ? history.length - 1 : -1;
-      const normHistory = normalizeHistory(history).map((m, i) =>
-        i === lastIndex ? { ...m, content: lastUserContent(m.content, heardAlt, normMode, pronunciation) } : m,
-      );
+      const lastContent = (m) => {
+        const content = lastUserContent(m.content, heardAlt, normMode, pronunciation);
+        return camera ? withCameraNote(content) : content;
+      };
+      const normHistory = normalizeHistory(history).map((m, i) => (i === lastIndex ? { ...m, content: lastContent(m) } : m));
       const userContent = normHistory[normHistory.length - 1].content;
-      const result = await call(buildMessages({ page: normPage, history: normHistory, selection }), normMode, normLang, style, llm);
+      const messages = buildMessages({ page: normPage, history: normHistory, selection, image: camera });
+      const result = await call(messages, normMode, normLang, style, llm);
       // userContent: mijoz tarixga aynan shuni yozadi — keyingi so'rovlarda prefiks o'zgarmaydi (kesh ishlaydi).
       return { ...result, userContent, pageTruncated: Boolean(normPage?.truncated), parsed: parseAkaResponse(result.text) };
     },
-    async summary({ pageTitle, items, mode, lang, simple, persona, goal, goals, level, llm }) {
+    async summary({ pageTitle, items, mode, lang, simple, persona, goal, goals, level, llm, unrestricted = false }) {
       const normLevel = normalizeLevel(level);
       const normMode = effectiveMode(normalizeMode(mode), normLevel);
       const normLang = normalizeLang(lang);
       const content = buildSummaryMessage({ pageTitle, items });
-      const style = { simple: simple === true, persona: normalizePersona(persona), goal: normalizeGoal(goal), goals: normalizeGoals(goals), level: normLevel };
+      const style = {
+        simple: simple === true, persona: normalizePersona(persona), goal: normalizeGoal(goal), goals: normalizeGoals(goals), level: normLevel,
+        unrestricted: unrestricted === true,
+      };
       return call([{ role: "user", content }], normMode, normLang, style, llm);
     },
   };

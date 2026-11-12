@@ -89,7 +89,7 @@ test("OpenAI TTS: teglar olinadi, xarakter ovozi va ohang ko'rsatmasi, til, MP3 
   assert.equal(body.input, "Salom");
   assert.equal(body.response_format, "mp3");
   assert.match(body.instructions, /Uzbek/);
-  assert.match(body.instructions, /impatient/);
+  assert.match(body.instructions, /impatient/i);
   await tts.synthesize("Привет", { lang: "ru" });
   assert.match(calls[1].body.instructions, /Russian/);
   assert.equal(calls[1].body.voice, OPENAI_VOICES.neytral.yosh); // xarakter va sinf berilmasa

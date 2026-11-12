@@ -13,7 +13,10 @@
     "test": "node --disable-warning=ExperimentalWarning --test \"test/**/*.test.js\"",
     "build:extension": "node scripts/build-extension.js",
     "pronounce": "pronounce/.venv/bin/python pronounce/server.py",
-    "pronounce:setup": "pronounce/setup.sh"
+    "pronounce:setup": "pronounce/setup.sh",
+    "omnivoice": "omnivoice/.venv/bin/python omnivoice/server.py",
+    "omnivoice:setup": "omnivoice/setup.sh",
+    "omnivoice:voices": "node --env-file-if-exists=.env scripts/omnivoice-voices.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",

@@ -2,8 +2,9 @@
 import { ValidationError } from "../core/errors.js";
 import { FISH_MODELS } from "../voice/fishaudio.js";
 
-// Ovoz xizmati: ElevenLabs (so'z vaqtlari bilan), Fish Audio (o'zbekchada eng aniq), Gemini TTS yoki OpenAI TTS (arzon).
-export const TTS_PROVIDERS = ["elevenlabs", "fishaudio", "gemini", "openai"];
+// Ovoz xizmati: ElevenLabs (so'z vaqtlari bilan), Fish Audio (o'zbekchada eng aniq), Gemini TTS, OpenAI TTS (arzon)
+// yoki OmniVoice (o'z serverimiz, API to'lovisiz).
+export const TTS_PROVIDERS = ["elevenlabs", "fishaudio", "gemini", "openai", "omnivoice"];
 // Jigarning "miyasi": Claude (asosiy, Sonnet), Claude Haiku (arzon), Gemini yoki OpenAI (ChatGPT).
 // Gemini yoki OpenAI xato bersa — Claude'ga o'tadi.
 export const LLM_PROVIDERS = ["claude", "haiku", "gemini", "openai"];

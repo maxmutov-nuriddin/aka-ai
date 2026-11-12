@@ -415,3 +415,76 @@ test("til o'rganish: o'zbek o'quvchi rus tilini, rus o'quvchi o'zbek tilini o'rg
   assert.ok(ru.indexOf("# YO'NALISH: TIL O'RGANISH") > ru.indexOf("TIL: RUSCHA"));
   assert.doesNotMatch(systemPromptFor("oddiy", "uz", { goal: "study" }), /TIL O'RGANISH/);
 });
+
+// ---------- Support (cheklovsiz) va kamera ("ko'z") ----------
+const SHOT = "data:image/jpeg;base64,QUJD";
+
+test("systemPromptFor: support — doira qoidalarisiz, SUPPORT REJIMI oxirida", () => {
+  const plain = systemPromptFor("oddiy", "uz", { goal: "study", level: "8-9" });
+  assert.match(plain, /DOIRA: 5–11-sinf/);
+  assert.doesNotMatch(plain, /SUPPORT REJIMI/);
+  const support = systemPromptFor("oddiy", "uz", { goal: "study", level: "8-9", unrestricted: true });
+  assert.doesNotMatch(support, /DOIRA: 5–11-sinf/); // tarif doirasi qo'shilmaydi
+  assert.match(support, /SUPPORT REJIMI/);
+  assert.ok(support.trim().endsWith(systemPromptFor("oddiy", "uz", { unrestricted: true }).split("\n\n").at(-1).trim()));
+});
+
+test("system prompt: qiyin savolga chizma va kamera qoidalari bor", () => {
+  assert.match(SYSTEM_PROMPT, /Savol qiyin bo'lsa, chizma ALBATTA bo'lsin/);
+  assert.match(SYSTEM_PROMPT, /# Kamera \(Jigarning ko'zi\)/);
+});
+
+test("buildMessages: kamera kadri faqat oxirgi xabarga, birinchi xabar o'zgarmaydi (kesh)", () => {
+  const page = normalizePage({ title: "T", text: "abc" });
+  const history = [{ role: "user", content: "a" }, { role: "assistant", content: "b" }, { role: "user", content: "c" }];
+  const image = { mediaType: "image/jpeg", data: "QUJD" };
+  const withShot = buildMessages({ page, history, image });
+  const without = buildMessages({ page, history });
+  assert.equal(withShot[0].content, without[0].content);
+  assert.deepEqual(withShot[2].content[0], { type: "image", source: { type: "base64", media_type: "image/jpeg", data: "QUJD" } });
+  assert.deepEqual(withShot[2].content[1], { type: "text", text: "c" });
+  assert.equal(history[2].content, "c"); // kirish massivi o'zgarmaydi
+});
+
+test("buildMessages: bitta xabar — sahifa skrinshoti va kamera kadri ikkalasi ham boradi", () => {
+  const page = normalizePage({ title: "T", text: "abc", image: "data:image/png;base64,WFla" });
+  const msgs = buildMessages({ page, history: [{ role: "user", content: "x" }], image: { mediaType: "image/jpeg", data: "QUJD" } });
+  assert.deepEqual(msgs[0].content.map((b) => b.type), ["image", "image", "text"]);
+  assert.equal(msgs[0].content[0].source.data, "QUJD");
+  assert.equal(msgs[0].content[1].source.data, "WFla");
+});
+
+test("chat: kamera kadri modelga boradi, tarix matniga izoh qo'shiladi; noto'g'ri rasm — ValidationError", async () => {
+  const { client, calls } = fakeClient(okResponse("[TUSHUNTIRISH]\nko'rdim"));
+  const jigar = createJigar({ client, config });
+  const r = await jigar.chat({ history: [{ role: "user", content: "Bu nima?" }], image: SHOT });
+  const last = calls[0].messages.at(-1).content;
+  assert.equal(last[0].type, "image");
+  assert.match(last.at(-1).text, /kamerada narsa ko'rsatdi[\s\S]*Bu nima\?$/);
+  assert.match(r.userContent, /^\(O'quvchi kamerada narsa ko'rsatdi/);
+  await assert.rejects(jigar.chat({ history: [{ role: "user", content: "x" }], image: "http://x/y.jpg" }), ValidationError);
+  await assert.rejects(
+    jigar.chat({ history: [{ role: "user", content: "x" }], image: `data:image/jpeg;base64,${"A".repeat(LIMITS.imageBase64Chars + 4)}` }),
+    /juda katta/,
+  );
+});
+
+test("chat va summary: unrestricted faqat true bo'lganda support prompti", async () => {
+  const { client, calls } = fakeClient(okResponse("ok"));
+  const jigar = createJigar({ client, config });
+  await jigar.chat({ history: [{ role: "user", content: "Retsept ayt" }], goal: "study", unrestricted: true });
+  await jigar.chat({ history: [{ role: "user", content: "x" }], goal: "study", unrestricted: "true" });
+  await jigar.summary({ items: [{ savol: "s", javob: "j" }], unrestricted: true });
+  assert.match(calls[0].system, /SUPPORT REJIMI/);
+  assert.doesNotMatch(calls[1].system, /SUPPORT REJIMI/);
+  assert.match(calls[2].system, /SUPPORT REJIMI/);
+});
+
+test("normalizeHistory: tarixdagi eski xabar (server izoh qo'shgan) 4000 dan uzun bo'lishi mumkin, yangisi — yo'q", () => {
+  const stored = "x".repeat(LIMITS.messageChars + 500); // 4000 belgili xabar + kamera/ovoz izohi
+  const history = [{ role: "user", content: stored }, { role: "assistant", content: "ok" }, { role: "user", content: "davom" }];
+  assert.equal(normalizeHistory(history)[0].content.length, stored.length);
+  assert.throws(() => normalizeHistory([...history.slice(0, 2), { role: "user", content: stored }]), /juda uzun/);
+  const tooLong = [{ role: "user", content: "x".repeat(LIMITS.storedMessageChars + 1) }, ...history.slice(1)];
+  assert.throws(() => normalizeHistory(tooLong), /juda uzun/);
+});

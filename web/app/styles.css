@@ -30,7 +30,8 @@ html, body { height: 100%; overflow: hidden; }
 }
 
 /* ---------- Sarlavha ---------- */
-.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 22px 0; }
+/* position + z-index: sozlamalar oynasi sahna (.stage — position: relative, kamera uchun) ustida qolsin */
+.top { position: relative; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 22px 0; }
 .brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
 .logo { width: 38px; height: 38px; flex: none; border-radius: 11px; box-shadow: 0 6px 20px var(--glow); }
 .logo-eye { fill: var(--persona, #5ff5dc); transition: fill var(--dur); }
@@ -162,7 +163,7 @@ h1 { font: 800 18px/1.1 var(--font-display); margin: 0; }
 /* ---------- Sahna: personaj (moslashuvchan) + gap + boshqaruv ---------- */
 .layout { min-height: 0; }
 /* Robot + gap bir guruh: sarlavha va mikrofon orasida o'rtada turadi */
-.stage { height: 100%; min-height: 0; display: flex; flex-direction: column; align-items: center; }
+.stage { position: relative; height: 100%; min-height: 0; display: flex; flex-direction: column; align-items: center; }
 .scene {
   flex: 0 1 auto; min-height: 0; width: 100%; margin-top: auto;
   display: flex; flex-direction: column; align-items: center;
@@ -209,6 +210,8 @@ h1 { font: 800 18px/1.1 var(--font-display); margin: 0; }
 @keyframes caret { 50% { opacity: 0; } }
 /* Savol chiqqanda gap yozuvi yo'qoladi — bir-birining ustiga chiqmaydi */
 .stage.quiz-open .caption:not(.static) { display: none; }
+/* Javob matni sahnada chiqmaydi (sig'may, chizmani to'sardi) — u "Suhbat" panelida. Sahnada faqat salomlashuv qoladi. */
+.caption.speaking, .caption.done, .caption.static { display: none; }
 
 .page-chip {
   font-size: 12.5px; color: var(--muted); background: var(--glass); border: 1px solid var(--line);
@@ -216,8 +219,53 @@ h1 { font: 800 18px/1.1 var(--font-display); margin: 0; }
 }
 
 
+/* ---------- Chizma sahnada (qiyin savol) ---------- */
+.visual-slot {
+  width: 100%; max-width: 680px; padding: 0; border: 0; background: none; cursor: zoom-in;
+  animation: rise 400ms var(--ease);
+}
+.visual-slot[hidden] { display: none; }
+/* Chizma bor — joy unga: sahnada Jigar kichrayadi, chizma kesilmaydi */
+.dialogue:has(.visual-slot:not([hidden])) { flex-shrink: 0; }
+/* Ixcham: butun chizma sig'adi (balandlik bo'yicha), bosilsa — to'liq o'lchamda ochiladi */
+.visual-slot .diagram { display: flex; justify-content: center; overflow: hidden; pointer-events: none; }
+.visual-slot .diagram svg { height: min(26vh, 260px); width: auto; max-width: 100% !important; }
+/* Tarixdagi chizma: bosilsa — katta oynada */
+.diagram.zoomable { display: block; width: 100%; border: 0; cursor: zoom-in; font: inherit; }
+.diagram.zoomable svg { pointer-events: none; }
+.visual-dialog { width: min(920px, calc(100vw - 24px)); }
+.visual-dialog .diagram { max-height: 72vh; overflow: auto; display: flex; justify-content: center; }
+.visual-head { display: flex; align-items: center; justify-content: space-between; }
+.visual-head h2 { margin: 0; font: 800 18px/1.2 var(--font-display); }
+.visual-head .link { font-size: 24px; line-height: 1; }
+
+/* ---------- Kamera (Jigarning ko'zi) ---------- */
+.lens {
+  position: absolute; top: 12px; right: 12px; z-index: 3; width: clamp(130px, 24vw, 240px);
+  border-radius: var(--radius-sm); overflow: hidden; border: 2px solid var(--accent);
+  background: #000; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); animation: rise 300ms var(--ease);
+}
+.lens[hidden] { display: none; }
+.lens video { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; }
+.lens video.mirrored { transform: scaleX(-1); }
+.lens-actions { position: absolute; top: 6px; right: 6px; display: flex; gap: 6px; }
+.lens-btn {
+  width: 32px; height: 32px; padding: 0; display: grid; place-items: center; border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55); border-color: transparent; color: #fff; font-size: 18px; line-height: 1;
+}
+/* Mikrofon qatorining o'ng tomoni: Yozish + kamera (alohida qator emas — sahna balandligi o'zgarmaydi) */
+.bar-group { justify-self: center; display: flex; align-items: center; gap: 8px; }
+.cam-btn { width: 42px; padding: 0; justify-content: center; }
+.cam-btn[hidden] { display: none; }
+.cam-btn[aria-pressed="true"] { background: var(--accent); border-color: transparent; color: var(--accent-ink); }
+.msg.user .shot { display: block; max-width: 160px; border-radius: 8px; margin-bottom: 6px; }
+
 /* ---------- Savol (Jigar gapirib bo'lgach chiqadi) ---------- */
 .quiz-slot { width: 100%; max-width: 680px; }
+/* Savol "Suhbat" paneli pastida — sahnani to'smaydi */
+.chat-panel .quiz-slot { max-width: none; max-height: 60%; overflow-y: auto; padding: 10px 12px 12px; border-top: 1px solid var(--line); }
+.chat-panel .quiz-slot[hidden] { display: none; }
+.chat-panel .quiz-slot .options { grid-template-columns: 1fr; }
 .quiz-slot .quiz {
   background: var(--glass); border: 1px solid var(--line); border-radius: var(--radius-lg);
   padding: 16px 18px; backdrop-filter: blur(12px); animation: rise 400ms var(--ease);
@@ -316,6 +364,11 @@ input:read-only, textarea:read-only { opacity: 0.65; }
   transition: transform 380ms var(--ease), visibility 0s linear 380ms;
 }
 .app[data-chat="open"] .chat-panel { transform: none; visibility: visible; transition: transform 380ms var(--ease); }
+/* Keng ekranda panel ochilsa — sahna chapga suriladi: Jigar, chizma va tugmalar panel ostida qolmaydi */
+@media (min-width: 1000px) {
+  .layout { transition: padding-right 380ms var(--ease); }
+  .app[data-chat="open"] .layout { padding-right: 440px; }
+}
 .chat-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
 .chat-head h2 { margin: 0; font: 700 14px/1.2 var(--font-display); }
 .chat { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 12px; font-size: 14px; }
@@ -372,6 +425,8 @@ code { font: 0.92em ui-monospace, monospace; background: rgba(255, 255, 255, 0.0
   .pill { padding: 0 12px; height: 40px; }
   .mic { --mic-size: 68px; }
   .options { grid-template-columns: 1fr; }
+  .lens { top: 8px; right: 8px; width: 120px; }
+  .cam-btn { width: 40px; }
 }
 @media (max-width: 420px) {
   .brand-text { display: none; }

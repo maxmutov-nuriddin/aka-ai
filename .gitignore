@@ -6,3 +6,8 @@ data/
 # Talaffuz xizmati (Python muhiti va model keshi)
 pronounce/.venv/
 pronounce/__pycache__/
+
+# OmniVoice (Python muhiti, model keshi va yaratilgan ovoz namunalari)
+omnivoice/.venv/
+omnivoice/__pycache__/
+omnivoice/voices/*.pt

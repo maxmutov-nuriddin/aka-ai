@@ -4,6 +4,7 @@
 // (gpt-realtime-2.1-mini). Ko'chirish shu fayl ichida qilinadi — tashqi interfeys (synthesize) o'zgarmaydi.
 // O'zbek tili OpenAI'ning rasmiy ro'yxatida yo'q — sifatini eshitib tekshirish kerak.
 import { ValidationError } from "../core/errors.js";
+import { speechStyleFor } from "./persona-styles.js";
 
 const API_URL = "https://api.openai.com/v1/audio/speech";
 const DEFAULT_MODEL = "gpt-4o-mini-tts";
@@ -23,14 +24,7 @@ export const OPENAI_VOICES = {
   romantik: { yosh: "cedar", katta: "marin" },
 };
 
-// Ohang — har xarakterga (instructions; matn ichiga yozilmaydi, aks holda o'qib yuboradi).
-const STYLES = {
-  neytral: "calm, clear and even, like a friendly teacher",
-  mehribon: "warm, kind and encouraging, gentle smile in the voice",
-  kinoyali: "playful and lightly ironic, a smirk in the voice",
-  jahldor: "strict, impatient and irritated, loud and sharp",
-  romantik: "warm, soft and charming, unhurried",
-};
+// Ohang — xarakter va yoshga mos (instructions): server/voice/persona-styles.js.
 
 const LANGUAGE = {
   uz: "Speak Uzbek (Latin script) with natural native Uzbek pronunciation, not an English accent.",
@@ -65,7 +59,7 @@ export function createOpenAiTts({ env = process.env, fetchImpl = fetch } = {}) {
         model,
         input: spoken,
         voice: OPENAI_VOICES[who][bandOf(level)],
-        instructions: `${LANGUAGE[lang] ?? LANGUAGE.uz} Tone: ${STYLES[who]}.`,
+        instructions: `${LANGUAGE[lang] ?? LANGUAGE.uz} Tone: ${speechStyleFor(who, level)}`,
         response_format: "mp3",
       }),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),

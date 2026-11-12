@@ -13,6 +13,7 @@ import { createAzurePronunciation } from "./voice/azure-pronunciation.js";
 import { createGeminiTts } from "./voice/gemini-tts.js";
 import { createGeminiLlm } from "./core/gemini-llm.js";
 import { createOpenAiTts } from "./voice/openai-tts.js";
+import { createOmniVoice } from "./voice/omnivoice.js";
 import { createOpenAiLlm } from "./core/openai-llm.js";
 import { createPaygate } from "./payments/paygate.js";
 import { createPaymentStore } from "./payments/store.js";
@@ -57,6 +58,7 @@ function voiceErrorResponse(err, failMessage) {
  *   elevenlabs — ElevenLabs (his-tuyg'u teglari, so'z vaqtlari); kaliti bo'lmasa — Azure.
  *                AKA_TTS=azure — Azure'ning tug'ma o'zbek ovozi (teglarsiz).
  *   fishaudio  — Fish Audio (arzonroq; FISH_API_KEY).
+ *   omnivoice  — o'z serverimizdagi ochiq model (OMNIVOICE_URL; API to'lovi yo'q).
  * Matnga aylantirish faqat ElevenLabs.
  */
 export function createVoiceServices(env) {
@@ -69,6 +71,7 @@ export function createVoiceServices(env) {
       fishaudio: createFishAudio({ env }),
       gemini: createGeminiTts({ env }),
       openai: createOpenAiTts({ env }),
+      omnivoice: createOmniVoice({ env }),
     },
     stt: eleven,
   };
@@ -107,7 +110,7 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
 
   /** Ovoz (+ bo'lsa so'z vaqtlari). Tanlangan xizmat xato bersa — o'sha so'rov ElevenLabs'ga o'tadi. */
   async function speakWith(service, text, options) {
-    // contentType: Gemini — WAV, qolganlari — MP3.
+    // contentType: Gemini va OmniVoice — WAV, qolganlari — MP3.
     const run = (s) => (s.synthesizeTimed
       ? s.synthesizeTimed(text, options)
       : s.synthesize(text, options).then((audio) => ({ audio, wordStarts: null })))
@@ -129,6 +132,9 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
   const packageOf = (user) => usage.packageStatus(user.id, user.package);
 
   /** Jigar doirasi: to'langan reja yoki profil yo'nalishi; faol paket bo'lsa — suhbat mashqi ham qo'shiladi. */
+  /** Support (SUPPORT_EMAILS) — Jigar u bilan mavzu doirasisiz gaplashadi. Faqat serverdagi rol, mijoz so'rovi emas. */
+  const isSupport = (user) => user?.role === "support";
+
   function goalsOf(user) {
     const base = user?.plan?.goals ?? (user?.profile?.goal ? [user.profile.goal] : []);
     if (!user || !packageOf(user)) return user?.plan?.goals;
@@ -165,7 +171,7 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
 
   app.use(authenticate(store));
   app.use("/api", cors(allowed));
-  app.use("/api", express.json({ limit: "3mb" })); // sahifa skrinshoti (kengaytma) uchun
+  app.use("/api", express.json({ limit: "4mb" })); // sahifa skrinshoti (kengaytma) + kamera kadri
   app.use(
     "/api/auth",
     createAuthRouter({
@@ -286,11 +292,12 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
           dailyUsage: before,
         });
       }
-      const { page, history, selection, mode, heardAlt, pronunciation, lang, length, simple, persona, goal, level } = req.body ?? {};
-      // studentName — hisobdagi ism: Jigar o'quvchini ismi bilan chaqiradi.
+      const { page, history, selection, mode, heardAlt, pronunciation, lang, length, simple, persona, goal, level, image } = req.body ?? {};
+      // studentName — hisobdagi ism: Jigar o'quvchini ismi bilan chaqiradi. image — kamera kadri (Jigarning "ko'zi").
       const result = await jigar.chat({
-        page, history, selection, mode, heardAlt, pronunciation, lang, length, simple, persona, goal, level,
+        page, history, selection, mode, heardAlt, pronunciation, lang, length, simple, persona, goal, level, image,
         studentName: req.user?.name, llm: settings.llmProvider(),
+        unrestricted: isSupport(req.user), // support — mavzu cheklovisiz
         goals: goalsOf(req.user), // konstruktor rejasi; faol paketda — suhbat mashqi ham
       });
       usage.addChat(req.user.id);
@@ -305,7 +312,10 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
   app.post("/api/summary", requireUser, limiter, async (req, res) => {
     try {
       const { pageTitle, items, mode, lang, simple, persona, goal, level } = req.body ?? {};
-      const result = await jigar.summary({ pageTitle, items, mode, lang, simple, persona, goal, level, llm: settings.llmProvider(), goals: goalsOf(req.user) });
+      const result = await jigar.summary({
+        pageTitle, items, mode, lang, simple, persona, goal, level, llm: settings.llmProvider(), goals: goalsOf(req.user),
+        unrestricted: isSupport(req.user),
+      });
       res.json({ text: result.text, refused: result.refused, usage: result.usage });
     } catch (err) {
       const [status, message] = apiErrorResponse(err);

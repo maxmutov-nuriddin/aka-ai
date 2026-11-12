@@ -3,7 +3,7 @@
 export const GOALS = { curious: "Qiziqish", study: "Maktab darslari", exam: "Imtihon (DTM)", olympiad: "Olimpiada", university: "Universitet", language: "Til o'rganish", interview: "Suhbatga tayyorgarlik" };
 export const PERSONAS = { neytral: "Neytral", mehribon: "Mehribon", kinoyali: "Kinoyali", jahldor: "Jahldor", romantik: "Romantik" };
 export const LEVELS = { "5-7": "5–7 sinf", "8-9": "8–9 sinf", "10-11": "10–11 sinf", student: "Talaba" };
-export const PROVIDERS = { fishaudio: "Fish Audio", elevenlabs: "ElevenLabs", gemini: "Gemini TTS", openai: "OpenAI TTS" };
+export const PROVIDERS = { fishaudio: "Fish Audio", elevenlabs: "ElevenLabs", gemini: "Gemini TTS", openai: "OpenAI TTS", omnivoice: "OmniVoice" };
 export const LLMS = { claude: "Claude", haiku: "Haiku", gemini: "Gemini", openai: "OpenAI" };
 
 const TOAST_MS = 2800;

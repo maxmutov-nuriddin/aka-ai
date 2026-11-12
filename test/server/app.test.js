@@ -209,3 +209,18 @@ test("createVoiceServices: Fish Audio — FISH_API_KEY bo'lsa sozlangan", () => 
   assert.equal(createVoiceServices({}).providers.fishaudio.configured, false);
   assert.equal(createVoiceServices({ FISH_API_KEY: "f" }).providers.fishaudio.configured, true);
 });
+
+test("/api/chat: support — unrestricted va kamera kadri jigar'ga o'tadi; oddiy o'quvchi — cheklangan", async () => {
+  const seen = [];
+  const spy = { ...jigar, async chat(args) { seen.push(args); return { text: "ok", parsed: { tushuntirish: "ok" } }; } };
+  const body = { history: [{ role: "user", content: "Retsept ayt" }], image: "data:image/jpeg;base64,QUJD", unrestricted: true };
+  await withServer({ jigar: spy, env: { SUPPORT_EMAILS: "test@jigar.uz" } }, async (s) => {
+    assert.equal((await s.post("/api/chat", body)).status, 200);
+  });
+  await withServer({ jigar: spy }, async (s) => {
+    assert.equal((await s.post("/api/chat", body)).status, 200); // mijoz "unrestricted" yuborsa ham — e'tiborsiz
+  });
+  assert.equal(seen[0].unrestricted, true);
+  assert.equal(seen[0].image, "data:image/jpeg;base64,QUJD");
+  assert.equal(seen[1].unrestricted, false);
+});

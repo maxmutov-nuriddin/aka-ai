@@ -10,10 +10,13 @@ export * from "./plan-pricing.js";
 // OpenAI gpt-6.1-sol: $2 / $10 (kesh $0.10) — standart OPENAI_MODEL. Arzonroq model (gpt-6-luna) qo'yilsa ham limit
 // shu narxda qoladi (foyda faqat ortadi); qimmatrog'i (gpt-6-astra) qo'yilsa — bu qiymatni oshiring.
 // OpenAI gpt-4o-mini-tts: ~$0.015 / audio daqiqa (30 soniya ≈ 96 so'm); 2027-01-06 da o'chiriladi.
+// OmniVoice — o'z serverimiz (API to'lovi yo'q): GPU ijarasi ~$0.4/soat (RTX 4090 sinfi, ~5 100 so'm), ~25% band
+// bo'lganda soatiga ~300 audio daqiqa -> ~17 so'm / audio daqiqa; 30 soniya + zaxira = 20 so'm. Foydalanuvchi kam bo'lsa
+// server bo'sh turgani ham pul — bu qiymat faqat yuklama yetarli bo'lganda to'g'ri.
 // Claude Haiku 5.5: $0.10 / $0.50 (yangi tokenizator ~30% ko'p token sanaydi) — ~13 so'm; o'ylash tokenlari uchun
 // zaxira bilan 25 so'm.
 export const LLM_COST_SOM = { claude: 195, haiku: 25, gemini: 250, openai: 187 };
-export const TTS_COST_SOM = { fishaudio: 355, elevenlabs: 1205, gemini: 173, openai: 96 };
+export const TTS_COST_SOM = { fishaudio: 355, elevenlabs: 1205, gemini: 173, openai: 96, omnivoice: 20 };
 
 /** Joriy tanlov (miya + ovoz) bo'yicha 1 daqiqa narxi (so'm). */
 export function costPerMinute(llm, tts) {
