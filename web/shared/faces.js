@@ -3,8 +3,8 @@
 // Kayfiyat stikerlari (moodSvg) ham shu uslubda — emoji o'rniga brend stikerlari.
 export const FACE_COLORS = {
   neytral: "#2ee6c8", // Jigarning asl ko'z rangi
-  mehribon: "#4da3ff",
-  kinoyali: "#b46bff",
+  mehribon: "#ffc94d",
+  kinoyali: "#d264ff",
   jahldor: "#ff8a3d",
   romantik: "#ff5fa2",
   moslashuvchan: "#7ee081",

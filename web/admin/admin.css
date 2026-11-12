@@ -13,8 +13,8 @@
   --g-language: #34d399;
 }
 [data-persona="neytral"] { --pc: #9ba1c4; }
-[data-persona="mehribon"] { --pc: #4da3ff; }
-[data-persona="kinoyali"] { --pc: #a45cff; }
+[data-persona="mehribon"] { --pc: #ffc23d; }
+[data-persona="kinoyali"] { --pc: #cf5cff; }
 [data-persona="jahldor"] { --pc: #ff6a2a; }
 [data-persona="romantik"] { --pc: #ff4f98; }
 [data-persona="moslashuvchan"] { --pc: #7ee081; }
@@ -311,8 +311,8 @@ button { font: inherit; color: inherit; }
 .pick button[aria-checked="true"] { color: var(--text); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent); }
 .pick button[data-persona-color] { --pc: var(--accent); }
 .pick button[data-persona-color="neytral"] { --pc: #9ba1c4; }
-.pick button[data-persona-color="mehribon"] { --pc: #4da3ff; }
-.pick button[data-persona-color="kinoyali"] { --pc: #a45cff; }
+.pick button[data-persona-color="mehribon"] { --pc: #ffc23d; }
+.pick button[data-persona-color="kinoyali"] { --pc: #cf5cff; }
 .pick button[data-persona-color="jahldor"] { --pc: #ff6a2a; }
 .pick button[data-persona-color="romantik"] { --pc: #ff4f98; }
 .pick button[data-persona-color="moslashuvchan"] { --pc: #7ee081; }

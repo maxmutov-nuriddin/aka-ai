@@ -822,8 +822,8 @@ function renderPrefs() {
 // Sarlavhada tanlangan xarakter (ranglar web/auth/onboarding.js va shared/avatar.css bilan bir xil).
 const PERSONA_INFO = {
   neytral: { color: "#2ee6c8", uz: ["Neytral", "xotirjam va lo'nda"], ru: ["Нейтральный", "спокойно и по делу"] },
-  mehribon: { color: "#4da3ff", uz: ["Mehribon", "qo'llab-quvvatlaydi"], ru: ["Добрый", "всегда поддержит"] },
-  kinoyali: { color: "#b46bff", uz: ["Kinoyali", "kesatadi, lekin o'rinli"], ru: ["Ироничный", "подколет по делу"] },
+  mehribon: { color: "#ffc94d", uz: ["Mehribon", "qo'llab-quvvatlaydi"], ru: ["Добрый", "всегда поддержит"] },
+  kinoyali: { color: "#d264ff", uz: ["Kinoyali", "kesatadi, lekin o'rinli"], ru: ["Ироничный", "подколет по делу"] },
   jahldor: { color: "#ff8a3d", uz: ["Jahldor", "xatoni kechirmaydi"], ru: ["Строгий", "ошибок не прощает"] },
   romantik: { color: "#ff5fa2", uz: ["Romantik", "iltifot qiladi"], ru: ["Романтик", "делает комплименты"] },
   moslashuvchan: { color: "#7ee081", uz: ["Moslashuvchan", "senga moslashadi"], ru: ["Гибкий", "подстраивается под тебя"] },
@@ -837,6 +837,9 @@ function renderPersonaTag() {
   // Fon ham xarakter rangida (styles.css: .app::after).
   if (info) el.app.style.setProperty("--app-tint", info.color);
   else el.app.style.removeProperty("--app-tint");
+  // styles.css: moslashuvchan — fon va sarlavha rangi robot bilan birga o'zgarib turadi
+  if (info) el.app.dataset.persona = prefs.persona;
+  else delete el.app.dataset.persona;
   if (!info) {
     delete brand.dataset.persona;
     return;

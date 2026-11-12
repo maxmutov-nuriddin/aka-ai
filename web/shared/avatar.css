@@ -37,11 +37,18 @@
 }
 .avatar[data-state="thinking"] .av-tip-halo { animation-duration: 0.6s; }
 /* Xarakter: ko'z, antenna va yadro rangi (kayfiyat ranglari pastda — ular ustun) */
-.avatar[data-persona="mehribon"] { --eye: #6cb6ff; --accent: #4da3ff; }
-.avatar[data-persona="kinoyali"] { --eye: #c58cff; --accent: #a45cff; }
+.avatar[data-persona="mehribon"] { --eye: #ffd876; --accent: #ffc23d; } /* iliq oltin — mehr, quyosh */
+.avatar[data-persona="kinoyali"] { --eye: #e08cff; --accent: #cf5cff; } /* och binafsha-pushti — brend rangidan farqli */
 .avatar[data-persona="jahldor"] { --eye: #ff8a3d; --accent: #ff6a2a; }
 .avatar[data-persona="romantik"] { --eye: #ff6fae; --accent: #ff4f98; --cheek: rgba(255, 111, 174, 0.65); }
-.avatar[data-persona="moslashuvchan"] { --eye: #8cf0a0; --accent: #7ee081; }
+/* Moslashuvchan: rangi sekin o'zgarib turadi (yashil -> ko'k -> binafsha) — "senga moslashadi" */
+@property --mos-color { syntax: "<color>"; inherits: true; initial-value: #7ee081; }
+@keyframes mos-shift {
+  0%, 100% { --mos-color: #7ee081; }
+  33% { --mos-color: #4dc9ff; }
+  66% { --mos-color: #a98bff; }
+}
+.avatar[data-persona="moslashuvchan"] { --eye: var(--mos-color); --accent: var(--mos-color); animation: mos-shift 14s ease-in-out infinite; }
 /* Romantik: robot atrofida suzib, ko'tarilib yo'qoladigan yurakchalar (faqat shu xarakterda) */
 .av-hearts { position: absolute; inset: 0; pointer-events: none; display: none; }
 .avatar[data-persona="romantik"] .av-hearts { display: block; }
