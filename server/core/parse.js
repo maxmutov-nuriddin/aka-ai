@@ -1,10 +1,12 @@
-// Model javobini bo'limlarga ajratadi: [TUSHUNTIRISH], [ESDA QOLSIN], [VIZUAL], [QUIZ].
+// Model javobini bo'limlarga ajratadi: [SAVOL] (ovozli savolning to'g'ri yozilishi), [TUSHUNTIRISH], [ESDA QOLSIN],
+// [VIZUAL], [QUIZ].
 // Brauzerda ham, serverda ham ishlaydi (hech qanday Node API ishlatilmaydi).
 
 const SECTION_NAMES = ["TUSHUNTIRISH", "ESDA QOLSIN", "VIZUAL", "QUIZ"];
 
 // "[TUSHUNTIRISH]", "**[TUSHUNTIRISH]**", "## [TUSHUNTIRISH]" kabi sarlavhalarni topadi.
-const HEADER_RE = /^[ \t>#*_]*\[(TUSHUNTIRISH|ESDA QOLSIN|VIZUAL|QUIZ)\][ \t*_:]*(.*)$/gim;
+const HEADER_RE = /^[ \t>#*_]*\[(SAVOL|TUSHUNTIRISH|ESDA QOLSIN|VIZUAL|QUIZ)\][ \t*_:]*(.*)$/gim;
+const MAX_HEARD_CHARS = 1000;
 
 const NO_VISUAL = new Set(["yo'q", "yo‘q", "yoʻq", "yoq", "йўқ", "нет", "no", "-", ""]);
 
@@ -24,19 +26,30 @@ export function parseAkaResponse(raw) {
   }
 
   const hasStructure = SECTION_NAMES.some((n) => n in sections);
+  // Tuzilmasiz javob — butun matn tushuntirish ([SAVOL] bo'limi bo'lsa, u ajratib olinadi).
+  const savolHeader = found.find((f) => f.name === "SAVOL");
+  const plain = savolHeader ? text.slice(found[found.indexOf(savolHeader) + 1]?.start ?? text.length) : text;
   return {
     structured: hasStructure,
-    tushuntirish: hasStructure ? (sections.TUSHUNTIRISH ?? "") : text.trim(),
+    savol: parseHeard(sections.SAVOL),
+    tushuntirish: hasStructure ? (sections.TUSHUNTIRISH ?? "") : plain.trim(),
     esdaQolsin: sections["ESDA QOLSIN"] ?? "",
     vizual: parseVisual(sections.VIZUAL),
     quiz: parseQuiz(sections.QUIZ),
   };
 }
 
+/** [SAVOL]: o'quvchining ovozli savoli to'g'ri imlo bilan (chatda xom tanilgan matn o'rniga). Bo'sh — null. */
+export function parseHeard(body) {
+  const line = String(body ?? "").replace(/\s+/g, " ").replace(/^["'«“]+|["'»”]+$/g, "").trim();
+  if (!line || NO_VISUAL.has(line.toLowerCase().replace(/[."!]+$/g, ""))) return null;
+  return line.slice(0, MAX_HEARD_CHARS);
+}
+
 export function parseVisual(body) {
   if (!body) return null;
   let code = body.trim();
-  const fence = code.match(/```(?:mermaid)?[ \t]*\n([\s\S]*?)```/i);
+  const fence = code.match(/```(?:mermaid|svg|xml|html)?[ \t]*\n([\s\S]*?)```/i);
   if (fence) code = fence[1].trim();
   const normalized = code.toLowerCase().replace(/[."!]+$/g, "").trim();
   if (NO_VISUAL.has(normalized)) return null;

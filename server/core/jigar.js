@@ -202,6 +202,7 @@ export const LIMITS = {
   historyTurns: 40, // jami xabarlar soni (user + assistant)
   summaryItems: 60,
   imageBase64Chars: 1_500_000, // sahifa skrinshoti (~1.1 MB) — kengaytma 1568 px JPEG yuboradi (~200-400 KB)
+  pdfBase64Chars: 11_000_000, // yuklangan darslik PDF (~8 MB fayl)
 };
 
 // Sahifa skrinshoti (kengaytma) yoki kamera kadri: Figma, rasm, daftar, buyum — Claude ko'radi.
@@ -215,8 +216,27 @@ function normalizeImage(image, field = "page.image") {
   return { mediaType: match[1], data: match[2] };
 }
 
+// Yuklangan darslik (PDF): Claude uni sahifalari, rasm va jadvallari bilan o'qiydi.
+const PDF_DATA_URL_RE = /^data:application\/pdf;base64,([A-Za-z0-9+/]+={0,2})$/;
+
+function normalizePdf(pdf) {
+  if (pdf == null || pdf === "") return null;
+  const match = typeof pdf === "string" ? PDF_DATA_URL_RE.exec(pdf) : null;
+  if (!match) throw new ValidationError("page.pdf: data:application/pdf;base64,... bo'lishi kerak");
+  if (match[1].length > LIMITS.pdfBase64Chars) throw new ValidationError("PDF juda katta (ko'pi bilan ~8 MB)");
+  return { data: match[1] };
+}
+
+/** Xabarlarda PDF bormi — muqobil miyalar (Gemini, OpenAI) uni o'qimaydi, javobni Claude beradi. */
+const hasDocument = (messages) =>
+  messages.some((m) => Array.isArray(m.content) && m.content.some((b) => b?.type === "document"));
+
 /** Kamera kadri (Jigarning "ko'zi"): o'quvchi oldi yoki orqa kameradan ko'rsatgan narsa — faqat shu xabarga. */
 export const normalizeCameraImage = (image) => normalizeImage(image, "image");
+
+// Ovozli xabar: brauzer eshitgan matnda xato bo'ladi — Jigar tushungan savolni [SAVOL] da to'g'ri yozib qaytaradi,
+// chatda xom matn o'rniga o'sha ko'rinadi.
+export const VOICE_NOTE = "(Ovozli xabar: javob boshida [SAVOL] bo'limini yoz.)";
 
 // Tarixda qoladi: keyingi javoblarda Jigar rasm ko'rsatilganini biladi (rasmning o'zi qayta yuborilmaydi).
 export const CAMERA_NOTE = "(O'quvchi kamerada narsa ko'rsatdi — rasm shu xabarga ilova qilingan.)";
@@ -247,13 +267,15 @@ export function normalizePage(page) {
   const title = clip(str(page.title).trim(), 300);
   const url = clip(str(page.url).trim(), 1000);
   const image = normalizeImage(page.image);
-  if (!text && !title && !image) return null;
+  const pdf = normalizePdf(page.pdf);
+  if (!text && !title && !image && !pdf) return null;
   return {
     title,
     url,
     text: clip(text, LIMITS.pageChars),
     truncated: text.length > LIMITS.pageChars,
     ...(image ? { image } : {}),
+    ...(pdf ? { pdf } : {}),
   };
 }
 
@@ -288,6 +310,10 @@ function pageBlock(page) {
   if (page.title) lines.push(`Sarlavha: ${page.title}`);
   if (page.url) lines.push(`Manzil: ${page.url}`);
   if (page.truncated) lines.push("(Eslatma: sahifa juda uzun, quyida faqat uning boshlang'ich qismi berilgan.)");
+  if (page.pdf) {
+    lines.push("(Yuqorida — o'quvchi yuklagan darslik yoki hujjat (PDF). Savolga shu hujjatga tayanib javob ber; kerak bo'lsa "
+      + "qaysi sahifa yoki bo'limdan olganingni ayt. Hujjatda yo'q narsani undan deb to'qima.)");
+  }
   if (page.image) {
     lines.push("(Yuqorida — o'quvchi ekranida ko'rinib turgan sahifaning skrinshoti. Rasm, dizayn (Figma), diagramma, formula yoki "
       + "jadval bo'lsa — skrinshotga qarab tushuntir. Matn bilan farq qilsa, skrinshot ustun.)");
@@ -309,7 +335,11 @@ export function buildMessages({ page, history, selection, image = null }) {
   last.content = sel ? `O'quvchi sahifadan shu qismni tanladi:\n"""\n${sel}\n"""\n\n${question}` : question;
   const firstText = `${pageBlock(page)}\n\n${msgs[0].content || "Shu sahifani tushuntirib ber."}`;
   // Skrinshot bo'lsa — birinchi xabar: rasm + matn (Claude ko'radi). Har so'rovda bir xil — kesh buzilmaydi.
-  msgs[0].content = page?.image ? [imageBlock(page.image), { type: "text", text: firstText }] : firstText;
+  const pageBlocks = [
+    ...(page?.pdf ? [{ type: "document", source: { type: "base64", media_type: "application/pdf", data: page.pdf.data } }] : []),
+    ...(page?.image ? [imageBlock(page.image)] : []),
+  ];
+  msgs[0].content = pageBlocks.length ? [...pageBlocks, { type: "text", text: firstText }] : firstText;
   // Kamera kadri — faqat oxirgi xabarga (oldingi xabarlar o'zgarmaydi, kesh ishlaydi).
   if (image) {
     const lastMsg = msgs[msgs.length - 1];
@@ -406,10 +436,31 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ra
     }
   }
 
-  async function call(messages, mode = "oddiy", lang = "uz", style = {}, llm = "claude") {
-    if (alternatives[llm]?.configured) {
+  /**
+   * Claude so'rovi. onDelta berilsa — oqim (stream): matn bo'laklari kelishi bilan uzatiladi (Jigar tezroq gapira
+   * boshlaydi). Yakuniy xabar ikkala holatda ham bir xil shaklda qaytadi.
+   */
+  async function requestClaude(params, useFallbacks, onDelta) {
+    const fallbackParams = useFallbacks ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" } : null;
+    if (!onDelta) {
+      return fallbackParams
+        ? client.beta.messages.create({ ...params, ...fallbackParams })
+        : client.messages.create(params);
+    }
+    const stream = fallbackParams
+      ? client.beta.messages.stream({ ...params, ...fallbackParams })
+      : client.messages.stream(params);
+    stream.on("text", (delta) => onDelta(delta));
+    return stream.finalMessage();
+  }
+
+  async function call(messages, mode = "oddiy", lang = "uz", style = {}, llm = "claude", onDelta = null) {
+    if (alternatives[llm]?.configured && !hasDocument(messages)) {
       const viaAlternative = await callAlternative(llm, messages, systemPromptFor(mode, lang, style));
-      if (viaAlternative) return viaAlternative;
+      if (viaAlternative) {
+        onDelta?.(viaAlternative.text); // muqobil miya oqimsiz — javob bir bo'lakda
+        return viaAlternative;
+      }
     }
     const haiku = llm === "haiku";
     const params = {
@@ -422,16 +473,7 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ra
       ...(haiku ? { thinking: { type: "disabled" } } : {}),
       messages,
     };
-    let message;
-    if (config.fallbacks && !haiku) {
-      message = await client.beta.messages.create({
-        ...params,
-        betas: ["server-side-fallback-2026-07-01"],
-        fallbacks: "default",
-      });
-    } else {
-      message = await client.messages.create(params);
-    }
+    const message = await requestClaude(params, config.fallbacks && !haiku, onDelta);
 
     const text = extractText(message);
     const refused = message.stop_reason === "refusal";
@@ -455,7 +497,7 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ra
   return {
     async chat({
       page, history, selection, mode, heardAlt, pronunciation, lang, length, simple, persona, goal, goals, level, studentName, llm,
-      image, unrestricted = false,
+      image, unrestricted = false, voice = false, onDelta = null,
     }) {
       const normLevel = normalizeLevel(level);
       const normMode = effectiveMode(normalizeMode(mode), normLevel);
@@ -475,12 +517,13 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ra
       const lastIndex = Array.isArray(history) ? history.length - 1 : -1;
       const lastContent = (m) => {
         const content = lastUserContent(m.content, heardAlt, normMode, pronunciation);
-        return camera ? withCameraNote(content) : content;
+        const heard = voice === true && m.content ? `${content}\n\n${VOICE_NOTE}` : content;
+        return camera ? withCameraNote(heard) : heard;
       };
       const normHistory = normalizeHistory(history).map((m, i) => (i === lastIndex ? { ...m, content: lastContent(m) } : m));
       const userContent = normHistory[normHistory.length - 1].content;
       const messages = buildMessages({ page: normPage, history: normHistory, selection, image: camera });
-      const result = await call(messages, normMode, normLang, style, llm);
+      const result = await call(messages, normMode, normLang, style, llm, typeof onDelta === "function" ? onDelta : null);
       // userContent: mijoz tarixga aynan shuni yozadi — keyingi so'rovlarda prefiks o'zgarmaydi (kesh ishlaydi).
       return { ...result, userContent, pageTruncated: Boolean(normPage?.truncated), parsed: parseAkaResponse(result.text) };
     },

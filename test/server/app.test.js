@@ -224,3 +224,29 @@ test("/api/chat: support — unrestricted va kamera kadri jigar'ga o'tadi; oddiy
   assert.equal(seen[0].image, "data:image/jpeg;base64,QUJD");
   assert.equal(seen[1].unrestricted, false);
 });
+
+test("/api/chat stream: NDJSON — delta qatorlari, oxirida done; xato oqim boshlanmasdan — oddiy JSON", async () => {
+  const streaming = {
+    ...jigar,
+    async chat({ history, onDelta }) {
+      if (history?.[0]?.content === "bad") throw new ValidationError("noto'g'ri");
+      onDelta?.("[TUSHUNTIRISH]\n");
+      onDelta?.("ok");
+      return { text: "[TUSHUNTIRISH]\nok", parsed: { tushuntirish: "ok" } };
+    },
+  };
+  await withServer({ jigar: streaming }, async (s) => {
+    const res = await s.post("/api/chat", { history: [{ role: "user", content: "x" }], stream: true });
+    assert.match(res.headers.get("content-type"), /ndjson/);
+    const lines = (await res.text()).trim().split("\n").map((l) => JSON.parse(l));
+    assert.deepEqual(lines.slice(0, 2), [{ type: "delta", text: "[TUSHUNTIRISH]\n" }, { type: "delta", text: "ok" }]);
+    assert.equal(lines[2].type, "done");
+    assert.equal(lines[2].text, "[TUSHUNTIRISH]\nok");
+    const bad = await s.post("/api/chat", { history: [{ role: "user", content: "bad" }], stream: true });
+    assert.equal(bad.status, 400);
+    assert.equal((await bad.json()).error, "noto'g'ri");
+    const plain = await s.post("/api/chat", { history: [{ role: "user", content: "x" }] });
+    assert.match(plain.headers.get("content-type"), /json/);
+    assert.equal((await plain.json()).text, "[TUSHUNTIRISH]\nok");
+  });
+});

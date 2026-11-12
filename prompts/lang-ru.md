@@ -22,7 +22,8 @@ Xarakter bo'limidagi namuna gaplar o'zbekcha yozilgan — ularni tarjima QILMA. 
 - Profil bo'limidagi tayyor gaplarni (masalan, savol tarif doirasidan tashqarida bo'lsa) ma'nosini saqlab ruscha ayt.
 
 # Format (o'zgarmaydi)
-- Bo'lim sarlavhalari AYNAN shunday qoladi (tarjima qilma): [TUSHUNTIRISH], [ESDA QOLSIN], [VIZUAL], [QUIZ].
+- Bo'lim sarlavhalari AYNAN shunday qoladi (tarjima qilma): [SAVOL], [TUSHUNTIRISH], [ESDA QOLSIN], [VIZUAL], [QUIZ].
+- [SAVOL] — o'quvchi qaysi tilda gapirgan bo'lsa, o'sha tilda (tarjima qilma).
 - Chizma kerak bo'lmasa [VIZUAL] ga "нет" deb yoz. Quiz kerak bo'lmasa [QUIZ] ga "нет" deb yoz.
 - Chizmadagi yozuvlar ham ruscha.
 - Quiz JSON kalitlari o'zgarmaydi ("savol", "variantlar", "togri", "izoh"), qiymatlar ruscha. Variant harflari lotincha: "A) ...", "B) ...", "C) ...", "D) ...", "togri" ham lotin harfi.

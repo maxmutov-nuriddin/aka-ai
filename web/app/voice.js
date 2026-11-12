@@ -531,6 +531,89 @@ export function createVoice({
     finish(token, onDone);
   }
 
+  /**
+   * Oqimli o'qish: javob to'liq tayyor bo'lishini kutmasdan, kelgan gaplarni darrov o'qiydi.
+   * Qaytaradi: { add(text) — yana matn, end() — boshqa matn yo'q }. Server ovozi ishlamasa — qolgani brauzer ovozida.
+   */
+  function speakStream({ onDone } = {}) {
+    warmUpAudio();
+    stopSpeaking();
+    const token = ++speakToken;
+    const pieces = [];
+    const loads = [];
+    let ended = false;
+    let running = false;
+    let wake = null;
+    const notify = () => {
+      const resume = wake;
+      wake = null;
+      resume?.();
+    };
+    const controller = new AbortController();
+    abortFetch = () => {
+      controller.abort();
+      notify(); // kutib turgan o'qish halqasi to'xtasin
+    };
+    const waitMore = () => new Promise((resolve) => { wake = resolve; });
+    const load = (i) => {
+      if (!loads[i]) {
+        loads[i] = fetchAudio(pieces[i], controller.signal);
+        loads[i].catch(() => {}); // xato quyida, await qilinganda ushlanadi
+      }
+      return loads[i];
+    };
+    const prefetch = (from) => {
+      for (let j = from; j < Math.min(pieces.length, from + PREFETCH_AHEAD); j++) load(j);
+    };
+    async function restInBrowser(i) {
+      while (!ended && token === speakToken) await waitMore();
+      if (token === speakToken) speakBrowser(pieces.slice(i).join(" "), token, onDone);
+    }
+
+    async function run() {
+      for (let i = 0; ; i++) {
+        while (i >= pieces.length && !ended && token === speakToken) await waitMore();
+        if (token !== speakToken) return;
+        if (i >= pieces.length) return finish(token, onDone);
+        if (!serverTts) return restInBrowser(i);
+        prefetch(i);
+        try {
+          const { url, wordStarts } = await load(i);
+          if (token !== speakToken) return URL.revokeObjectURL(url);
+          prefetch(i + 1);
+          await playUrl(url, beginChunk(pieces[i]), wordStarts);
+        } catch (err) {
+          if (token !== speakToken) return;
+          if (err instanceof TtsOffError) serverTts = false;
+          controller.abort();
+          return restInBrowser(i);
+        }
+      }
+    }
+
+    return {
+      add(text) {
+        if (token !== speakToken || ended) return;
+        const parts = splitForSpeech(text, SERVER_CHUNK).filter((p) => stripAudioTags(p).trim());
+        if (!parts.length) return;
+        pieces.push(...parts);
+        if (!running) {
+          running = true;
+          isSpeaking = true;
+          onState("speaking");
+          run();
+        }
+        notify();
+      },
+      end() {
+        if (ended) return;
+        ended = true;
+        if (!running && token === speakToken) return onDone?.(); // hech narsa o'qilmadi
+        notify();
+      },
+    };
+  }
+
   function speakBrowser(text, token, onDone) {
     if (!synth) return finish(token, onDone);
     // Teglar kayfiyat uchun bo'lakda qoladi, lekin brauzer ularni so'z sifatida o'qib yubormasligi uchun olinadi.
@@ -590,6 +673,7 @@ export function createVoice({
     listen,
     stopListening,
     speak,
+    speakStream,
     stopSpeaking,
     stopAll,
     hasBrowserRecognition: Boolean(Recognition),

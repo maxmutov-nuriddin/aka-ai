@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseAkaResponse, parseQuiz, parseVisual, variantLetter, stripAudioTags } from "../../server/core/parse.js";
+import { parseAkaResponse, parseHeard, parseQuiz, parseVisual, variantLetter, stripAudioTags } from "../../server/core/parse.js";
 
 const SAMPLE = `[TUSHUNTIRISH]
 Eshit, jigar, fotosintez — bu o'simlikning oshxonasi.
@@ -86,4 +86,27 @@ test("stripAudioTags ovoz teglarini olib tashlaydi, oddiy matnga tegmaydi", () =
   assert.equal(stripAudioTags("Bu [low, gravelly voice] gap"), "Bu gap");
   assert.equal(stripAudioTags("Massiv [1, 2] va [A] harf"), "Massiv [1, 2] va [A] harf");
   assert.equal(stripAudioTags(""), "");
+});
+
+test("[SAVOL]: ovozli savolning to'g'ri yozilishi ajratiladi, tushuntirishga aralashmaydi", () => {
+  const r = parseAkaResponse("[SAVOL]\n\"Fotosintez qanday bo'ladi?\"\n\n[TUSHUNTIRISH]\nQuyosh nuri...\n\n[ESDA QOLSIN]\nE\n\n[VIZUAL]\nyo'q\n\n[QUIZ]\nyo'q");
+  assert.equal(r.savol, "Fotosintez qanday bo'ladi?");
+  assert.equal(r.tushuntirish, "Quyosh nuri...");
+  assert.equal(parseAkaResponse("[TUSHUNTIRISH]\nok").savol, null); // ovozsiz xabar — bo'lim yo'q
+  assert.equal(parseAkaResponse("[SAVOL]\nyo'q\n[TUSHUNTIRISH]\nok").savol, null);
+});
+
+test("[SAVOL] bor, boshqa bo'lim yo'q — tushuntirish savol qatorisiz", () => {
+  const r = parseAkaResponse("[SAVOL]\nSalom\n");
+  assert.equal(r.savol, "Salom");
+  assert.equal(r.tushuntirish, "");
+  assert.equal(parseHeard("  ko'p   bo'shliq \n qator "), "ko'p bo'shliq qator");
+  assert.equal(parseHeard("x".repeat(2000)).length, 1000);
+});
+
+test("parseVisual: ```svg bloki — SVG kodi ajratib olinadi", () => {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>';
+  assert.equal(parseVisual("```svg\n" + svg + "\n```"), svg);
+  assert.equal(parseVisual(svg), svg); // qobiqsiz ham
+  assert.equal(parseVisual("```mermaid\ntimeline\n  1336 : Tug'ildi\n```"), "timeline\n  1336 : Tug'ildi");
 });

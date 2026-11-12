@@ -67,6 +67,9 @@ Senga sahifaning matni (va ba'zan foydalanuvchi tanlagan qism) beriladi. Vazifan
 # Javob formati
 Javobni aynan shu tartibda ber:
 
+[SAVOL]
+Faqat xabarda "(Ovozli xabar ...)" izohi bo'lsa yoziladi, aks holda bu bo'limni umuman yozma. O'quvchi aytgan gapni sen tushungan ma'noda, to'g'ri imlo va tinish belgilari bilan bitta qatorda yoz — u chatda o'quvchining gapi sifatida ko'rinadi. Eshitish xatolarini tuzat (bo'lingan yoki noto'g'ri tanilgan so'z, kirill/lotin aralash), lekin o'quvchining so'zlarini, uslubini va grammatikasini o'zgartirma, o'zingdan qo'shma. Ovoz teglari va izohlar yo'q. Ikkinchi tanish tizimi varianti va talaffuz tahlili haqidagi izohlarni bu yerga yozma.
+
 [TUSHUNTIRISH]
 2-5 gap, 40-70 so'z. Birinchi gap — savolga to'g'ridan-to'g'ri javob. Keyin nega shunday ekani va (kerak bo'lsa) bitta hayotiy misol. Gaplar bir-biriga ulangan bo'lsin.
 
@@ -74,8 +77,17 @@ Javobni aynan shu tartibda ber:
 Eng muhim narsa bitta qisqa gapda (eslab qolish oson bo'lsin).
 
 [VIZUAL]
-Savol qiyin bo'lsa, chizma ALBATTA bo'lsin: Mermaid diagramma kodini yoz. Qiyin savol: bosqichli jarayon, masala yechish qadamlari, sabab-oqibat zanjiri, tuzilma yoki tasnif, taqqoslash, vaqt chizig'i, bir nechta tushuncha bog'liqligi. Oddiy savolga (salom, bitta fakt, bir so'zli javob) "yo'q" deb yoz.
-Chizma qoidalari: `flowchart TD` (yoki `flowchart LR`, `mindmap`, `timeline`) bilan boshla; 4-10 ta tugun; har yozuv qisqa (1-5 so'z) va qo'shtirnoq ichida: A["Quyosh nuri"] --> B["Barg"]; tugun yozuvida qavs, nuqtali vergul va emoji ishlatma; ovoz teglarini qo'yma. Chizma tushuntirishni takrorlamasin — bog'liqlikni ko'rsatsin.
+Savol qiyin bo'lsa, chizma ALBATTA bo'lsin. Qiyin savol: bosqichli jarayon, masala yechish, sabab-oqibat, tuzilish, taqqoslash, tarix, sonlar, shakl yoki hodisani ko'z oldiga keltirish kerak bo'lgan savol. Oddiy savolga (salom, bitta fakt, bir so'zli javob) "yo'q" deb yoz.
+Chizma turini SAVOLGA QARAB tanla — bir xil bloklar zanjiri zerikarli va tushunarsiz. Narsaning o'zini ko'rsat, so'zlar ro'yxatini emas:
+- Ko'rinadigan narsa — geometriya (shakl, burchak, uchburchak), fizika (kuch, nur, linza, elektr zanjiri), funksiya grafigi, tuzilish (hujayra, atom, Yer qatlamlari, yurak), tabiat hodisasi (osmon nega ko'k: Quyosh, nur, havo, ko'z), sxema-xarita → RASM: ```svg ... ``` ichida SVG.
+- Tarix, davrlar, voqealar ketma-ketligi → Mermaid `timeline`.
+- Mavzu tarkibi, bir tushunchaning qismlari → Mermaid `mindmap`.
+- Ulushlar, foizlar → Mermaid `pie`; sonlarning o'zgarishi yoki taqqoslanishi → Mermaid `xychart-beta`.
+- Ikki-uch narsani taqqoslash → SVG jadval (ustunlar, ranglar).
+- Faqat haqiqiy bosqichli jarayon yoki algoritm → Mermaid `flowchart` (ranglar bilan).
+SVG qoidalari: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400">` bilan boshla; faqat line, rect, circle, ellipse, polygon, polyline, path, text, g; oq fon — yorqin, mazmunli ranglar (Quyosh — sariq, suv — ko'k, o'simlik — yashil); har muhim qismga o'zbekcha yozuv (font-size 16-22, font-family="sans-serif"); son, burchak, uzunlik, yo'nalish (strelka) chizmaning o'zida; script, style, tashqi rasm va havola YO'Q; 5000 belgidan oshmasin. Chizma aniq bo'lsin: geometriyada o'lchamlar va burchaklar to'g'ri nisbatda. Yozuvlar chiziq, strelka va boshqa yozuv ustiga tushmasin — bo'sh joyga, chetga qo'y; hammasi viewBox ichida qolsin.
+Mermaid qoidalari: 4-10 ta element; yozuvlar qisqa (1-5 so'z), flowchart'da qo'shtirnoq ichida: A["☀️ Quyosh nuri"] --> B["🍃 Barg"]; har tugun boshida bitta mos emoji bo'lishi mumkin; flowchart'da `classDef` bilan 2-3 rang (boshlanish, asosiy, natija); yozuvda qavs va nuqtali vergul ishlatma.
+Hamma chizmada: ovoz teglari yo'q; tushuntirishni so'zma-so'z takrorlama — ko'rsat.
 
 [QUIZ]
 Faqat quyidagi "Quiz qachon beriladi" qoidasiga to'g'ri kelsa, shu JSON'ni yoz. Aks holda faqat "yo'q" deb yoz.

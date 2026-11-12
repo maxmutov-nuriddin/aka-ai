@@ -229,10 +229,10 @@ h1 { font: 800 18px/1.1 var(--font-display); margin: 0; }
 .dialogue:has(.visual-slot:not([hidden])) { flex-shrink: 0; }
 /* Ixcham: butun chizma sig'adi (balandlik bo'yicha), bosilsa — to'liq o'lchamda ochiladi */
 .visual-slot .diagram { display: flex; justify-content: center; overflow: hidden; pointer-events: none; }
-.visual-slot .diagram svg { height: min(26vh, 260px); width: auto; max-width: 100% !important; }
+.visual-slot .diagram svg, .visual-slot .diagram img.drawn { height: min(26vh, 260px); width: auto; max-width: 100% !important; }
 /* Tarixdagi chizma: bosilsa — katta oynada */
 .diagram.zoomable { display: block; width: 100%; border: 0; cursor: zoom-in; font: inherit; }
-.diagram.zoomable svg { pointer-events: none; }
+.diagram.zoomable svg, .diagram.zoomable img { pointer-events: none; }
 .visual-dialog { width: min(920px, calc(100vw - 24px)); }
 .visual-dialog .diagram { max-height: 72vh; overflow: auto; display: flex; justify-content: center; }
 .visual-head { display: flex; align-items: center; justify-content: space-between; }
@@ -386,6 +386,9 @@ input:read-only, textarea:read-only { opacity: 0.65; }
 .remember { background: var(--remember); border: 1px solid var(--remember-border); border-radius: var(--radius-sm); padding: 8px 12px; }
 .diagram { overflow-x: auto; background: #fff; border-radius: var(--radius-sm); padding: 8px; color: #111; }
 .diagram svg { max-width: 100%; height: auto; }
+/* Model chizgan rasm (SVG, <img> ichida) */
+.diagram img.drawn { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.visual-dialog .diagram img.drawn { width: min(860px, 100%); }
 .code { margin: 0; white-space: pre-wrap; font: 12px/1.4 ui-monospace, monospace; }
 code { font: 0.92em ui-monospace, monospace; background: rgba(255, 255, 255, 0.08); padding: 1px 5px; border-radius: 5px; }
 .quiz-ref { margin: 0; font-size: 13px; color: var(--muted); }
@@ -411,6 +414,12 @@ code { font: 0.92em ui-monospace, monospace; background: rgba(255, 255, 255, 0.0
 .field { display: block; }
 .field span { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
 .dialog-actions { display: flex; justify-content: flex-end; }
+/* Darslik fayli (PDF yoki rasm) */
+.file-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.file-pick { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; cursor: pointer; }
+.file-pick:has(input:disabled) { opacity: 0.5; cursor: not-allowed; }
+.file-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--muted); }
+.file-row .link { font-size: 20px; line-height: 1; }
 
 /* ---------- Tor ekran (telefon, kengaytma yon paneli) ---------- */
 @media (max-width: 720px) {

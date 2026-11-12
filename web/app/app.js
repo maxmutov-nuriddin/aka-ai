@@ -3,6 +3,8 @@ import { parseAkaResponse, variantLetter, stripAudioTags } from "../shared/parse
 import { toSpeechText, toSpokenUzbek, toSpokenRussian, matchQuizAnswer } from "./speech.js";
 import { createVoice } from "./voice.js";
 import { createCamera } from "./camera.js";
+import { createSpeechFeed } from "./speech-feed.js";
+import { readPageFile, PageFileError } from "./page-file.js";
 import { createAvatar } from "../shared/avatar.js";
 import { createCaption } from "./caption.js";
 import { LANGS, getLang, t, setLang, translatePage } from "./i18n.js";
@@ -60,6 +62,7 @@ const el = {
 const avatar = createAvatar($("avatar"));
 const caption = createCaption($("caption"));
 const camera = createCamera({ video: el.lensVideo }); // Jigarning "ko'zi" — pastda: tugmalar
+let pageFile = null; // veb-rejim, yuklangan darslik: { kind, name, dataUrl } — pastda: "Darslik fayli"
 
 let state = freshState();
 
@@ -80,10 +83,41 @@ function freshState() {
 let mermaidCounter = 0;
 if (window.mermaid) {
   // Chizma doim oq qutida (.diagram) — "dark" mavzuda chiziq va yozuvlar oq fonda ko'rinmay qolardi.
-  window.mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: "default" });
+  window.mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: "strict",
+    theme: "base",
+    // Jigar uslubi: yumshoq ranglar, yirik yozuv, egri strelkalar (oq qutida)
+    themeVariables: {
+      fontFamily: "system-ui, -apple-system, 'Segoe UI', sans-serif",
+      fontSize: "17px",
+      primaryColor: "#ede9fe",
+      primaryBorderColor: "#7c74ff",
+      primaryTextColor: "#1e1b4b",
+      secondaryColor: "#dcfce7",
+      tertiaryColor: "#fef3c7",
+      lineColor: "#6366f1",
+      pie1: "#7c74ff", pie2: "#34d399", pie3: "#fbbf24", pie4: "#f472b6", pie5: "#60a5fa", pie6: "#fb923c",
+    },
+    flowchart: { curve: "basis", padding: 14, nodeSpacing: 40, rankSpacing: 46 },
+  });
 }
 
-async function renderMermaid(container, code) {
+/** Model chizgan rasm (SVG) — <img> ichida: undagi skript va havolalar ishlamaydi (xavfsiz). */
+const SVG_MAX_CHARS = 20_000;
+function renderSvgImage(container, code) {
+  const img = document.createElement("img");
+  img.alt = "";
+  img.className = "drawn";
+  img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(code)}`;
+  img.onerror = () => showCode(container, code);
+  container.replaceChildren(img);
+}
+
+/** Chizma: SVG rasm yoki Mermaid diagramma (model savolga qarab tanlaydi). */
+async function renderVisual(container, code) {
+  const trimmed = code.trim();
+  if (/^<svg[\s>]/i.test(trimmed) && trimmed.length <= SVG_MAX_CHARS) return renderSvgImage(container, trimmed);
   if (!window.mermaid) return showCode(container, code);
   try {
     const { svg } = await window.mermaid.render(`jigar-mmd-${++mermaidCounter}`, code);
@@ -147,6 +181,7 @@ function scrollDown() {
 }
 
 // ---------- Xabarlarni chizish ----------
+/** Chatdagi o'quvchi gapi. Qaytaradi: matn elementi (ovozli savol to'g'ri yozilgani bilan almashtirilishi uchun). */
 function addUserBubble(text, selection, image = null) {
   el.empty.hidden = true;
   const b = node("div", "msg user");
@@ -157,9 +192,11 @@ function addUserBubble(text, selection, image = null) {
     b.appendChild(shot);
   }
   if (selection) b.appendChild(node("div", "quote", selection.length > 200 ? selection.slice(0, 200) + "…" : selection));
-  b.appendChild(node("div", null, text || t("msg.explainPage")));
+  const said = node("div", null, text || t("msg.explainPage"));
+  b.appendChild(said);
   el.chat.appendChild(b);
   scrollDown();
+  return said;
 }
 
 function addTyping() {
@@ -193,14 +230,14 @@ function showVisual(code) {
   if (!stageVisual) return;
   const box = node("div", "diagram");
   el.visualSlot.appendChild(box);
-  renderMermaid(box, stageVisual);
+  renderVisual(box, stageVisual);
 }
 /** Chizmani katta oynada ochadi (sahnadagi yoki tarixdagi chizma bosilganda). */
 function openVisual(code) {
   if (!code) return;
   el.visualFull.replaceChildren();
   el.visualDialog.showModal();
-  renderMermaid(el.visualFull, code);
+  renderVisual(el.visualFull, code);
 }
 el.visualSlot.addEventListener("click", () => openVisual(stageVisual));
 
@@ -237,7 +274,7 @@ function addAkaCard(parsed, itemIndex) {
     box.addEventListener("click", () => openVisual(parsed.vizual));
     sec.appendChild(box);
     card.appendChild(sec);
-    renderMermaid(box, parsed.vizual);
+    renderVisual(box, parsed.vizual);
   }
 
   if (parsed.quiz) {
@@ -316,6 +353,10 @@ function handleUnauthorized() {
 }
 
 async function api(pathname, body) {
+  return readJsonResponse(await postApi(pathname, body));
+}
+
+async function postApi(pathname, body) {
   await host.ready;
   const res = await fetch(`${host.apiBase}${pathname}`, {
     method: "POST",
@@ -326,6 +367,38 @@ async function api(pathname, body) {
     handleUnauthorized();
     throw new Error(t("err.authRequired"));
   }
+  return res;
+}
+
+/**
+ * Oqimli so'rov: server javobni bo'laklab yuboradi (NDJSON) — har matn bo'lagi onDelta ga, oxirida to'liq javob
+ * (api() bilan bir xil shakl). Server oqimsiz (oddiy JSON) javob bersa ham ishlaydi.
+ */
+async function apiStream(pathname, body, onDelta) {
+  const res = await postApi(pathname, { ...body, stream: true });
+  if (!res.ok || !(res.headers.get("Content-Type") || "").includes("ndjson") || !res.body) return readJsonResponse(res);
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let newline;
+    while ((newline = buffer.indexOf("\n")) >= 0) {
+      const line = buffer.slice(0, newline).trim();
+      buffer = buffer.slice(newline + 1);
+      if (!line) continue;
+      const msg = JSON.parse(line);
+      if (msg.type === "delta") onDelta(msg.text);
+      else if (msg.type === "done") return msg;
+      else if (msg.type === "error") throw new Error(serverErrorText(msg.status, msg));
+    }
+  }
+  throw new Error(t("err.server")); // oqim "done"siz uzildi
+}
+
+async function readJsonResponse(res) {
   let data = null;
   try {
     data = await res.json();
@@ -366,11 +439,18 @@ function showError(msg) {
 // ---------- Asosiy oqim ----------
 async function ensurePage() {
   if (state.page) return state.page;
-  const page = await host.getPage();
+  const fetched = await host.getPage();
+  // Veb-rejim: "Sahifa" oynasida yuklangan darslik (PDF yoki rasm) ham sahifaga qo'shiladi.
+  const file = host.mode === "web" ? pageFile : null;
+  const page = file ? { ...fetched, [file.kind === "pdf" ? "pdf" : "image"]: file.dataUrl, title: fetched?.title || file.name } : fetched;
   // Kengaytma skrinshot ham yuboradi (Figma, rasm, diagramma — matnsiz sahifalarni Jigar ko'radi).
-  const hasContent = page && (page.text?.trim() || page.title?.trim() || page.image);
+  const hasContent = page && (page.text?.trim() || page.title?.trim() || page.image || page.pdf);
   state.page = hasContent
-    ? { title: page.title || "", url: page.url || "", text: page.text || "", ...(page.image ? { image: page.image } : {}) }
+    ? {
+        title: page.title || "", url: page.url || "", text: page.text || "",
+        ...(page.image ? { image: page.image } : {}),
+        ...(page.pdf ? { pdf: page.pdf } : {}),
+      }
     : null;
   if (!state.selection && page?.selection) setSelection(page.selection);
   updatePageUi();
@@ -382,11 +462,13 @@ function updatePageUi() {
     const locked = state.history.length > 0;
     $("pageText").readOnly = locked;
     $("pageTitle").readOnly = locked;
+    $("pageFile").disabled = locked; // suhbat shu fayl bo'yicha — almashtirish uchun yangi suhbat
+    $("pageFileClear").disabled = locked;
     el.pageStatus.textContent = locked
       ? t("page.locked")
       : t("page.hint");
     const title = $("pageTitle").value.trim();
-    const hasText = Boolean($("pageText").value.trim());
+    const hasText = Boolean($("pageText").value.trim()) || Boolean(pageFile);
     el.pageBtnLabel.textContent = hasText ? title || t("page.done") : t("top.page");
   } else {
     el.pageBtn.hidden = true;
@@ -436,7 +518,7 @@ async function sendMessage(text, { fromQuiz = false, fromVoice = false, heardAlt
   if (!fromQuiz && !selection && host.getSelection) {
     selection = ((await host.getSelection().catch(() => "")) || "").trim().slice(0, 4000);
   }
-  addUserBubble(message, selection, image);
+  const userText = addUserBubble(message, selection, image);
   showVisual(null);
   state.history.push({ role: "user", content: message });
   if (!fromQuiz) setSelection("");
@@ -446,12 +528,15 @@ async function sendMessage(text, { fromQuiz = false, fromVoice = false, heardAlt
   }
   updatePageUi();
   const typing = addTyping();
+  // Ovoz yoqiq — javob oqim bilan keladi va Jigar birinchi gap tayyor bo'lishi bilan gapira boshlaydi.
+  const feed = !prefs.muted && voice.supported.speak ? startStreamSpeech() : null;
 
   try {
-    const data = await api("/api/chat", {
+    const data = await apiStream("/api/chat", {
       page, history: state.history, selection, mode: prefs.mode, lang: prefs.lang, length: prefs.length, simple: prefs.simple,
       ...profileFields(), heardAlt, ...(pronunciation ? { pronunciation } : {}), ...(image ? { image } : {}),
-    });
+      ...(fromVoice && message ? { voice: true } : {}), // Jigar tushungan savolni to'g'ri yozib qaytaradi ([SAVOL])
+    }, (delta) => feed?.push(delta));
     typing.remove();
     // Tarif: kunlik limit tugashiga oz qolganda oldindan ogohlantiramiz.
     renderUsage(data.dailyUsage);
@@ -471,9 +556,12 @@ async function sendMessage(text, { fromQuiz = false, fromVoice = false, heardAlt
       tushuntirish: stripAudioTags(parsed.tushuntirish),
       esdaQolsin: stripAudioTags(parsed.esdaQolsin),
     };
+    // Ovozli savol: chatda brauzer eshitgan xom matn o'rniga Jigar tushungan, to'g'ri yozilgani.
+    const heardRight = fromVoice && message && parsed.savol ? parsed.savol : "";
+    if (heardRight) userText.textContent = heardRight;
     const itemIndex = state.items.length;
     state.items.push({
-      savol: message || t("msg.explainPage"),
+      savol: heardRight || message || t("msg.explainPage"),
       javob: [shown.tushuntirish, shown.esdaQolsin].filter(Boolean).join(" ").slice(0, 1200),
       quiz: parsed.quiz ? { savol: parsed.quiz.savol, togri: parsed.quiz.togri, tanlangan: "" } : null,
     });
@@ -486,11 +574,17 @@ async function sendMessage(text, { fromQuiz = false, fromVoice = false, heardAlt
     showVisual(parsed.vizual);
     renderChatCount();
     if (data.truncated) addNotice(t("notice.answerTruncated"));
-    speakReply(toSpeechText(parsed, prefs.lang), {
-      listenAfter: state.lastInput === "voice",
-      shownText: [shown.tushuntirish, shown.esdaQolsin && `Esda qolsin: ${shown.esdaQolsin}`].filter(Boolean).join("\n\n"),
-    });
+    if (feed && !data.refused) {
+      feed.finish(parsed); // qolgan qismi ("Esda qolsin", savol) — o'qilayotganining ortidan
+    } else {
+      if (feed) voice.stopSpeaking(); // rad javobi: oqimda kelgan qisman matn o'rniga — yakuniy javob
+      speakReply(toSpeechText(parsed, prefs.lang), {
+        listenAfter: state.lastInput === "voice",
+        shownText: [shown.tushuntirish, shown.esdaQolsin && `Esda qolsin: ${shown.esdaQolsin}`].filter(Boolean).join("\n\n"),
+      });
+    }
   } catch (e) {
+    if (feed) voice.stopSpeaking(); // oqim uzildi — boshlangan ovoz to'xtaydi
     typing.remove();
     state.history.pop(); // muvaffaqiyatsiz xabarni tarixdan olib tashlaymiz
     el.chat.lastElementChild?.classList.contains("user") && el.chat.lastElementChild.remove();
@@ -765,11 +859,22 @@ function handleSpoken(text, heardAlt = "", pronunciation = null) {
  * Javobni o'qiydi. Brauzer tanishida o'quvchi ovoz bilan gaplashayotgan bo'lsa, keyin yana tinglaydi.
  * Bosib turib gapirish rejimida o'quvchi o'zi bosadi — avtomatik tinglash yo'q.
  */
-function speakReply(text, { listenAfter, shownText }) {
-  const listenAgain = () => {
+/** Jigar gapirib bo'lgach: o'quvchi ovoz bilan gaplashayotgan bo'lsa — yana tinglaydi. */
+function listenAgainAfter(listenAfter) {
+  return () => {
     const auto = listenAfter && !voice.pushToTalk && voice.supported.listen;
     if (auto && !paused && !state.busy && !state.finished) voice.listen();
   };
+}
+
+/** Oqimli javobni ovozga uzatuvchi: kelgan gaplar darrov o'qiladi. */
+function startStreamSpeech() {
+  const speaker = voice.speakStream({ onDone: listenAgainAfter(state.lastInput === "voice") });
+  return createSpeechFeed({ lang: prefs.lang, say: speaker.add, end: speaker.end });
+}
+
+function speakReply(text, { listenAfter, shownText }) {
+  const listenAgain = listenAgainAfter(listenAfter);
   // Javob matni sahnada chiqmaydi — "Suhbat" panelida. Ovoz o'chiq bo'lsa, o'qish uchun panel o'zi ochiladi.
   if (prefs.muted || !voice.supported.speak) {
     caption.showStatic(shownText);
@@ -982,6 +1087,33 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && prefs.chatOpen) updatePrefs({ chatOpen: false });
 });
 el.pageBtn.addEventListener("click", () => el.pagePanel.showModal());
+
+// ---------- Darslik fayli (PDF yoki rasm) ----------
+
+function renderPageFile(note = "") {
+  $("pageFileName").textContent = note || pageFile?.name || "";
+  $("pageFileClear").hidden = !pageFile;
+  updatePageUi();
+}
+
+$("pageFile").addEventListener("change", async (e) => {
+  const input = e.target;
+  const file = input.files?.[0];
+  input.value = ""; // o'sha faylni qayta tanlasa ham "change" ishlasin
+  if (!file) return;
+  renderPageFile(t("file.reading"));
+  try {
+    pageFile = await readPageFile(file);
+    renderPageFile();
+  } catch (err) {
+    pageFile = null;
+    renderPageFile(t(err instanceof PageFileError ? err.code : "file.readError"));
+  }
+});
+$("pageFileClear").addEventListener("click", () => {
+  pageFile = null;
+  renderPageFile();
+});
 el.pagePanel.addEventListener("close", updatePageUi);
 el.modeToggle.addEventListener("click", () => {
   const wild = prefs.mode !== MODES.wild;

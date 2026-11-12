@@ -6,6 +6,22 @@ const JPEG_QUALITY = 0.82; // ~150-350 KB: matn o'qiladi, so'rov yengil
 const FACING = { back: "environment", front: "user" };
 
 /**
+ * Rasmni (video kadr, yuklangan surat) Claude uchun mos JPEG'ga aylantiradi: uzun tomoni MAX_SIDE gacha.
+ * @param {CanvasImageSource} source
+ * @param {number} width asl kenglik
+ * @param {number} height asl balandlik
+ * @returns {string} data:image/jpeg;base64,...
+ */
+export function toJpegDataUrl(source, width, height) {
+  const scale = Math.min(1, MAX_SIDE / Math.max(width, height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(width * scale);
+  canvas.height = Math.round(height * scale);
+  canvas.getContext("2d").drawImage(source, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+}
+
+/**
  * @param {{ video: HTMLVideoElement }} options
  */
 export function createCamera({ video }) {
@@ -43,12 +59,7 @@ export function createCamera({ video }) {
   /** Joriy kadr: data:image/jpeg;base64,... yoki null (kamera hali tayyor emas). */
   function snapshot() {
     if (!stream || !video.videoWidth || !video.videoHeight) return null;
-    const scale = Math.min(1, MAX_SIDE / Math.max(video.videoWidth, video.videoHeight));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(video.videoWidth * scale);
-    canvas.height = Math.round(video.videoHeight * scale);
-    canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+    return toJpegDataUrl(video, video.videoWidth, video.videoHeight);
   }
 
   return {

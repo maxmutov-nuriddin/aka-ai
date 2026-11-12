@@ -488,3 +488,62 @@ test("normalizeHistory: tarixdagi eski xabar (server izoh qo'shgan) 4000 dan uzu
   const tooLong = [{ role: "user", content: "x".repeat(LIMITS.storedMessageChars + 1) }, ...history.slice(1)];
   assert.throws(() => normalizeHistory(tooLong), /juda uzun/);
 });
+
+test("chat: voice=true — oxirgi xabarga [SAVOL] so'rovi qo'shiladi; bo'sh xabar va voice'siz — yo'q", async () => {
+  const { client, calls } = fakeClient(okResponse("[SAVOL]\nFotosintez nima?\n[TUSHUNTIRISH]\nok"));
+  const jigar = createJigar({ client, config });
+  const r = await jigar.chat({ history: [{ role: "user", content: "foto sintez nima" }], voice: true });
+  assert.match(calls[0].messages[0].content, /foto sintez nima\n\n\(Ovozli xabar: javob boshida \[SAVOL\]/);
+  assert.equal(r.parsed.savol, "Fotosintez nima?");
+  await jigar.chat({ history: [{ role: "user", content: "x" }] });
+  assert.doesNotMatch(calls[1].messages[0].content, /Ovozli xabar/);
+  await jigar.chat({ history: [{ role: "user", content: "" }], voice: true });
+  assert.doesNotMatch(calls[2].messages[0].content, /Ovozli xabar/);
+});
+
+test("chat: onDelta — Claude oqim bilan (fallbacks bilan beta stream), bo'laklar va yakuniy javob bir xil", async () => {
+  const final = okResponse("[TUSHUNTIRISH]\nSalom dunyo");
+  const seen = [];
+  const makeStream = (kind) => (params) => {
+    seen.push({ kind, params });
+    const handlers = [];
+    return {
+      on(event, fn) { if (event === "text") handlers.push(fn); return this; },
+      async finalMessage() { for (const piece of ["[TUSHUNTIRISH]\n", "Salom ", "dunyo"]) handlers.forEach((h) => h(piece)); return final; },
+    };
+  };
+  const client = {
+    messages: { create: async () => final, stream: makeStream("plain") },
+    beta: { messages: { create: async () => final, stream: makeStream("beta") } },
+  };
+  const deltas = [];
+  const r = await createJigar({ client, config }).chat({ history: [{ role: "user", content: "x" }], onDelta: (d) => deltas.push(d) });
+  assert.equal(deltas.join(""), r.text);
+  assert.equal(seen[0].kind, "beta");
+  assert.equal(seen[0].params.fallbacks, "default");
+  await createJigar({ client, config: { ...config, fallbacks: false } }).chat({ history: [{ role: "user", content: "x" }], onDelta: () => {} });
+  assert.equal(seen[1].kind, "plain");
+});
+
+test("PDF darslik: normalizePage qabul qiladi, Claude'ga document bloki bo'lib boradi; noto'g'ri yoki katta — xato", () => {
+  const page = normalizePage({ title: "Darslik", pdf: "data:application/pdf;base64,JVBERi0=" });
+  assert.deepEqual(page.pdf, { data: "JVBERi0=" });
+  const msgs = buildMessages({ page, history: [{ role: "user", content: "1-mavzu" }] });
+  assert.deepEqual(msgs[0].content[0], { type: "document", source: { type: "base64", media_type: "application/pdf", data: "JVBERi0=" } });
+  assert.match(msgs[0].content.at(-1).text, /yuklagan darslik/);
+  assert.throws(() => normalizePage({ pdf: "data:text/plain;base64,QQ==" }), ValidationError);
+  assert.throws(() => normalizePage({ pdf: `data:application/pdf;base64,${"A".repeat(LIMITS.pdfBase64Chars + 4)}` }), /juda katta/);
+});
+
+test("PDF bo'lsa muqobil miya (Gemini) chetlanadi — javobni Claude beradi", async () => {
+  let altCalls = 0;
+  const gemini = { configured: true, async generate() { altCalls++; return { text: "gemini", model: "g" }; } };
+  const { client, calls } = fakeClient(okResponse("claude"));
+  const jigar = createJigar({ client, config, gemini });
+  const r = await jigar.chat({ page: { pdf: "data:application/pdf;base64,JVBERi0=" }, history: [{ role: "user", content: "x" }], llm: "gemini" });
+  assert.equal(altCalls, 0);
+  assert.equal(calls.length, 1);
+  assert.equal(r.text, "claude");
+  await jigar.chat({ history: [{ role: "user", content: "x" }], llm: "gemini" });
+  assert.equal(altCalls, 1); // PDF'siz — odatdagidek Gemini
+});

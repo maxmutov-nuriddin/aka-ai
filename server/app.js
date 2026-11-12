@@ -47,6 +47,35 @@ function apiErrorResponse(err) {
   return [500, "Kutilmagan xato yuz berdi."];
 }
 
+/**
+ * Oqimli javob (NDJSON): har qator — JSON. {"type":"delta","text"} — matn bo'lagi; oxirida {"type":"done", ...javob}
+ * yoki {"type":"error","status","error"}. Sarlavha birinchi bo'lak kelganda yuboriladi — undan oldingi xato
+ * (tekshiruv, limit) odatdagi JSON va HTTP holati bilan qaytadi.
+ */
+function createNdjsonWriter(res) {
+  let open = false;
+  const start = () => {
+    if (open) return;
+    open = true;
+    res.status(200);
+    res.set({ "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store", "X-Accel-Buffering": "no" });
+    res.flushHeaders();
+  };
+  return {
+    get open() {
+      return open;
+    },
+    write(obj) {
+      start();
+      res.write(`${JSON.stringify(obj)}\n`);
+    },
+    end(obj) {
+      this.write(obj);
+      res.end();
+    },
+  };
+}
+
 function voiceErrorResponse(err, failMessage) {
   if (err instanceof ValidationError) return [400, err.message];
   if (err instanceof TtsNotConfiguredError) return [503, "Ovoz xizmati sozlanmagan."];
@@ -171,7 +200,7 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
 
   app.use(authenticate(store));
   app.use("/api", cors(allowed));
-  app.use("/api", express.json({ limit: "4mb" })); // sahifa skrinshoti (kengaytma) + kamera kadri
+  app.use("/api", express.json({ limit: "16mb" })); // sahifa skrinshoti, kamera kadri va yuklangan darslik PDF (~8 MB)
   app.use(
     "/api/auth",
     createAuthRouter({
@@ -282,6 +311,7 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
     if (!billing.canUse(req.user) && (await billing.reconcile(req.user.id), !billing.canUse(req.user))) {
       return res.status(402).json({ error: "Bepul sinov tugadi. Davom etish uchun obunani to'lang.", code: "payment_required" });
     }
+    let stream = null;
     try {
       // Tarif: kunlik savol limiti (support — cheksiz). Xato bergan so'rov hisobga olinmaydi.
       const before = dailyUsage(req.user);
@@ -292,20 +322,27 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
           dailyUsage: before,
         });
       }
-      const { page, history, selection, mode, heardAlt, pronunciation, lang, length, simple, persona, goal, level, image } = req.body ?? {};
+      const { page, history, selection, mode, heardAlt, pronunciation, lang, length, simple, persona, goal, level, image, voice } = req.body ?? {};
+      // stream: true — javob bo'laklab keladi (Jigar birinchi gap tayyor bo'lishi bilan gapira boshlaydi).
+      if (req.body?.stream === true) stream = createNdjsonWriter(res);
       // studentName — hisobdagi ism: Jigar o'quvchini ismi bilan chaqiradi. image — kamera kadri (Jigarning "ko'zi").
       const result = await jigar.chat({
-        page, history, selection, mode, heardAlt, pronunciation, lang, length, simple, persona, goal, level, image,
+        page, history, selection, mode, heardAlt, pronunciation, lang, length, simple, persona, goal, level, image, voice,
         studentName: req.user?.name, llm: settings.llmProvider(),
         unrestricted: isSupport(req.user), // support — mavzu cheklovisiz
         goals: goalsOf(req.user), // konstruktor rejasi; faol paketda — suhbat mashqi ham
+        onDelta: stream ? (text) => stream.write({ type: "delta", text }) : null,
       });
       usage.addChat(req.user.id);
-      res.json({ ...result, dailyUsage: dailyUsage(req.user) });
+      const body = { ...result, dailyUsage: dailyUsage(req.user) };
+      if (stream) stream.end({ type: "done", ...body });
+      else res.json(body);
     } catch (err) {
       const [status, message] = apiErrorResponse(err);
       if (status >= 500) console.error("[/api/chat]", err);
-      res.status(status).json({ error: message });
+      // Oqim boshlangan bo'lsa — HTTP holatini o'zgartirib bo'lmaydi: xato oxirgi qatorda.
+      if (stream?.open) stream.end({ type: "error", status, error: message });
+      else res.status(status).json({ error: message });
     }
   });
 
