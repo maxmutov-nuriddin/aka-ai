@@ -87,4 +87,11 @@ aka-ai/
 
 - Global'da ishlaydi: o'quvchi Jigar (6 xarakter, streaming ovoz, savolga mos chizma/SVG, yuz ifodasi, kamera, PDF, UZ/RU tanlash), support panel.
 - Support-yordamchi (EcoSystem'ga ko'chadigan) hozircha Global ichida ishlaydi: internet qidiruvi, xotira, eslatmalar, fayl, "Hey Jigar", sinfsiz erkin rejim.
-- Testlar: 245/245. **Commit qilinmagan** — yangi sessiyada birinchi ish: 0-bosqich.
+- Testlar: 245/245.
+
+## Bajarilganlar
+
+- [x] **0-bosqich** — `jigar-2-split` tarmog'i, qaytish nuqtasi: tag `v1-before-split`.
+- [x] **1-bosqich** — loyiha `Global/` ga ko'chirildi (git tarixi saqlangan). `.env`, `data/`, `node_modules/`, `dist/`, `omnivoice/.venv` ham `Global/` ichida. Tekshirildi: 245/245 test, kengaytma yig'iladi, server haqiqiy baza bilan ochiladi.
+  Endi ishga tushirish: `cd Global && npm start`.
+- [ ] **2-bosqich** — `EcoSystem/` (keyingi qadam).
