@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jigar — shaxsiy yordamchi</title>
+  <link rel="icon" href="../shared/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../shared/theme.css">
+  <link rel="stylesheet" href="../shared/avatar.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app" id="app" data-mode="oddiy" data-chat="closed">
+    <header class="top">
+      <div class="brand">
+        <svg class="logo" viewBox="0 0 128 128" aria-hidden="true" focusable="false">
+          <rect width="128" height="128" rx="30" style="fill: var(--accent)" />
+          <rect x="61.5" y="20" width="5" height="14" rx="2.5" fill="#fff" />
+          <circle cx="64" cy="18" r="7.5" fill="#fff" />
+          <circle cx="64" cy="18" r="4" fill="#7c74ff" />
+          <rect x="15" y="56" width="13" height="27" rx="6.5" fill="#fff" />
+          <rect x="100" y="56" width="13" height="27" rx="6.5" fill="#fff" />
+          <rect x="19" y="62" width="5" height="15" rx="2.5" fill="#7c74ff" />
+          <rect x="104" y="62" width="5" height="15" rx="2.5" fill="#7c74ff" />
+          <rect x="24" y="32" width="80" height="72" rx="30" fill="#f4f4fc" />
+          <rect x="32" y="42" width="64" height="50" rx="22" fill="#0b0e22" />
+          <rect class="logo-eye" x="44" y="53" width="13" height="17" rx="6" />
+          <rect class="logo-eye" x="71" y="53" width="13" height="17" rx="6" />
+          <ellipse cx="41" cy="77" rx="4.5" ry="2.6" fill="#ff7ab6" opacity="0.5" />
+          <ellipse cx="87" cy="77" rx="4.5" ry="2.6" fill="#ff7ab6" opacity="0.5" />
+          <path class="logo-smile" d="M56 77q8 6 16 0" />
+        </svg>
+        <div class="brand-text">
+          <h1>Jigar</h1>
+          <p class="tagline" id="tagline" data-i18n="brand.tagline">Gapir — tushuntiraman</p>
+          <!-- Ro'yxatdan o'tishda tanlangan xarakter (bo'lsa, shiori o'rnida) -->
+          <p class="persona-tag" id="personaTag" hidden>
+            <span class="persona-dot" aria-hidden="true"></span><strong id="personaName"></strong><span id="personaHint"></span>
+          </p>
+          <!-- Tarif: bugungi sarf / kunlik daqiqa limiti (app.js: renderUsage) -->
+          <p class="usage-tag" id="usageTag" hidden title="Bugungi suhbat vaqti" data-i18n-title="usage.title"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9.5 2.5h5"/></svg><span id="usageText"></span></p>
+        </div>
+      </div>
+      <nav class="top-actions" aria-label="Boshqaruv">
+        <!-- Til ro'yxatdan o'tishning birinchi savolida tanlanadi (jigar.prefs.lang). -->
+        <div class="lang-switch" role="group" hidden data-i18n-title="top.langTitle" title="Til">
+          <button type="button" data-lang="uz" aria-pressed="true">UZ</button>
+          <button type="button" data-lang="ru" aria-pressed="false">RU</button>
+        </div>
+        <button type="button" class="ghost" id="pageBtn" data-i18n-title="top.pageTitle" title="Sahifa matnini qo'shish">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg><span class="label" id="pageBtnLabel">Sahifa</span>
+        </button>
+        <!-- Xarakter va uslub ro'yxatdan o'tishda tanlanadi (jigar.profile) — bu boshqaruvlar yashirin. -->
+        <button type="button" class="mode-toggle" id="modeToggle" hidden aria-pressed="false" data-i18n-title="top.wildTitle"
+                title="Beparvo rejim: Jigar qo'pol gapiradi, baqiradi va so'kinadi">
+          <span class="mode-dot" aria-hidden="true"></span>
+          <span data-i18n="top.wild">Beparvo</span>
+        </button>
+        <div class="settings">
+          <button type="button" class="icon-btn" id="settingsBtn" aria-expanded="false" aria-controls="settingsPop"
+                  title="Hisob va sozlamalar" aria-label="Hisob va sozlamalar"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg></button>
+          <div class="settings-pop" id="settingsPop" role="dialog" aria-labelledby="settingsTitle" hidden>
+            <p class="settings-title" id="settingsTitle" data-i18n="settings.title">Sozlamalar</p>
+            <!-- Til: har kim o'zi tanlaydi — interfeys, Jigarning javobi va ovozi shu tilda (hisobga saqlanadi) -->
+            <div class="setting">
+              <span class="setting-label" data-i18n="settings.lang">Til</span>
+              <div class="seg lang-switch" role="group">
+                <button type="button" data-lang="uz" aria-pressed="true">O'zbekcha</button>
+                <button type="button" data-lang="ru" aria-pressed="false">Русский</button>
+              </div>
+            </div>
+            <div class="setting" hidden>
+              <span class="setting-label" data-i18n="settings.length">Javob uzunligi</span>
+              <div class="seg" role="group">
+                <button type="button" data-length="qisqa" aria-pressed="true" data-i18n="settings.short">Qisqa</button>
+                <button type="button" data-length="odatiy" aria-pressed="false" data-i18n="settings.normal">Odatiy</button>
+              </div>
+            </div>
+            <label class="setting switch-row" hidden>
+              <span>
+                <span class="setting-label" data-i18n="settings.simple">Sodda tushuntirish</span>
+                <small data-i18n="settings.simpleHint">Oddiy so'zlar, qisqa gaplar</small>
+              </span>
+              <input type="checkbox" class="switch" id="simpleToggle" role="switch" checked>
+            </label>
+            <!-- Faqat support — shaxsiy yordamchi ("Jarvis"): "Hey Jigar" va xotira/eslatmalar (assistant.js, wake.js) -->
+            <label class="setting switch-row support-only" hidden>
+              <span>
+                <span class="setting-label" data-i18n="asst.wake">"Hey Jigar"</span>
+                <small data-i18n="asst.wakeHint">"Jigar" desangiz, tugmasiz tinglaydi</small>
+              </span>
+              <input type="checkbox" class="switch" id="wakeToggle" role="switch">
+            </label>
+            <button type="button" class="setting ghost support-only asst-open" id="assistantOpen" hidden data-i18n="asst.open">Xotira va eslatmalar</button>
+            <div class="setting account">
+              <span class="setting-label" data-i18n="settings.account">Hisob</span>
+              <form class="name-form" id="nameForm">
+                <label class="setting-label" for="accountNameInput" data-i18n="settings.name">Ism</label>
+                <div class="name-controls">
+                  <input id="accountNameInput" type="text" maxlength="60" minlength="2" autocomplete="name" required>
+                  <button type="submit" class="primary" data-i18n="settings.save">Saqlash</button>
+                </div>
+              </form>
+              <div class="account-row">
+                <span id="accountName" hidden>—</span><small class="account-email" id="accountEmail"></small>
+                <button type="button" class="ghost logout-btn" id="logoutBtn" data-i18n="settings.logout">Chiqish</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Ikonka app.js (renderPrefs) tomonidan almashtiriladi: ovoz yoqiq / o'chiq -->
+        <button type="button" class="icon-btn" id="mute" aria-pressed="false" title="Jigar ovozini o'chirish" aria-label="Jigar ovozi"></button>
+        <button type="button" class="ghost" id="chatToggle" aria-expanded="false" aria-controls="chatPanel" data-i18n-title="top.chatTitle" title="Suhbat tarixi">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg><span class="label" data-i18n="top.chat">Suhbat</span><span class="badge" id="chatCount" hidden>0</span>
+        </button>
+        <button type="button" class="ghost" id="newChat" data-i18n-title="top.newTitle" title="Yangi suhbat">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="label" data-i18n="top.new">Yangi</span>
+        </button>
+        <button type="button" class="ghost" id="endLesson" disabled data-i18n-title="top.endTitle" title="Darsni tugatish va xulosa olish">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 3 3 5-6"/></svg><span class="label" data-i18n="top.end">Tugatish</span>
+        </button>
+        <span class="tb-sep" aria-hidden="true"></span>
+      </nav>
+    </header>
+
+    <div class="layout">
+      <main class="stage" id="stage" aria-label="Jigar">
+        <!-- Jigarning "ko'zi": kamera yoqiq bo'lsa, har savolga joriy kadr ilova qilinadi (camera.js) -->
+        <div class="lens" id="lens" hidden>
+          <video id="lensVideo" autoplay playsinline muted></video>
+          <div class="lens-actions">
+            <button type="button" class="lens-btn" id="lensFlip" data-i18n-title="cam.flip" title="Oldi / orqa kamera" data-i18n-aria="cam.flip" aria-label="Oldi / orqa kamera">
+              <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9a8 8 0 0 1 14-3l2 2M20 15a8 8 0 0 1-14 3l-2-2"/><path d="M20 4v4h-4M4 20v-4h4"/></svg>
+            </button>
+            <button type="button" class="lens-btn" id="lensClose" data-i18n-title="cam.close" title="Kamerani yopish" data-i18n-aria="cam.close" aria-label="Kamerani yopish">×</button>
+          </div>
+        </div>
+        <div class="scene">
+          <div class="avatar" id="avatar"></div>
+          <p class="status-pill" id="voiceStatus" aria-live="polite">Mikrofonni bos va gapir</p>
+        </div>
+
+        <div class="dialogue">
+          <!-- Qiyin savolda chizma sahnada ham ko'rinadi (ixcham; bosilsa — kattalashadi). Tarixda ham saqlanadi. -->
+          <button type="button" class="visual-slot" id="visualSlot" hidden data-i18n-title="card.zoom" title="Kattalashtirish uchun bos"></button>
+          <div class="caption" id="caption" aria-live="polite">
+            <p class="caption-hello" id="emptyHint">
+              <strong data-i18n="hello.title">Salom, jigar!</strong>
+              <span id="helloText" data-i18n="hello.text">Mikrofonni bos va savolingni ayt. Men oddiy qilib, misollar bilan gapirib beraman.</span>
+            </p>
+          </div>
+
+          <div class="page-chip" id="pageChip" hidden></div>
+        </div>
+
+        <div class="controls">
+          <div class="selection" id="selectionBox" hidden>
+            <span class="muted">Tanlangan qism:</span>
+            <span id="selectionText"></span>
+            <button type="button" class="link" id="clearSelection" aria-label="Tanlovni olib tashlash">×</button>
+          </div>
+          <div class="voice-bar" id="voiceBar">
+            <button type="button" class="pill" id="explain">
+              <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0-3.5 10.9V17h7v-3.1A6 6 0 0 0 12 3z"/><path d="M9.5 21h5"/></svg><span data-i18n="btn.explain">Tushuntir</span>
+            </button>
+            <button type="button" class="mic" id="mic" aria-label="Gapirish">
+              <svg viewBox="0 0 24 24" width="32" height="32" aria-hidden="true">
+                <path fill="currentColor" d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z"/>
+              </svg>
+            </button>
+            <div class="bar-group">
+              <button type="button" class="pill" id="typeToggle" aria-expanded="false">
+                <span aria-hidden="true">⌨️</span><span>Yozish</span>
+              </button>
+              <!-- Kamera: oldi yoki orqa — Jigarga narsani ko'rsatish (camera.js) -->
+              <button type="button" class="pill cam-btn" id="camBtn" aria-pressed="false" data-i18n-title="cam.title" title="Kamerada ko'rsatish" data-i18n-aria="cam.show" aria-label="Ko'rsatish">
+                <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+              </button>
+            </div>
+          </div>
+          <!-- Pauza: faqat suhbat boshlangach ko'rinadi (app.js: renderPauseBtn) -->
+          <button type="button" class="pill pause-btn" id="pauseBtn" aria-pressed="false" hidden>
+            <span aria-hidden="true">⏸</span><span>Pauza</span>
+          </button>
+          <form class="composer" id="composer">
+            <div class="row" id="textRow" hidden>
+              <textarea id="input" rows="1" maxlength="4000" data-i18n-placeholder="input.placeholder" placeholder="Savolingni yoz (bo'sh qoldirsang, sahifani tushuntiraman)"></textarea>
+              <button type="submit" class="primary" id="send">Tushuntir</button>
+            </div>
+          </form>
+          <p class="error" id="error" role="alert" hidden></p>
+        </div>
+      </main>
+
+      <aside class="chat-panel" id="chatPanel" aria-label="Suhbat tarixi">
+        <div class="chat-head">
+          <h2 data-i18n="chat.title">Suhbat tarixi</h2>
+          <button type="button" class="link" id="chatClose" data-i18n-aria="chat.close" aria-label="Suhbat tarixini yopish">×</button>
+        </div>
+        <div class="chat" id="chat">
+          <div class="empty" id="empty">
+            <p data-i18n="chat.empty">Hali suhbat yo'q. Jigarning javoblari, chizmalar va "Esda qolsin" shu yerda saqlanadi.</p>
+          </div>
+        </div>
+        <!-- Savol (quiz): sahnani to'smasin — shu panel pastida chiqadi (app.js: revealQuiz panelni ochadi) -->
+        <div class="quiz-slot" id="quizSlot" hidden></div>
+      </aside>
+    </div>
+
+    <!-- Faqat veb-rejimda: sahifa matnini qo'lda kiritish -->
+    <dialog class="page-dialog" id="pagePanel" aria-labelledby="pageDialogTitle">
+      <form method="dialog" class="page-form">
+        <div class="dialog-head">
+          <h2 id="pageDialogTitle" data-i18n="page.dialogTitle"> Sahifa</h2>
+          <span class="muted" id="pageStatus">— darslik yoki sayt matnini qo'y</span>
+        </div>
+        <label class="field">
+          <span data-i18n="page.titleLabel">Sarlavha (ixtiyoriy)</span>
+          <input id="pageTitle" type="text" maxlength="300" data-i18n-placeholder="page.titlePlaceholder" placeholder="Masalan: Fotosintez">
+        </label>
+        <!-- Darslik fayli: PDF yoki rasm (page-file.js). Jigar shu hujjat bo'yicha tushuntiradi. -->
+        <div class="field">
+          <span data-i18n="file.label">Darslik fayli (PDF yoki rasm, ixtiyoriy)</span>
+          <div class="file-row">
+            <label class="ghost file-pick">
+              <input type="file" id="pageFile" accept="application/pdf,image/*" hidden>
+              <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.5 12.6 21a5 5 0 0 1-7-7L14 5.5a3.4 3.4 0 0 1 4.8 4.8L10.4 18.7a1.7 1.7 0 0 1-2.4-2.4L16 8.3"/></svg>
+              <span data-i18n="file.pick">Fayl tanlash</span>
+            </label>
+            <span class="file-name" id="pageFileName"></span>
+            <button type="button" class="link" id="pageFileClear" hidden data-i18n-aria="file.clear" aria-label="Faylni olib tashlash">×</button>
+          </div>
+        </div>
+        <label class="field">
+          <span data-i18n="page.textLabel">Sahifa matni</span>
+          <textarea id="pageText" rows="10" data-i18n-placeholder="page.textPlaceholder" placeholder="Darslik yoki sayt matnini shu yerga nusxalab qo'y..."></textarea>
+        </label>
+        <div class="dialog-actions">
+          <button type="submit" class="primary" value="save" data-i18n="btn.done">Tayyor</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Chizmaning katta ko'rinishi (sahnadagi ixcham chizma bosilganda) -->
+    <dialog class="page-dialog visual-dialog" id="visualDialog" aria-labelledby="visualDialogTitle">
+      <form method="dialog" class="page-form">
+        <div class="visual-head">
+          <h2 id="visualDialogTitle" data-i18n="card.diagram">Chizma</h2>
+          <button type="submit" class="link" data-i18n-aria="btn.close" aria-label="Yopish">×</button>
+        </div>
+        <div class="diagram" id="visualFull"></div>
+      </form>
+    </dialog>
+
+    <!-- Support: Jigar eslab qolgan faktlar va eslatmalar (assistant.js: renderAssistantPanel) -->
+    <dialog class="page-dialog asst-dialog" id="assistantDialog" aria-labelledby="assistantTitle">
+      <form method="dialog" class="page-form">
+        <div class="visual-head">
+          <h2 id="assistantTitle" data-i18n="asst.open">Xotira va eslatmalar</h2>
+          <button type="submit" class="link" data-i18n-aria="btn.close" aria-label="Yopish">×</button>
+        </div>
+        <div class="asst-body" id="assistantBody"></div>
+      </form>
+    </dialog>
+
+    <dialog class="logout-dialog" id="logoutDialog" aria-labelledby="logoutTitle">
+      <form method="dialog">
+        <h2 id="logoutTitle" data-i18n="settings.logoutTitle">Hisobdan chiqilsinmi?</h2>
+        <p data-i18n="settings.logoutConfirm">Rostdan ham hisobdan chiqmoqchimisiz?</p>
+        <div class="logout-actions">
+          <button type="submit" class="ghost" value="cancel" data-i18n="settings.cancel">Bekor qilish</button>
+          <button type="submit" class="danger-action" value="confirm" data-i18n="settings.logout">Chiqish</button>
+        </div>
+      </form>
+    </dialog>
+  </div>
+
+  <script src="../vendor/mermaid.min.js"></script>
+  <script src="host-web.js"></script>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

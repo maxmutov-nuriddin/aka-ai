@@ -1,0 +1,66 @@
+/* Jigar dizayn tizimi: ranglar, shriftlar, o'lchamlar va asosiy uslublar.
+   Landing, kirish va ilova sahifalari shu fayldan boshlanadi. */
+/* ---------- Tokenlar ----------
+   Ilova bitta qorong'i sahna: personaj yorug'likda "yonib" turadi, qolgan hamma narsa ikkinchi darajali. */
+:root {
+  --bg: #070815;
+  --bg-2: #141838;
+  --surface: #11132a;
+  --surface-2: #1a1d3a;
+  --glass: rgba(255, 255, 255, 0.06);
+  --glass-hover: rgba(255, 255, 255, 0.11);
+  --line: rgba(255, 255, 255, 0.09);
+  --line-strong: rgba(255, 255, 255, 0.18);
+  --text: #f1f2fb;
+  --muted: #9ba1c4;
+  --accent: #7c74ff;
+  --accent-2: #2ee6c8;
+  --accent-ink: #ffffff;
+  --glow: rgba(124, 116, 255, 0.4);
+  --glow-2: rgba(46, 230, 200, 0.16);
+  --danger: #ff4d5e;
+  --right: #34d399;
+  --remember: rgba(255, 200, 80, 0.1);
+  --remember-border: rgba(255, 200, 80, 0.35);
+
+  --eye: #5ff5dc;
+  --cheek: #ff7ab6;
+  --robot-edge: #8f97c4;
+
+  --radius-xl: 26px;
+  --radius-lg: 18px;
+  --radius: 14px;
+  --radius-sm: 10px;
+  --listen-ring: rgba(255, 77, 94, 0.5);
+  --dur-fast: 150ms;
+  --dur: 300ms;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --font: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: ui-rounded, "SF Pro Rounded", "Nunito", var(--font);
+  color-scheme: dark;
+}
+
+/* Beparvo rejim: issiq qizil-to'q sariq */
+[data-mode="beparvo"] {
+  --accent: #ff4d5e;
+  --accent-2: #ffb020;
+  --glow: rgba(255, 77, 94, 0.42);
+  --glow-2: rgba(255, 176, 32, 0.18);
+  --bg-2: #2a0e1c;
+  --eye: #ff4d5e;
+  --cheek: #ffb020;
+}
+
+/* ---------- Asos ---------- */
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body {
+  color: var(--text);
+  background: var(--bg);
+  font: 15px/1.6 var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; cursor: pointer; border-radius: var(--radius-sm); border: 1px solid transparent; color: inherit; background: none; }
+button:disabled { cursor: not-allowed; opacity: 0.4; }
+:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: 2px; }

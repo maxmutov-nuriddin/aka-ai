@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+data/
+
+# Desktop / mobil ilovalar yig'indisi
+desktop/src-tauri/target/
+mobile/android/
+mobile/ios/

@@ -1,0 +1,90 @@
+/* Jigar robot personaji (web/shared/avatar.js). Sahifa .avatar o'lchamini o'zi beradi. */
+.avatar { position: relative; }
+.avatar::before { /* yer ustidagi yorug'lik doirasi */
+  content: ""; position: absolute; left: 10%; right: 10%; bottom: 0; height: 18%; z-index: -1;
+  background: radial-gradient(closest-side, var(--glow), transparent); filter: blur(6px);
+}
+/* ---------- Personaj: SVG ---------- */
+.av { width: 100%; height: 100%; overflow: visible; display: block; }
+.av-float { animation: av-float 4.5s ease-in-out infinite; }
+.av-shadow { fill: rgba(0, 0, 0, 0.5); animation: av-shadow 4.5s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.av-shell { fill: url(#avShell); stroke: var(--robot-edge); stroke-width: 2.5; }
+.av-head { stroke-width: 3; }
+.av-rim { fill: none; stroke: rgba(255, 255, 255, 0.9); stroke-width: 4; stroke-linecap: round; opacity: 0.7; }
+.av-neck { fill: #4b5280; }
+.av-face { fill: url(#avFace); stroke: rgba(10, 12, 30, 0.9); stroke-width: 3; }
+.av-glare { fill: url(#avGlare); }
+.av-antenna { stroke: var(--robot-edge); stroke-width: 5; stroke-linecap: round; }
+.av-tip, .av-ear-light, .av-core { fill: var(--accent); transition: fill var(--dur); }
+.av-tip-halo { fill: var(--accent); opacity: 0.22; animation: av-halo 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.av-core-ring { fill: #0a0c1f; stroke: color-mix(in srgb, var(--accent) 70%, #fff); stroke-width: 3; }
+.av-eye { fill: var(--eye); transition: fill 400ms var(--ease); }
+.av-mouth { fill: var(--eye); stroke: var(--eye); stroke-width: 4.5; stroke-linejoin: round; stroke-linecap: round; transition: fill 400ms var(--ease), stroke 400ms var(--ease); }
+.av-brow { fill: none; stroke: var(--eye); stroke-width: 5; stroke-linecap: round; transition: stroke 400ms var(--ease); }
+.av-shade { fill: url(#avShade); pointer-events: none; }
+.av-seam { fill: none; stroke: rgba(80, 90, 150, 0.35); stroke-width: 2; stroke-linecap: round; }
+.av-joint { fill: #4b5280; }
+.av-neck-ring { fill: color-mix(in srgb, var(--accent) 60%, #4b5280); }
+.av-scan { fill: url(#avScan); pointer-events: none; }
+.av-face-edge { fill: none; stroke: color-mix(in srgb, var(--eye) 22%, transparent); stroke-width: 1.5; transition: stroke 400ms var(--ease); }
+.av-cheek { fill: var(--cheek); }
+
+.avatar[data-state="listening"] .av-tip, .avatar[data-state="listening"] .av-ear-light { fill: var(--danger); }
+.avatar[data-state="listening"] .av-tip-halo { fill: var(--danger); animation-duration: 0.9s; }
+.avatar[data-state="listening"]::after {
+  content: ""; position: absolute; inset: 0 6% 18%; border-radius: 50%; pointer-events: none;
+  border: 3px solid var(--listen-ring); animation: av-ring 1.4s ease-out infinite;
+}
+.avatar[data-state="thinking"] .av-tip-halo { animation-duration: 0.6s; }
+/* Xarakter: ko'z, antenna va yadro rangi (kayfiyat ranglari pastda — ular ustun) */
+.avatar[data-persona="mehribon"] { --eye: #ffd876; --accent: #ffc23d; } /* iliq oltin — mehr, quyosh */
+.avatar[data-persona="kinoyali"] { --eye: #e08cff; --accent: #cf5cff; } /* och binafsha-pushti — brend rangidan farqli */
+.avatar[data-persona="jahldor"] { --eye: #ff8a3d; --accent: #ff6a2a; }
+.avatar[data-persona="romantik"] { --eye: #ff6fae; --accent: #ff4f98; --cheek: rgba(255, 111, 174, 0.65); }
+.avatar[data-persona="moslashuvchan"] { --eye: #8cf0a0; --accent: #7ee081; } /* yashil — muvozanat, o'sish */
+/* Romantik: robot atrofida suzib, ko'tarilib yo'qoladigan yurakchalar (faqat shu xarakterda) */
+.av-hearts { position: absolute; inset: 0; pointer-events: none; display: none; }
+.avatar[data-persona="romantik"] .av-hearts { display: block; }
+.av-hearts span {
+  position: absolute; bottom: 30%; color: var(--eye); font-size: 22px; opacity: 0;
+  text-shadow: 0 0 10px color-mix(in srgb, var(--eye) 60%, transparent);
+  animation: av-heart 5s ease-in infinite;
+}
+.av-hearts span:nth-child(1) { left: 8%; animation-delay: 0s; }
+.av-hearts span:nth-child(2) { left: 84%; animation-delay: -0.8s; font-size: 17px; }
+.av-hearts span:nth-child(3) { left: 20%; animation-delay: -1.7s; font-size: 14px; }
+.av-hearts span:nth-child(4) { left: 74%; animation-delay: -2.6s; }
+.av-hearts span:nth-child(5) { left: 4%; animation-delay: -3.4s; font-size: 14px; }
+.av-hearts span:nth-child(6) { left: 90%; animation-delay: -4.2s; font-size: 17px; }
+/* Gapirayotganda yurakchalar tezroq chiqadi */
+.avatar[data-persona="romantik"][data-state="speaking"] .av-hearts span { animation-duration: 3s; }
+@keyframes av-heart {
+  0% { transform: translateY(0) scale(0.6) rotate(-8deg); opacity: 0; }
+  15% { opacity: 0.9; }
+  100% { transform: translateY(-260px) scale(1.15) rotate(10deg); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .av-hearts { display: none !important; } }
+
+/* Kayfiyat ko'z rangini ham o'zgartiradi */
+.avatar[data-emotion="angry"] { --eye: #ff4d5e; }
+.avatar[data-emotion="furious"] { --eye: #ff2a3d; }
+.avatar[data-emotion="furious"] .av-float { animation: av-shake 0.12s linear infinite; }
+.avatar[data-emotion="sad"] { --eye: #7fa8ff; }
+.avatar[data-emotion="excited"] { --eye: #8ff7ff; }
+.avatar[data-emotion="happy"] { --eye: #6bffd5; }
+.avatar[data-emotion="angry"] .av-float, [data-mode="beparvo"] .avatar[data-state="speaking"] .av-float { animation: av-shake 0.18s linear infinite; }
+.avatar[data-emotion="happy"] .av-float { animation: av-bounce 0.5s ease-in-out infinite; }
+
+@keyframes av-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes av-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes av-shadow { 0%, 100% { transform: scaleX(1); opacity: 0.5; } 50% { transform: scaleX(0.86); opacity: 0.32; } }
+@keyframes av-halo { 0%, 100% { transform: scale(1); opacity: 0.22; } 50% { transform: scale(1.6); opacity: 0.06; } }
+@keyframes av-ring { 0% { transform: scale(0.88); opacity: 0.9; } 100% { transform: scale(1.15); opacity: 0; } }
+@keyframes av-shake {
+  0% { transform: translate(0, 0) rotate(0); }
+  25% { transform: translate(-2px, 1px) rotate(-1deg); }
+  75% { transform: translate(2px, -1px) rotate(1deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .av-float, .av-shadow, .av-tip-halo { animation: none !important; }
+}
