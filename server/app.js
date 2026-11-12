@@ -26,6 +26,8 @@ import { createSettingsStore } from "./settings/store.js";
 import { createUsageStore, minutesPerChatFrom } from "./usage/store.js";
 import { TARIFFS, dailyMinutes, minutesPerSom, planDailyMinutes, tariffOf } from "./usage/tariffs.js";
 import { createAdminRouter } from "./admin/routes.js";
+import { createAssistantStore } from "./assistant/store.js";
+import { createAssistantRouter, tashkentNowNote } from "./assistant/routes.js";
 import { createFishAudio } from "./voice/fishaudio.js";
 import { authenticate, requireUser, requireUserPage } from "./auth/session.js";
 import { createAuthRouter } from "./auth/routes.js";
@@ -155,6 +157,7 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
   }
   const store = createAuthStore(database, { supportEmails: parseSupportEmails(env.SUPPORT_EMAILS) });
   const usage = createUsageStore(database, { minutesPerChat: minutesPerChatFrom(env) });
+  const assistant = createAssistantStore(database); // support: xotira va eslatmalar ("Jarvis")
   const payments = createPaymentStore(database);
   /** Foydalanuvchining bugungi sarfi (daqiqa) va tarif limiti. Support — limit yo'q. */
   /** Faol paket (Suhbatga tayyorgarlik): { key, minutes, used, remaining, until } yoki null. */
@@ -232,7 +235,8 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
     try {
       const lang = voiceLang(req.user, normalizeLang(req.body?.lang));
       const persona = normalizePersona(req.body?.persona); // ovoz va ohang xarakterga mos
-      const level = normalizeLevel(req.body?.level); // ovoz o'quvchi yoshiga mos (yosh / katta)
+      // Ovoz o'quvchi yoshiga mos (yosh / katta). Support — sinfsiz, doim katta yoshli ovoz.
+      const level = isSupport(req.user) ? "student" : normalizeLevel(req.body?.level);
       // model — support tanlagan Fish modeli (ElevenLabs uni e'tiborsiz qoldiradi).
       const options = { lang, persona, level, model: settings.fishModel() };
       const { audio, wordStarts, contentType } = await speakWith(voice.tts, req.body?.text, options);
@@ -305,6 +309,15 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
   // Obuna to'lovi (PayGate) — /api/payments, /api/subscription; PAYWALL=1 bo'lsa chat obuna/sinov talab qiladi.
   const billing = createPaymentRouter({ paygate, payments, env, limiter, packageOf });
   app.use("/api", billing.router);
+  app.use("/api/assistant", createAssistantRouter({ assistant }));
+
+  /** Support javobidagi yashirin bo'limlar: yangi faktlar xotiraga, eslatmalar jadvalga. */
+  function saveAssistantParts(user, parsed) {
+    if (!isSupport(user) || !parsed) return null;
+    const remembered = assistant.addMemories(user.id, parsed.xotira);
+    const reminders = assistant.addReminders(user.id, parsed.eslatmalar);
+    return { remembered, reminders };
+  }
 
   app.post("/api/chat", requireUser, limiter, async (req, res) => {
     // Obuna yo'q ko'rinsa — avval callback kelmagan to'lovlar qayta tekshiriladi (to'lagan o'quvchi to'xtatilmasin).
@@ -332,9 +345,12 @@ export function createApp({ env = process.env, geminiLlm = createGeminiLlm({ env
         unrestricted: isSupport(req.user), // support — mavzu cheklovisiz
         goals: goalsOf(req.user), // konstruktor rejasi; faol paketda — suhbat mashqi ham
         onDelta: stream ? (text) => stream.write({ type: "delta", text }) : null,
+        // Support — shaxsiy yordamchi: eslab qolganlari va hozirgi vaqt (eslatmalar uchun).
+        ...(isSupport(req.user) ? { memories: assistant.listMemories(req.user.id).map((m) => m.text), nowNote: tashkentNowNote() } : {}),
       });
       usage.addChat(req.user.id);
-      const body = { ...result, dailyUsage: dailyUsage(req.user) };
+      const assistantParts = saveAssistantParts(req.user, result.parsed);
+      const body = { ...result, dailyUsage: dailyUsage(req.user), ...(assistantParts ? { assistant: assistantParts } : {}) };
       if (stream) stream.end({ type: "done", ...body });
       else res.json(body);
     } catch (err) {

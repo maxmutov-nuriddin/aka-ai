@@ -55,7 +55,7 @@ function rowHtml(state, u) {
       <span class="who-text"><strong>${esc(u.name)}</strong><small>${esc(u.email)}</small></span>
     </div></td>
     <td data-label="Tarif"><span class="tariff"><span class="tariff-dot" data-goal="${u.tariff.goal}"></span>${GOALS[u.tariff.goal]}</span><small class="sub">${som(u.tariff.price)}</small></td>
-    <td data-label="Xarakter"><span class="persona" data-persona="${esc(persona)}">${PERSONAS[persona] ?? esc(persona)}</span><small class="sub">${LEVELS[p.level] ?? "—"}</small></td>
+    <td data-label="Xarakter"><span class="persona" data-persona="${esc(persona)}">${PERSONAS[persona] ?? esc(persona)}</span><small class="sub">${u.role === "support" ? "Erkin · support" : LEVELS[p.level] ?? "—"}</small></td>
     <td data-label="Bugun">${usageCell(u)}</td>
     <td data-label="Oxirgi faollik"><span>${relativeDay(u.lastActiveDay, today(state))}</span></td>
     <td data-label="Holat">${statusPill(u)}</td>
@@ -105,7 +105,10 @@ function renderDraft(u) {
   // Sinf — yo'nalishga mos (maktab darsida "talaba" yo'q, universitetda faqat "talaba").
   const allowed = levelsForGoal(draft.goal);
   const levels = Object.fromEntries(Object.entries(LEVELS).filter(([value]) => allowed.includes(value)));
-  $("dLevel").innerHTML = pickHtml(levels, draft.level, "level");
+  // Support — sinfsiz, erkin rejim (server: unrestricted) — sinf tanlanmaydi.
+  $("dLevel").innerHTML = u.role === "support"
+    ? `<button type="button" role="radio" aria-checked="true" disabled>Erkin (support)</button>`
+    : pickHtml(levels, draft.level, "level");
   const original = originalOf(u);
   const dirty = Object.keys(original).some((k) => draft[k] !== original[k]);
   $("dSave").disabled = !dirty;

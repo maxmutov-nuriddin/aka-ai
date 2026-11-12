@@ -1,11 +1,18 @@
 // Model javobini bo'limlarga ajratadi: [SAVOL] (ovozli savolning to'g'ri yozilishi), [TUSHUNTIRISH], [ESDA QOLSIN],
-// [VIZUAL], [QUIZ].
+// [VIZUAL], [QUIZ]. Shaxsiy yordamchi (support): [XOTIRA], [ESLATMA], [FAYL] — ekranda va ovozda ko'rinmaydi.
 // Brauzerda ham, serverda ham ishlaydi (hech qanday Node API ishlatilmaydi).
 
 const SECTION_NAMES = ["TUSHUNTIRISH", "ESDA QOLSIN", "VIZUAL", "QUIZ"];
 
 // "[TUSHUNTIRISH]", "**[TUSHUNTIRISH]**", "## [TUSHUNTIRISH]" kabi sarlavhalarni topadi.
-const HEADER_RE = /^[ \t>#*_]*\[(SAVOL|TUSHUNTIRISH|ESDA QOLSIN|VIZUAL|QUIZ)\][ \t*_:]*(.*)$/gim;
+const HEADER_RE = /^[ \t>#*_]*\[(SAVOL|TUSHUNTIRISH|ESDA QOLSIN|VIZUAL|QUIZ|XOTIRA|ESLATMA|FAYL)\][ \t*_:]*(.*)$/gim;
+const MAX_FACTS = 10; // bitta javobda eslab qolinadigan faktlar
+const MAX_REMINDERS = 5;
+const MAX_FILE_CHARS = 200_000;
+// Fayl turlari: ochiladigan dasturda to'g'ri ko'rinadi (doc — Word, csv — Excel). Boshqasi — .txt.
+export const FILE_TYPES = {
+  txt: "text/plain", md: "text/markdown", csv: "text/csv", html: "text/html", doc: "application/msword", json: "application/json",
+};
 const MAX_HEARD_CHARS = 1000;
 
 const NO_VISUAL = new Set(["yo'q", "yo‘q", "yoʻq", "yoq", "йўқ", "нет", "no", "-", ""]);
@@ -36,7 +43,51 @@ export function parseAkaResponse(raw) {
     esdaQolsin: sections["ESDA QOLSIN"] ?? "",
     vizual: parseVisual(sections.VIZUAL),
     quiz: parseQuiz(sections.QUIZ),
+    xotira: parseFacts(sections.XOTIRA),
+    eslatmalar: parseReminders(sections.ESLATMA),
+    fayl: parseFile(sections.FAYL),
   };
+}
+
+const isNone = (s) => NO_VISUAL.has(String(s ?? "").toLowerCase().replace(/[."!]+$/g, "").trim());
+
+/** [XOTIRA]: foydalanuvchi haqida eslab qolinadigan faktlar — har qatorda bittasi ("- ..."). */
+export function parseFacts(body) {
+  if (!body || isNone(body)) return [];
+  return body.split("\n")
+    .map((line) => line.replace(/^\s*[-*•\d.)]+\s*/, "").trim())
+    .filter((line) => line && !isNone(line))
+    .slice(0, MAX_FACTS);
+}
+
+/** [ESLATMA]: JSON — [{"vaqt": "2026-11-13T10:00:00+05:00", "matn": "..."}] (bitta obyekt ham bo'ladi). */
+export function parseReminders(body) {
+  if (!body || isNone(body)) return [];
+  const start = body.search(/[[{]/);
+  if (start === -1) return [];
+  const close = body.lastIndexOf(body[start] === "[" ? "]" : "}");
+  const data = tryJson(body.slice(start, close + 1));
+  const list = Array.isArray(data) ? data : data && typeof data === "object" ? [data] : [];
+  return list
+    .map((r) => ({ dueAt: String(r?.vaqt ?? r?.dueAt ?? "").trim(), text: String(r?.matn ?? r?.text ?? "").trim() }))
+    .filter((r) => r.dueAt && r.text)
+    .slice(0, MAX_REMINDERS);
+}
+
+/** [FAYL]: birinchi qator — "nomi: reja.csv", keyin mazmun (``` ichida bo'lishi mumkin). */
+export function parseFile(body) {
+  if (!body || isNone(body)) return null;
+  const [first, ...rest] = body.split("\n");
+  const rawName = first.replace(/^\s*(nomi|name|fayl)\s*:\s*/i, "").trim();
+  let content = rest.join("\n");
+  const fence = content.match(/```[a-z]*[ \t]*\n([\s\S]*?)```/i);
+  if (fence) content = fence[1];
+  content = content.replace(/^\n+|\s+$/g, "");
+  if (!content) return null;
+  const base = rawName.replace(/[^\p{L}\p{N} ._-]+/gu, "").replace(/\s+/g, "-").replace(/^[.-]+/, "").slice(0, 80);
+  const ext = (base.match(/\.([a-z0-9]+)$/i)?.[1] ?? "").toLowerCase();
+  const name = FILE_TYPES[ext] ? base : `${base.replace(/\.[a-z0-9]+$/i, "") || "jigar"}.txt`;
+  return { nomi: name, mazmun: content.slice(0, MAX_FILE_CHARS) };
 }
 
 /** [SAVOL]: o'quvchining ovozli savoli to'g'ri imlo bilan (chatda xom tanilgan matn o'rniga). Bo'sh — null. */

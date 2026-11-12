@@ -417,6 +417,17 @@ code { font: 0.92em ui-monospace, monospace; background: rgba(255, 255, 255, 0.0
 .field { display: block; }
 .field span { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
 .dialog-actions { display: flex; justify-content: flex-end; }
+/* Support: xotira va eslatmalar oynasi, Jigar tayyorlagan fayl */
+.asst-open { width: 100%; justify-content: center; }
+.asst-body { max-height: 60vh; overflow-y: auto; display: grid; gap: 14px; }
+.asst-body h3 { margin: 0 0 6px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.asst-body ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.asst-body li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.asst-body li .link { font-size: 18px; line-height: 1; }
+.asst-body p { margin: 0; font-size: 13px; }
+.file-download { margin-top: 8px; padding: 8px 12px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; }
+/* "Tushuntir" — faqat tushuntiradigan narsa bo'lsa (joyi saqlanadi — mikrofon markazda qoladi) */
+.voice-bar .pill.is-idle { visibility: hidden; }
 /* Darslik fayli (PDF yoki rasm) */
 .file-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .file-pick { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; cursor: pointer; }

@@ -103,7 +103,10 @@ export const normalizeLevel = oneOf("level", LEVELS);
 // "Beparvo" (so'kinadigan) rejim faqat kattalar uchun: sinf maktab o'quvchisi bo'lsa — oddiyga tushiriladi.
 // Sinf berilmagan eski mijozlar (kengaytma) uchun avvalgidek ishlaydi.
 const ADULT_LEVELS = new Set(["student"]);
-const effectiveMode = (mode, level) => (mode === "beparvo" && level && !ADULT_LEVELS.has(level) ? "oddiy" : mode);
+const effectiveMode = (mode, level, adult = false) =>
+  (mode === "beparvo" && !adult && level && !ADULT_LEVELS.has(level) ? "oddiy" : mode);
+// Support (jamoa) — sinfsiz, erkin: sinf qatori va "sodda" rejim yo'q, kattalar ohangi (beparvo, romantik).
+const levelFor = (level, unrestricted) => (unrestricted ? null : normalizeLevel(level));
 
 // Konstruktor (bir nechta yo'nalish): har birining qisqa doirasi — "faqat shu tarif" cheklovlarisiz.
 const GOAL_SCOPE = {
@@ -171,25 +174,48 @@ export function normalizeMode(mode) {
 /** Rejim, til va uslubga mos tizim prompti. Har birikma alohida keshlanadi. Til qo'shimchasi doim oxirida. */
 export function systemPromptFor(
   mode, lang = "uz",
-  { length = "odatiy", simple = false, persona = null, goal = null, goals = null, level = null, name = null, unrestricted = false } = {},
+  {
+    length = "odatiy", simple = false, persona = null, goal = null, goals = null, level = null, name = null, unrestricted = false,
+    memories = null,
+  } = {},
 ) {
   // goals — konstruktor rejasi (bir nechta yo'nalish); bo'lmasa — bitta goal. Support — doirasiz.
   const allGoals = unrestricted ? [] : goals?.length ? goals : goal ? [goal] : [];
+  const adult = unrestricted || ADULT_LEVELS.has(level); // support — doim katta yoshli
   const parts = [SYSTEM_PROMPT];
   if (mode === "beparvo") parts.push(BEPARVO_PROMPT);
-  else if (persona === "romantik" && ADULT_LEVELS.has(level)) parts.push(ROMANTIC_ADULT_PROMPT);
+  else if (persona === "romantik" && adult) parts.push(ROMANTIC_ADULT_PROMPT);
   else if (PERSONA_PROMPTS[persona]) parts.push(PERSONA_PROMPTS[persona]); // beparvo o'zi kuchli xarakter — ustma-ust qo'yilmaydi
   if (length === "qisqa") parts.push(SHORT_PROMPT);
   if (length === "batafsil") parts.push(DETAILED_PROMPT);
-  if (simple) parts.push(SIMPLE_PROMPT);
-  const profile = profilePromptFor(allGoals, level, name);
+  if (simple && !unrestricted) parts.push(SIMPLE_PROMPT);
+  const profile = profilePromptFor(allGoals, unrestricted ? null : level, name);
   if (profile) parts.push(profile);
   if (lang === "ru") parts.push(RUSSIAN_PROMPT);
   if (allGoals.includes("language")) parts.push(languageModePrompt(lang)); // ikki tilda gapirish — til qoidasidan keyin, ustun
   if (allGoals.includes("interview")) parts.push(INTERVIEW_MODE_PROMPT); // suhbat mashqi — uzunlik va quiz qoidalaridan ustun
   if (unrestricted) parts.push(SUPPORT_MODE_PROMPT); // oxirida — doira va "darsga qaytar" qoidalaridan ustun
+  const memory = unrestricted ? memoryPromptFor(memories) : null;
+  if (memory) parts.push(memory); // kamdan-kam o'zgaradi — kesh deyarli buzilmaydi
   return parts.join("\n\n");
 }
+
+/** Support xotirasi (Jigar eslab qolgan faktlar) — tizim promptiga. Bo'sh — null. */
+function memoryPromptFor(memories) {
+  const facts = (Array.isArray(memories) ? memories : []).map((m) => clip(str(m).replace(/\s+/g, " ").trim(), 200)).filter(Boolean);
+  if (!facts.length) return null;
+  return ["# XOTIRA (foydalanuvchi haqida avval eslab qolganlaring — kerak bo'lsa ishlat, takror so'rama)", ...facts.map((f) => `- ${f}`)].join("\n");
+}
+
+// Internet qidiruvi (faqat support, Claude): ob-havo, yangilik, kurs, narx. Haiku — oddiy variant.
+const WEB_SEARCH_MAX_USES = 3;
+const webSearchTool = (haiku) => ({
+  type: haiku ? "web_search_20250305" : "web_search_20260209",
+  name: "web_search",
+  max_uses: WEB_SEARCH_MAX_USES,
+  user_location: { type: "approximate", city: "Tashkent", timezone: "Asia/Tashkent" }, // "UZ" mamlakat kodi qo'llanmaydi (400)
+});
+const MAX_PAUSE_CONTINUES = 3; // qidiruv uzoq cho'zilsa server "pause_turn" qaytaradi — shuncha marta davom ettiramiz
 
 export const LIMITS = {
   pageChars: 60_000, // sahifa matni (undan uzuni kesiladi va modelga aytiladi)
@@ -471,11 +497,17 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ra
       output_config: { effort: config.effort },
       // Haiku: ichki o'ylash o'chiq — javob ~2 baravar tez va arzon (tushuntirish uchun o'ylash shart emas).
       ...(haiku ? { thinking: { type: "disabled" } } : {}),
+      ...(style.unrestricted ? { tools: [webSearchTool(haiku)] } : {}), // support — internet qidiruvi
       messages,
     };
-    const message = await requestClaude(params, config.fallbacks && !haiku, onDelta);
+    let message = await requestClaude(params, config.fallbacks && !haiku, onDelta);
+    let text = extractText(message);
+    for (let i = 0; message.stop_reason === "pause_turn" && i < MAX_PAUSE_CONTINUES; i++) {
+      const next = { ...params, messages: [...params.messages, { role: "assistant", content: message.content }] };
+      message = await requestClaude(next, config.fallbacks && !haiku, onDelta);
+      text = `${text}${extractText(message)}`;
+    }
 
-    const text = extractText(message);
     const refused = message.stop_reason === "refusal";
     return {
       text: refused ? REFUSAL_TEXT : text,
@@ -497,10 +529,10 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ra
   return {
     async chat({
       page, history, selection, mode, heardAlt, pronunciation, lang, length, simple, persona, goal, goals, level, studentName, llm,
-      image, unrestricted = false, voice = false, onDelta = null,
+      image, unrestricted = false, voice = false, onDelta = null, memories = null, nowNote = null,
     }) {
-      const normLevel = normalizeLevel(level);
-      const normMode = effectiveMode(normalizeMode(mode), normLevel);
+      const normLevel = levelFor(level, unrestricted === true);
+      const normMode = effectiveMode(normalizeMode(mode), normLevel, unrestricted === true);
       const normLang = normalizeLang(lang);
       const style = {
         length: normalizeLength(length),
@@ -511,6 +543,7 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ra
         level: normLevel,
         name: studentName, // promptga tozalanib yoziladi (cleanName)
         unrestricted: unrestricted === true,
+        memories: unrestricted === true ? memories : null,
       };
       const normPage = normalizePage(page);
       const camera = normalizeCameraImage(image);
@@ -518,7 +551,9 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ra
       const lastContent = (m) => {
         const content = lastUserContent(m.content, heardAlt, normMode, pronunciation);
         const heard = voice === true && m.content ? `${content}\n\n${VOICE_NOTE}` : content;
-        return camera ? withCameraNote(heard) : heard;
+        // Support: hozirgi vaqt (eslatma va "bugun/ertaga" uchun) — faqat oxirgi xabarga, kesh buzilmaydi.
+        const timed = unrestricted === true && nowNote ? `${heard}\n\n(${clip(str(nowNote), 120)})` : heard;
+        return camera ? withCameraNote(timed) : timed;
       };
       const normHistory = normalizeHistory(history).map((m, i) => (i === lastIndex ? { ...m, content: lastContent(m) } : m));
       const userContent = normHistory[normHistory.length - 1].content;
@@ -528,8 +563,8 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ra
       return { ...result, userContent, pageTruncated: Boolean(normPage?.truncated), parsed: parseAkaResponse(result.text) };
     },
     async summary({ pageTitle, items, mode, lang, simple, persona, goal, goals, level, llm, unrestricted = false }) {
-      const normLevel = normalizeLevel(level);
-      const normMode = effectiveMode(normalizeMode(mode), normLevel);
+      const normLevel = levelFor(level, unrestricted === true);
+      const normMode = effectiveMode(normalizeMode(mode), normLevel, unrestricted === true);
       const normLang = normalizeLang(lang);
       const content = buildSummaryMessage({ pageTitle, items });
       const style = {

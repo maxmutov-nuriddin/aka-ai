@@ -60,6 +60,23 @@ const MIGRATIONS = [
   // Paket (Suhbatga tayyorgarlik): foydalanuvchida { key, minutes, startDay, until }, to'lovda — paket kaliti.
   `ALTER TABLE users ADD COLUMN package TEXT;
    ALTER TABLE payments ADD COLUMN package TEXT;`,
+  // Shaxsiy yordamchi (support): Jigar eslab qoladigan faktlar va eslatmalar.
+  `CREATE TABLE memories (
+     id         INTEGER PRIMARY KEY AUTOINCREMENT,
+     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     text       TEXT    NOT NULL,
+     created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+   );
+   CREATE INDEX memories_by_user ON memories(user_id);
+   CREATE TABLE reminders (
+     id         INTEGER PRIMARY KEY AUTOINCREMENT,
+     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     due_at     TEXT    NOT NULL,
+     text       TEXT    NOT NULL,
+     done       INTEGER NOT NULL DEFAULT 0,
+     created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+   );
+   CREATE INDEX reminders_by_user ON reminders(user_id, done, due_at);`,
 ];
 
 /**
