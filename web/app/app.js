@@ -837,9 +837,6 @@ function renderPersonaTag() {
   // Fon ham xarakter rangida (styles.css: .app::after).
   if (info) el.app.style.setProperty("--app-tint", info.color);
   else el.app.style.removeProperty("--app-tint");
-  // styles.css: moslashuvchan — fon va sarlavha rangi robot bilan birga o'zgarib turadi
-  if (info) el.app.dataset.persona = prefs.persona;
-  else delete el.app.dataset.persona;
   if (!info) {
     delete brand.dataset.persona;
     return;

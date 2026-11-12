@@ -41,14 +41,7 @@
 .avatar[data-persona="kinoyali"] { --eye: #e08cff; --accent: #cf5cff; } /* och binafsha-pushti — brend rangidan farqli */
 .avatar[data-persona="jahldor"] { --eye: #ff8a3d; --accent: #ff6a2a; }
 .avatar[data-persona="romantik"] { --eye: #ff6fae; --accent: #ff4f98; --cheek: rgba(255, 111, 174, 0.65); }
-/* Moslashuvchan: rangi sekin o'zgarib turadi (yashil -> ko'k -> binafsha) — "senga moslashadi" */
-@property --mos-color { syntax: "<color>"; inherits: true; initial-value: #7ee081; }
-@keyframes mos-shift {
-  0%, 100% { --mos-color: #7ee081; }
-  33% { --mos-color: #4dc9ff; }
-  66% { --mos-color: #a98bff; }
-}
-.avatar[data-persona="moslashuvchan"] { --eye: var(--mos-color); --accent: var(--mos-color); animation: mos-shift 14s ease-in-out infinite; }
+.avatar[data-persona="moslashuvchan"] { --eye: #8cf0a0; --accent: #7ee081; } /* yashil — muvozanat, o'sish */
 /* Romantik: robot atrofida suzib, ko'tarilib yo'qoladigan yurakchalar (faqat shu xarakterda) */
 .av-hearts { position: absolute; inset: 0; pointer-events: none; display: none; }
 .avatar[data-persona="romantik"] .av-hearts { display: block; }
