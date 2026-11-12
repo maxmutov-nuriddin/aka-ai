@@ -5,6 +5,9 @@ const MAX_SIDE = 1568; // Claude rasmni shu o'lchamgacha kichraytiradi — katta
 const JPEG_QUALITY = 0.82; // ~150-350 KB: matn o'qiladi, so'rov yengil
 const FACING = { back: "environment", front: "user" };
 
+/** Telefon yoki planshet (orqa kamerasi bor). Kompyuterda kamera doim foydalanuvchiga qaragan. */
+const isMobile = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1;
+
 /**
  * Rasmni (video kadr, yuklangan surat) Claude uchun mos JPEG'ga aylantiradi: uzun tomoni MAX_SIDE gacha.
  * @param {CanvasImageSource} source
@@ -47,7 +50,11 @@ export function createCamera({ video }) {
     stream = next;
     facing = side;
     video.srcObject = stream;
-    video.classList.toggle("mirrored", side === "front"); // old kamera — oynadagidek
+    // Old kamera — oynadagidek (o'ngga qimirlasa, o'ngga). Qaysi kamera ekanini brauzer bergan kameradan bilamiz:
+    // noutbukda orqa kamera yo'q — "orqa" so'ralsa ham old kamera keladi. Faqat aniq orqa kamera aylantirilmaydi.
+    // Jigarga yuboriladigan kadr (snapshot) aylantirilmaydi — yozuvlar to'g'ri o'qiladi.
+    const actual = stream.getVideoTracks()[0]?.getSettings?.().facingMode;
+    video.classList.toggle("mirrored", actual ? actual !== "environment" : side === "front" || !isMobile());
     await video.play().catch(() => {});
   }
 
