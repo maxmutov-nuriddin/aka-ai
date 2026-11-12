@@ -44,18 +44,6 @@ test("normalizeEmail: @ yo'q — @gmail.com qo'shiladi, gmail xatolari tuzatilad
   assert.equal(validateRegistration({ name: "Ali", email: "ali", password: "12345678" }).email, "ali@gmail.com");
 });
 
-test("login: @gmail.com siz yozilsa ham kiradi", async () => {
-  const s = await startServer(appOptions, { login: false });
-  try {
-    await fetch(`${s.base}/api/auth/register`, json({ ...TEST_USER, email: "nuriddin" }));
-    const res = await fetch(`${s.base}/api/auth/login`, json({ email: "Nuriddin@gmail.ocm", password: TEST_USER.password }));
-    assert.equal(res.status, 200);
-    assert.equal((await res.json()).user.email, "nuriddin@gmail.com");
-  } finally {
-    s.close();
-  }
-});
-
 test("store: sessiya muddati o'tsa foydalanuvchi topilmaydi, token bazada xom saqlanmaydi", async () => {
   const db = openDatabase(":memory:");
   let clock = new Date("2026-01-01T00:00:00Z");
@@ -64,133 +52,89 @@ test("store: sessiya muddati o'tsa foydalanuvchi topilmaydi, token bazada xom sa
   const token = store.createSession(user.id, "web");
   assert.deepEqual(store.userForToken(token), user);
   assert.equal(db.prepare("SELECT count(*) AS n FROM sessions WHERE token_hash = ?").get(token).n, 0);
-  clock = new Date("2026-03-01T00:00:00Z");
+  clock = new Date("2027-01-02T00:00:00Z"); // SESSION_DAYS (365) dan keyin
   assert.equal(store.userForToken(token), null);
   store.deleteExpiredSessions();
   assert.equal(db.prepare("SELECT count(*) AS n FROM sessions").get().n, 0);
 });
 
-test("register: veb — httpOnly cookie, kengaytma — token", async () => {
+const post = (base, path, body, headers = {}) =>
+  fetch(`${base}${path}`, { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) });
+const cookieOf = (res) => res.headers.get("set-cookie").split(";")[0];
+
+test("setup: birinchi marta parol qo'yiladi (ism ixtiyoriy), ikkinchi marta — 409; sessiya 1 yil", async () => {
   const s = await startServer(appOptions, { login: false });
   try {
-    const web = await fetch(`${s.base}/api/auth/register`, json(TEST_USER));
-    assert.equal(web.status, 201);
-    const cookie = web.headers.get("set-cookie");
-    assert.match(cookie, /^jigar_session=[\w-]+; Path=\/; HttpOnly; SameSite=Lax; Max-Age=2592000/);
-    assert.deepEqual((await web.json()).user, { id: 1, name: TEST_USER.name, email: TEST_USER.email });
-
-    const me = await fetch(`${s.base}/api/auth/me`, { headers: { Cookie: cookie.split(";")[0] } });
-    assert.equal((await me.json()).user.email, TEST_USER.email);
-
-    const ext = await fetch(`${s.base}/api/auth/login`, json({ email: TEST_USER.email, password: TEST_USER.password, client: "extension" }));
-    const { token } = await ext.json();
-    assert.ok(token.length > 30);
-    assert.equal(ext.headers.get("set-cookie"), null);
-    const meExt = await fetch(`${s.base}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
-    assert.equal(meExt.status, 200);
-  } finally {
-    s.close();
-  }
-});
-
-test("register: takroriy email 409, noto'g'ri ma'lumot 400", async () => {
-  const s = await startServer(appOptions, { login: false });
-  try {
-    assert.equal((await fetch(`${s.base}/api/auth/register`, json(TEST_USER))).status, 201);
-    const dup = await fetch(`${s.base}/api/auth/register`, json({ ...TEST_USER, email: TEST_USER.email.toUpperCase() }));
-    assert.equal(dup.status, 409);
-    assert.equal((await dup.json()).code, "duplicate_email");
-    assert.equal((await fetch(`${s.base}/api/auth/register`, json({ name: "A" }))).status, 400);
-  } finally {
-    s.close();
-  }
-});
-
-test("register: savollar javobi (profil) saqlanadi va /me qaytaradi, noto'g'risi 400", async () => {
-  const profile = { lang: "ru", length: "batafsil", persona: "mehribon" };
-  const s = await startServer(appOptions, { login: false });
-  try {
-    const res = await fetch(`${s.base}/api/auth/register`, json({ ...TEST_USER, profile: { ...profile, extra: "x", goal: "exam", level: "8-9" } }));
+    assert.deepEqual((await (await fetch(`${s.base}/api/auth/status`)).json()).setup, false);
+    assert.equal((await post(s.base, "/api/auth/setup", { password: "qisqa" })).status, 400);
+    const res = await post(s.base, "/api/auth/setup", { password: "parol-12345" });
     assert.equal(res.status, 201);
-    assert.deepEqual((await res.json()).user.profile, profile); // noma'lum maydon (goal, level ham) tashlanadi
-    const cookie = res.headers.get("set-cookie").split(";")[0];
-    const me = await fetch(`${s.base}/api/auth/me`, { headers: { Cookie: cookie } });
-    assert.deepEqual((await me.json()).user.profile, profile);
-
-    const bad = await fetch(`${s.base}/api/auth/register`, json({ ...TEST_USER, email: "b@b.uz", profile: { persona: "yovuz" } }));
-    assert.equal(bad.status, 400);
+    assert.equal((await res.json()).user.name, "Egasi");
+    assert.match(res.headers.get("set-cookie"), /Max-Age=31536000/);
+    assert.equal((await post(s.base, "/api/auth/setup", { password: "boshqa-parol" })).status, 409);
+    assert.equal((await (await fetch(`${s.base}/api/auth/status`)).json()).setup, true);
+    assert.equal((await post(s.base, "/api/auth/register", { ...TEST_USER })).status, 404); // ro'yxatdan o'tish yo'q
   } finally {
     s.close();
   }
 });
 
-test("PUT /api/auth/profile: EcoSystem'da kirgan har kim (egasi) o'zgartiradi, role yo'q", async () => {
+test("login: faqat parol; noto'g'ri — 401; logout sessiyani o'chiradi; parolni o'zgartirish", async () => {
   const s = await startServer(appOptions, { login: false });
   try {
-    const res = await fetch(`${s.base}/api/auth/register`, json({ ...TEST_USER, profile: { persona: "mehribon" } }));
-    const body = await res.json();
-    assert.equal(body.user.role, undefined);
-    const cookie = res.headers.get("set-cookie").split(";")[0];
-    const put = await fetch(`${s.base}/api/auth/profile`, {
-      method: "PUT", headers: { "Content-Type": "application/json", Cookie: cookie }, body: JSON.stringify({ profile: { persona: "jahldor" } }),
-    });
-    assert.equal(put.status, 200);
+    await post(s.base, "/api/auth/setup", { password: "parol-12345", name: "Nuriddin" });
+    assert.equal((await post(s.base, "/api/auth/login", { password: "noto'g'ri-parol" })).status, 401);
+    const ok = await post(s.base, "/api/auth/login", { password: "parol-12345" });
+    assert.equal(ok.status, 200);
+    const cookie = { Cookie: cookieOf(ok) };
+    const changed = await fetch(`${s.base}/api/auth/password`, { method: "PUT", headers: { "Content-Type": "application/json", ...cookie }, body: JSON.stringify({ password: "yangi-parol-1" }) });
+    assert.equal(changed.status, 200);
+    assert.equal((await post(s.base, "/api/auth/login", { password: "parol-12345" })).status, 401);
+    assert.equal((await post(s.base, "/api/auth/login", { password: "yangi-parol-1" })).status, 200);
+    await post(s.base, "/api/auth/logout", {}, cookie);
+    assert.equal((await fetch(`${s.base}/api/auth/me`, { headers: cookie })).status, 401);
   } finally {
     s.close();
   }
 });
 
-test("PUT /api/auth/name: har bir kirgan foydalanuvchi ismini yangilaydi", async () => {
+test("lokal parolsiz kirish: faqat ECO_LOCAL_NOAUTH=1, localhost va proksisiz; production'da — yo'q", async () => {
+  const local = await startServer({ ...appOptions, env: { ECO_LOCAL_NOAUTH: "1" } }, { login: false });
+  try {
+    const me = await fetch(`${local.base}/api/auth/me`);
+    assert.equal(me.status, 200); // egasi avtomatik yaratildi
+    assert.equal((await (await fetch(`${local.base}/api/auth/status`)).json()).local, true);
+    assert.equal((await fetch(`${local.base}/api/auth/me`, { headers: { "X-Forwarded-For": "1.2.3.4" } })).status, 401);
+  } finally {
+    local.close();
+  }
+  const prod = await startServer({ ...appOptions, env: { ECO_LOCAL_NOAUTH: "1", NODE_ENV: "production" } }, { login: false });
+  try {
+    assert.equal((await fetch(`${prod.base}/api/auth/me`)).status, 401);
+  } finally {
+    prod.close();
+  }
+  const off = await startServer(appOptions, { login: false });
+  try {
+    assert.equal((await fetch(`${off.base}/api/auth/me`)).status, 401);
+  } finally {
+    off.close();
+  }
+});
+
+test("profil, ism va til: egasi o'zgartiradi; noto'g'ri — 400; kirmagan — 401", async () => {
   const s = await startServer(appOptions, { login: false });
   try {
-    const registered = await fetch(`${s.base}/api/auth/register`, json(TEST_USER));
-    const cookie = registered.headers.get("set-cookie").split(";")[0];
-    const put = (body, headers = { Cookie: cookie }) => fetch(`${s.base}/api/auth/name`, {
-      method: "PUT", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body),
-    });
-    const ok = await put({ name: "  Ali   Valiyev " });
-    assert.equal(ok.status, 200);
-    assert.equal((await ok.json()).user.name, "Ali Valiyev");
-    assert.equal((await (await fetch(`${s.base}/api/auth/me`, { headers: { Cookie: cookie } })).json()).user.name, "Ali Valiyev");
-    assert.equal((await put({ name: "A" })).status, 400);
-    assert.equal((await put({ name: "Ali" }, {})).status, 401);
-  } finally {
-    s.close();
-  }
-});
-
-test("PUT /api/auth/profile: support profilni yangilaydi, /me qaytaradi; noto'g'ri — 400, kirmagan — 401", async () => {
-  const s = await startServer({ ...appOptions, env: { SUPPORT_EMAILS: TEST_USER.email } }, { login: false });
-  try {
-    const res = await fetch(`${s.base}/api/auth/register`, json({ ...TEST_USER, profile: { persona: "mehribon" } }));
-    const cookie = res.headers.get("set-cookie").split(";")[0];
-    const put = (body, headers = { Cookie: cookie }) =>
-      fetch(`${s.base}/api/auth/profile`, { method: "PUT", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) });
-
-    const ok = await put({ profile: { persona: "jahldor", length: "qisqa" } });
-    assert.equal(ok.status, 200);
-    assert.deepEqual((await ok.json()).user.profile, { persona: "jahldor", length: "qisqa" });
-    const me = await fetch(`${s.base}/api/auth/me`, { headers: { Cookie: cookie } });
-    assert.deepEqual((await me.json()).user.profile, { persona: "jahldor", length: "qisqa" });
-
-    assert.equal((await put({ profile: { length: "99" } })).status, 400);
-    assert.equal((await put({ profile: { persona: "neytral" } }, {})).status, 401);
-  } finally {
-    s.close();
-  }
-});
-
-test("login: noto'g'ri parol 401, logout sessiyani o'chiradi", async () => {
-  const s = await startServer(appOptions);
-  try {
-    const bad = await fetch(`${s.base}/api/auth/login`, json({ email: TEST_USER.email, password: "notogri-parol" }));
-    assert.equal(bad.status, 401);
-    assert.equal((await bad.json()).code, "bad_credentials");
-
-    assert.equal((await s.raw("/api/auth/me")).status, 200);
-    const out = await s.post("/api/auth/logout", {});
-    assert.match(out.headers.get("set-cookie"), /Max-Age=0/);
-    assert.equal((await s.raw("/api/auth/me")).status, 401);
+    const res = await post(s.base, "/api/auth/setup", { password: "parol-12345", profile: { lang: "uz", persona: "mehribon" } });
+    const cookie = { Cookie: cookieOf(res) };
+    const put = (path, body, headers = cookie) =>
+      fetch(`${s.base}${path}`, { method: "PUT", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) });
+    const profile = await put("/api/auth/profile", { profile: { persona: "jahldor", length: "qisqa" } });
+    assert.deepEqual((await profile.json()).user.profile, { persona: "jahldor", length: "qisqa" });
+    assert.equal((await put("/api/auth/profile", { profile: { length: "99" } })).status, 400);
+    assert.equal((await (await put("/api/auth/name", { name: "Nuriddin" })).json()).user.name, "Nuriddin");
+    assert.equal((await (await put("/api/auth/lang", { lang: "ru" })).json()).user.profile.lang, "ru");
+    assert.equal((await put("/api/auth/profile", { profile: {} }, {})).status, 401);
   } finally {
     s.close();
   }
@@ -200,36 +144,8 @@ test("login: urinishlar cheklangan (parol tanlashdan himoya)", async () => {
   const s = await startServer({ ...appOptions, env: { ECO_AUTH_RATE_MAX: "3" } }, { login: false });
   try {
     let last;
-    for (let i = 0; i < 4; i++) last = await fetch(`${s.base}/api/auth/login`, json({ email: "x@y.uz", password: "12345678" }));
+    for (let i = 0; i < 4; i++) last = await post(s.base, "/api/auth/login", { password: "12345678" });
     assert.equal(last.status, 429);
-  } finally {
-    s.close();
-  }
-});
-
-test("/login: kirgan foydalanuvchi to'g'ridan-to'g'ri ilovaga o'tadi", async () => {
-  const s = await startServer(appOptions);
-  try {
-    const r = await s.raw("/login", { redirect: "manual" });
-    assert.equal(r.status, 302);
-    assert.equal(r.headers.get("location"), "/app/");
-  } finally {
-    s.close();
-  }
-});
-
-test("/api/auth/lang: har bir foydalanuvchi tilini o'zgartiradi, profilning qolgani saqlanadi; noto'g'ri til — 400", async () => {
-  const s = await startServer({}, { login: false });
-  try {
-    const reg = await fetch(`${s.base}/api/auth/register`, json({ ...TEST_USER, email: "til@x.uz", profile: { lang: "uz", length: "qisqa", persona: "mehribon" } }));
-    const cookie = { Cookie: reg.headers.get("set-cookie").split(";")[0] };
-    const put = (body) => fetch(`${s.base}/api/auth/lang`, { method: "PUT", headers: { "Content-Type": "application/json", ...cookie }, body: JSON.stringify(body) });
-    const res = await put({ lang: "ru" });
-    assert.equal(res.status, 200);
-    assert.deepEqual((await res.json()).user.profile, { lang: "ru", length: "qisqa", persona: "mehribon" });
-    assert.equal((await put({ lang: "en" })).status, 400);
-    const anon = await fetch(`${s.base}/api/auth/lang`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lang: "ru" }) });
-    assert.equal(anon.status, 401);
   } finally {
     s.close();
   }

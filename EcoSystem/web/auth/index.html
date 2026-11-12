@@ -6,97 +6,41 @@
   <title>Kirish — Jigar</title>
   <link rel="icon" href="/shared/logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/shared/theme.css">
-  <link rel="stylesheet" href="/shared/avatar.css">
-  <link rel="stylesheet" href="/shared/site.css">
-  <link rel="stylesheet" href="/auth/auth.css">
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px; box-sizing: border-box;
+      background: radial-gradient(60% 50% at 50% 30%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%), var(--bg); color: var(--text);
+      font-family: var(--font-body, system-ui, sans-serif); }
+    .card { width: min(380px, 100%); display: grid; gap: 14px; padding: 28px 24px; border-radius: 20px;
+      background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--line); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45); }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand img { width: 40px; height: 40px; }
+    h1 { margin: 0; font: 800 20px/1.2 var(--font-display, inherit); }
+    p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+    label { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+    input { padding: 11px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--glass); color: var(--text); font: inherit; }
+    button { padding: 12px; border: 0; border-radius: 12px; background: var(--accent); color: var(--accent-ink, #fff); font: 700 15px/1 inherit; cursor: pointer; }
+    button:disabled { opacity: 0.6; cursor: wait; }
+    .error { color: var(--danger, #ff5d6c); font-size: 13px; min-height: 1em; }
+    [hidden] { display: none !important; }
+  </style>
 </head>
 <body>
-  <div class="notebook" aria-hidden="true"></div>
-
-  <header class="nav">
-    <a class="nav-brand" href="/">
-      <img src="/shared/logo.svg" alt="" width="36" height="36">
-      <span>Jigar</span>
-    </a>
-    <nav class="nav-links" aria-label="Bo'limlar">
-      <a href="/#how" data-l="nav.how">Qanday ishlaydi</a>
-      <a href="/#directions" data-l="nav.directions">Yo'nalishlar</a>
-      <a href="/#personas" data-l="nav.personas">Xarakterlar</a>
-      <a href="/#pricing" data-l="nav.pricing">Narxlar</a>
-      <a href="/#faq" data-l="nav.faq">Savollar</a>
-    </nav>
-    <div class="nav-actions">
-      <div class="lang" role="group" aria-label="Til">
-        <button type="button" data-lang="uz" aria-pressed="true">UZ</button>
-        <button type="button" data-lang="ru" aria-pressed="false">RU</button>
-      </div>
-      <a class="btn btn-quiet" href="/login" id="navLogin" data-l="nav.login">Kirish</a>
-      <a class="btn btn-main" href="/login?mode=register" id="navStart" data-l="nav.start">Boshlash</a>
-    </div>
-  </header>
-
-  <div class="auth">
-
-    <section class="auth-stage" aria-hidden="true">
-      <div class="doodles">
-        <span class="doodle d1">a² + b² = c²</span>
-        <span class="doodle d2">π ≈ 3,14</span>
-        <span class="doodle d3">H₂O</span>
-        <span class="doodle d4">E = mc²</span>
-        <span class="doodle d5">½ + ¼ = ¾</span>
-      </div>
-      <div class="auth-bubble" id="bubble">Salom! Keling, tanishamiz</div>
-      <div class="avatar auth-avatar" id="authAvatar"></div>
-    </section>
-
-    <section class="auth-card" aria-labelledby="authTitle">
-      <header class="auth-head">
-        <img src="/shared/logo.svg" alt="" width="40" height="40">
-        <h1 id="authTitle" data-l="title.login">Jigarga kirish</h1>
-      </header>
-
-      <div class="tabs" role="tablist">
-        <button type="button" role="tab" id="tabLogin" aria-selected="true" data-mode="login" data-l="tab.login">Kirish</button>
-        <button type="button" role="tab" id="tabRegister" aria-selected="false" data-mode="register" data-l="tab.register">Ro'yxatdan o'tish</button>
-      </div>
-
-      <section id="onboard" class="onboard" aria-live="polite" hidden></section>
-
-      <form id="authForm" class="form" novalidate>
-        <label class="field" id="nameField" hidden>
-          <span data-l="field.name">Ismingiz</span>
-          <input id="name" name="name" type="text" autocomplete="name" maxlength="60">
-        </label>
-        <label class="field">
-          <span data-l="field.email">Email</span>
-          <input id="email" name="email" type="email" autocomplete="email" maxlength="254" required>
-        </label>
-        <label class="field">
-          <span data-l="field.password">Parol</span>
-          <span class="pass-wrap">
-            <input id="password" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" required>
-            <button type="button" class="peek" id="peek" aria-pressed="false" aria-label="Parolni ko'rsatish"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
-          </span>
-          <small class="hint" id="passHint" hidden data-l="field.passHint">Kamida 8 belgi</small>
-        </label>
-        <p class="error" id="error" role="alert" hidden></p>
-        <button type="submit" class="submit" id="submit">Kirish</button>
-        <!-- Ro'yxatdan o'tish = ofertani qabul qilish (aksept). auth.js: matn tilga qarab -->
-        <p class="consent" id="consent" hidden>
-          <span id="consentText">Ro'yxatdan o'tib, siz</span>
-          <a href="/oferta" target="_blank" rel="noopener" id="consentOffer">ommaviy oferta</a>
-          <span id="consentAnd">va</span>
-          <a href="/maxfiylik" target="_blank" rel="noopener" id="consentPrivacy">maxfiylik siyosati</a><span id="consentEnd">ga rozilik bildirasiz.</span>
-        </p>
-      </form>
-
-      <p class="switch-note">
-        <span id="switchText">Hisobing yo'qmi?</span>
-        <button type="button" class="link" id="switchBtn">Ro'yxatdan o't</button>
-      </p>
-    </section>
-  </div>
-
+  <!-- EcoSystem: yagona egasi — faqat parol. Birinchi ochilishda parol qo'yiladi; shu kompyuterda (ECO_LOCAL_NOAUTH=1) — parolsiz. -->
+  <form class="card" id="form" autocomplete="on">
+    <div class="brand"><img src="/shared/logo.svg" alt=""><h1 id="title">Jigar</h1></div>
+    <p id="hint">Yuklanmoqda…</p>
+    <label id="nameRow" hidden>Ismingiz (ixtiyoriy)
+      <input id="name" type="text" maxlength="60" autocomplete="name">
+    </label>
+    <label>Parol
+      <input id="password" type="password" minlength="8" required autocomplete="current-password">
+    </label>
+    <label id="repeatRow" hidden>Parolni takrorlang
+      <input id="repeat" type="password" minlength="8" autocomplete="new-password">
+    </label>
+    <button type="submit" id="submit">Kirish</button>
+    <p class="error" id="error" role="alert"></p>
+  </form>
   <script type="module" src="/auth/auth.js"></script>
 </body>
 </html>

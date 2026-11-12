@@ -677,7 +677,7 @@ const ICON_SOUND = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path
 const ICON_MUTED = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m16 9 5 6M21 9l-5 6"/></svg>';
 const ICON_KEYBOARD = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6.5 10h.01M10 10h.01M13.5 10h.01M17 10h.01M7.5 14h9"/></svg>';
 const ICON_CLOSE = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
-const PROFILE_KEY = "jigar.profile"; // ro'yxatdan o'tishdagi savollar javobi (web/auth/onboarding.js)
+const PROFILE_KEY = "jigar.profile"; // profil: til, uzunlik, xarakter (server bilan sinxron)
 const SIMPLE_LEVELS = ["5-7", "8-9"];
 
 let prefs = loadPrefs();
@@ -836,7 +836,7 @@ function renderPrefs() {
   renderPersonaTag();
 }
 
-// Sarlavhada tanlangan xarakter (ranglar web/auth/onboarding.js va shared/avatar.css bilan bir xil).
+// Sarlavhada tanlangan xarakter (ranglar shared/faces.js va shared/avatar.css bilan bir xil).
 const PERSONA_INFO = {
   neytral: { color: "#2ee6c8", uz: ["Neytral", "xotirjam va lo'nda"], ru: ["Нейтральный", "спокойно и по делу"] },
   mehribon: { color: "#ffc94d", uz: ["Mehribon", "qo'llab-quvvatlaydi"], ru: ["Добрый", "всегда поддержит"] },

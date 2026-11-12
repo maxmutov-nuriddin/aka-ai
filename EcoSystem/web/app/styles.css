@@ -531,3 +531,4 @@ code { font: 0.92em ui-monospace, monospace; background: rgba(255, 255, 255, 0.0
   background: var(--glass); color: var(--text); font: inherit;
 }
 .eco-status { min-height: 1em; color: var(--muted); font-size: 12px; }
+.eco-field input { padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--glass); color: var(--text); font: inherit; }

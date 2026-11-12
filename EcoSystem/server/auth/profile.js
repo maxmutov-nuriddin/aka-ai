@@ -1,4 +1,4 @@
-// Foydalanuvchi profili: ro'yxatdan o'tishdagi savollar javobi (web/auth/onboarding.js) — til, javob uzunligi, xarakter.
+// Egasining profili: til, javob uzunligi, xarakter — Sozlamalar oynasidan o'zgaradi (web/app/eco-settings.js).
 // Faqat ma'lum maydonlar va ruxsat etilgan qiymatlar saqlanadi. (EcoSystem'da yo'nalish va sinf yo'q.)
 import { normalizeLang, normalizeLength, normalizePersona, ValidationError } from "../core/jigar.js";
 

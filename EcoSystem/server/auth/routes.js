@@ -1,8 +1,8 @@
-// /api/auth: ro'yxatdan o'tish, kirish, chiqish, joriy foydalanuvchi.
+// /api/auth (EcoSystem): egasi — parol qo'yish (setup), kirish (faqat parol), chiqish, parol, profil.
 import express from "express";
 import { ValidationError } from "../core/errors.js";
 import { rateLimiter } from "../http/rate-limit.js";
-import { BlockedError, DuplicateEmailError, SESSION_DAYS } from "./store.js";
+import { BlockedError, DuplicateEmailError, OWNER_EMAIL, SESSION_DAYS } from "./store.js";
 import { sessionCookie } from "./session.js";
 
 const AUTH_WINDOW_MS = 15 * 60_000;
@@ -30,28 +30,45 @@ export function createAuthRouter({ store, secureCookies, authMax = AUTH_MAX }) {
     res.status(status).json({ user });
   }
 
-  router.post("/register", limiter, async (req, res) => {
+  // Birinchi ochilish: egasi parol qo'yadi (ism — ixtiyoriy). Hisob allaqachon bor bo'lsa — 409.
+  router.post("/setup", limiter, async (req, res) => {
     try {
-      const user = await store.createUser(req.body ?? {});
+      if (store.ownerUser()) return res.status(409).json({ error: "Parol allaqachon qo'yilgan. Kiring.", code: "already_setup" });
+      const name = String(req.body?.name ?? "").trim() || "Egasi";
+      const user = await store.createUser({ name, email: OWNER_EMAIL, password: req.body?.password, profile: req.body?.profile });
       startSession(req, res, user, 201);
     } catch (err) {
       if (err instanceof ValidationError) return res.status(400).json({ error: err.message, code: "invalid" });
-      if (err instanceof DuplicateEmailError) return res.status(409).json({ error: err.message, code: "duplicate_email" });
-      console.error("[/api/auth/register]", err);
-      res.status(500).json({ error: "Ro'yxatdan o'tkazib bo'lmadi.", code: "server" });
+      if (err instanceof DuplicateEmailError) return res.status(409).json({ error: "Parol allaqachon qo'yilgan. Kiring.", code: "already_setup" });
+      console.error("[/api/auth/setup]", err);
+      res.status(500).json({ error: "Sozlab bo'lmadi.", code: "server" });
     }
   });
 
+  // Kirish — faqat parol (yagona hisob — egasi).
   router.post("/login", limiter, async (req, res) => {
     try {
-      const user = await store.verifyCredentials(req.body?.email, req.body?.password);
-      if (!user) return res.status(401).json({ error: "Email yoki parol noto'g'ri.", code: "bad_credentials" });
+      const user = await store.verifyCredentials(OWNER_EMAIL, req.body?.password);
+      if (!user) return res.status(401).json({ error: "Parol noto'g'ri.", code: "bad_credentials" });
       startSession(req, res, user);
     } catch (err) {
       if (err instanceof ValidationError) return res.status(400).json({ error: err.message, code: "invalid" });
       if (err instanceof BlockedError) return res.status(403).json({ error: err.message, code: "blocked" });
       console.error("[/api/auth/login]", err);
       res.status(500).json({ error: "Kirib bo'lmadi.", code: "server" });
+    }
+  });
+
+  // Parolni o'zgartirish (Sozlamalar) — boshqa qurilmalardan shu parol bilan kiriladi.
+  router.put("/password", limiter, async (req, res) => {
+    if (!req.user) return res.status(401).json({ error: "Kirilmagan.", code: "auth_required" });
+    try {
+      await store.updatePassword(req.user.id, req.body?.password);
+      res.json({ ok: true });
+    } catch (err) {
+      if (err instanceof ValidationError) return res.status(400).json({ error: err.message, code: "invalid" });
+      console.error("[/api/auth/password]", err);
+      res.status(500).json({ error: "Parolni saqlab bo'lmadi.", code: "server" });
     }
   });
 

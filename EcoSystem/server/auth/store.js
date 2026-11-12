@@ -20,7 +20,9 @@ const parsePackage = (text) => {
   }
 };
 
-export const SESSION_DAYS = 30;
+export const SESSION_DAYS = 365; // EcoSystem: egasi kompyuter/telefonda uzoq vaqt kirgan holda qoladi
+// Yagona hisob — egasi (faqat parol bilan kiradi; email foydalanuvchiga ko'rinmaydi).
+export const OWNER_EMAIL = "egasi@jigar.local";
 const CLIENTS = new Set(["web", "extension"]);
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const LIMITS = { nameMin: 2, nameMax: 60, emailMax: 254, passwordMin: 8, passwordMax: 128 };
@@ -100,6 +102,8 @@ export function createAuthStore(db, { now = () => new Date(), supportEmails = ne
   const toPublic = (row) => publicUser(row, supportEmails);
   const q = {
     insertUser: db.prepare("INSERT INTO users (name, email, password_hash, profile) VALUES (?, ?, ?, ?)"),
+    firstUser: db.prepare("SELECT id, name, email, profile, plan, package FROM users ORDER BY id LIMIT 1"),
+    updatePassword: db.prepare("UPDATE users SET password_hash = ? WHERE id = ?"),
     userByEmail: db.prepare("SELECT id, name, email, password_hash, profile, blocked FROM users WHERE email = ?"),
     listUsers: db.prepare("SELECT id, name, email, profile, plan, package, blocked, created_at, paid_until FROM users ORDER BY id"),
     setBlocked: db.prepare("UPDATE users SET blocked = ? WHERE id = ?"),
@@ -135,6 +139,18 @@ export function createAuthStore(db, { now = () => new Date(), supportEmails = ne
     const ok = await verifyPassword(str(password), row?.password_hash ?? dummyHash);
     if (row && ok && row.blocked) throw new BlockedError("Hisob bloklangan. Support bilan bog'laning.");
     return row && ok ? toPublic(row) : null;
+  }
+
+  /** Egasi (birinchi va yagona hisob) yoki null — hali sozlanmagan. */
+  const ownerUser = () => toPublic(q.firstUser.get());
+
+  /** Parolni o'zgartirish (Sozlamalar). */
+  async function updatePassword(userId, password) {
+    const pass = str(password);
+    if (pass.length < LIMITS.passwordMin || pass.length > LIMITS.passwordMax) {
+      throw new ValidationError(`Parol kamida ${LIMITS.passwordMin} belgi bo'lsin.`);
+    }
+    q.updatePassword.run(await hashPassword(pass), userId);
   }
 
   /** Yangi sessiya. Qaytaradi: xom token (faqat foydalanuvchiga beriladi, bazada xeshi turadi). */
@@ -202,5 +218,5 @@ export function createAuthStore(db, { now = () => new Date(), supportEmails = ne
     q.deleteExpired.run(now().toISOString());
   }
 
-  return { createUser, verifyCredentials, createSession, userForToken, updateProfile, updateLang, updateName, listUsers, setBlocked, deleteUser, deleteSession, deleteExpiredSessions };
+  return { createUser, verifyCredentials, ownerUser, updatePassword, createSession, userForToken, updateProfile, updateLang, updateName, listUsers, setBlocked, deleteUser, deleteSession, deleteExpiredSessions };
 }

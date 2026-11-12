@@ -1,7 +1,7 @@
 // EcoSystem serveri: faqat egasi, doim yordamchi rejimi, o'quvchi (tarif/to'lov/admin) yo'llari yo'q.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createVoiceServices, parseOwnerEmails } from "../../server/app.js";
+import { createVoiceServices } from "../../server/app.js";
 import { parseAkaResponse } from "../../server/core/parse.js";
 import { startServer, TEST_USER } from "./helpers.js";
 
@@ -46,18 +46,6 @@ test("sahifalar va umumiy fayllar; o'quvchi yo'llari (tarif, to'lov, admin, land
   } finally {
     s.close();
   }
-});
-
-test("ro'yxatdan o'tish: faqat ECO_OWNER_EMAILS dagi email", async () => {
-  const s = await startServer({ jigar: spyJigar(), ttsProviders: { gemini: tts("G") }, stt, env: { ECO_OWNER_EMAILS: `X@Y.uz, ${TEST_USER.email}` } }, { login: false });
-  try {
-    const post = (body) => fetch(`${s.base}/api/auth/register`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    assert.equal((await post({ ...TEST_USER, email: "begona@x.uz" })).status, 403);
-    assert.equal((await post(TEST_USER)).status, 201);
-  } finally {
-    s.close();
-  }
-  assert.deepEqual([...parseOwnerEmails(" A@b.uz , ,c@d.uz")], ["a@b.uz", "c@d.uz"]);
 });
 
 test("/api/chat: doim yordamchi rejimi — xotira, hozirgi vaqt; javobdagi xotira saqlanadi; oqim (NDJSON)", async () => {

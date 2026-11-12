@@ -6,18 +6,19 @@ const LABELS = {
   llm: { claude: "Claude Opus", haiku: "Claude Haiku (arzon)", gemini: "Gemini", openai: "OpenAI" },
   tts: { gemini: "Gemini", elevenlabs: "ElevenLabs", fishaudio: "Fish Audio", openai: "OpenAI" },
   effort: { low: "Tez", medium: "O'rtacha", high: "Chuqur" },
+  length: { qisqa: "Qisqa", odatiy: "O'rtacha", batafsil: "Batafsil" },
   persona: {
     "": "Standart", neytral: "Neytral", mehribon: "Mehribon", kinoyali: "Kinoyali",
     jahldor: "Jahldor", romantik: "Romantik", moslashuvchan: "Moslashuvchan",
   },
 };
-const TITLES = { llm: "Miya", tts: "Ovoz", effort: "Javob chuqurligi", persona: "Xarakter" };
+const TITLES = { llm: "Miya", tts: "Ovoz", effort: "Javob chuqurligi", length: "Javob uzunligi", persona: "Xarakter" };
 
-/** Profilning qolgan maydonlari (til, uzunlik) — xarakter o'zgarganda saqlanib qolsin. */
-function savedProfileRest() {
+/** Saqlangan profil (til, uzunlik, xarakter) — bitta maydon o'zgarganda qolganlari saqlanib qolsin. */
+function savedProfile() {
   try {
-    const { lang, length } = JSON.parse(localStorage.getItem(PROFILE_KEY) || "{}");
-    return { ...(lang ? { lang } : {}), ...(length ? { length } : {}) };
+    const { lang, length, persona } = JSON.parse(localStorage.getItem(PROFILE_KEY) || "{}");
+    return { ...(lang ? { lang } : {}), ...(length ? { length } : {}), ...(persona ? { persona } : {}) };
   } catch {
     return {};
   }
@@ -84,16 +85,49 @@ export async function mountEcoSettings(container, { apiBase, authHeaders, person
   const saveSetting = (key) => async (value) => {
     state = await request("/api/settings", "PUT", { [key]: value });
   };
-  const savePersona = async (value) => {
-    const { user } = await request("/api/auth/profile", "PUT", { profile: { ...savedProfileRest(), persona: value || null } });
+  const saveProfileField = (key) => async (value) => {
+    const { user } = await request("/api/auth/profile", "PUT", { profile: { ...savedProfile(), [key]: value || null } });
     onProfile(user.profile ?? {});
   };
+
+  /** Parol — boshqa qurilmalardan (telefon, boshqa kompyuter) kirish uchun. */
+  function passwordField() {
+    const form = document.createElement("form");
+    form.className = "eco-field";
+    const caption = document.createElement("span");
+    caption.className = "setting-label";
+    caption.textContent = "Parol (boshqa qurilmalar uchun)";
+    const input = document.createElement("input");
+    input.type = "password";
+    input.minLength = 8;
+    input.required = true;
+    input.autocomplete = "new-password";
+    input.placeholder = "Yangi parol, kamida 8 belgi";
+    const save = document.createElement("button");
+    save.type = "submit";
+    save.className = "ghost";
+    save.textContent = "Parolni saqlash";
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      try {
+        await request("/api/auth/password", "PUT", { password: input.value });
+        input.value = "";
+        status.textContent = "Parol saqlandi ✓";
+      } catch (err) {
+        status.textContent = err.message;
+      }
+    });
+    form.append(caption, input, save);
+    return form;
+  }
 
   container.replaceChildren(
     field("llm", state.llm, state.choices.llm, state.ready.llm, saveSetting("llm")),
     field("tts", state.tts, state.choices.tts, state.ready.tts, saveSetting("tts")),
     field("effort", state.effort, state.choices.effort, null, saveSetting("effort")),
-    field("persona", persona ?? "", Object.keys(LABELS.persona), null, savePersona),
+    field("length", savedProfile().length ?? "odatiy", Object.keys(LABELS.length), null, saveProfileField("length")),
+    field("persona", persona ?? "", Object.keys(LABELS.persona), null, saveProfileField("persona")),
+    passwordField(),
     status,
   );
   container.hidden = false;

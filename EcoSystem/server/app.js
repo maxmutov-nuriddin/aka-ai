@@ -1,11 +1,12 @@
 // Jigar EcoSystem — shaxsiy yordamchi ("Jarvis") serveri. Global (o'quvchilar) tizimidan to'liq alohida.
-//   /login  kirish (faqat egasi: ECO_OWNER_EMAILS)      /app/  Jigar-yordamchi
+//   /login  kirish (egasi — faqat parol; shu kompyuterda — parolsiz, ECO_LOCAL_NOAUTH=1)      /app/  Jigar-yordamchi
 //   /api/chat, /api/tts, /api/stt, /api/assistant (xotira, eslatmalar) — faqat kirganlarga
 // Tarif, to'lov, kunlik limit va support panel yo'q: kirgan har kim — egasi, Jigar u bilan cheklovsiz gaplashadi.
 import express from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { randomBytes } from "node:crypto";
 import { createJigar, normalizeLang, normalizePersona, ValidationError } from "./core/jigar.js";
 import { TtsNotConfiguredError } from "./core/errors.js";
 import { createTts } from "./voice/azure.js";
@@ -16,7 +17,7 @@ import { createOpenAiTts } from "./voice/openai-tts.js";
 import { createOpenAiLlm } from "./core/openai-llm.js";
 import { createFishAudio } from "./voice/fishaudio.js";
 import { openDatabase } from "./db/database.js";
-import { createAuthStore, normalizeEmail } from "./auth/store.js";
+import { createAuthStore, OWNER_EMAIL } from "./auth/store.js";
 import { createAssistantStore } from "./assistant/store.js";
 import { createEcoSettings, LLM_CHOICES, TTS_CHOICES, EFFORT_CHOICES } from "./settings.js";
 import { createAssistantRouter, tashkentNowNote } from "./assistant/routes.js";
@@ -90,9 +91,12 @@ export function createVoiceServices(env) {
   };
 }
 
-/** Ro'yxatdan o'tishi mumkin bo'lgan emaillar (egasi). Bo'sh — hamma (faqat lokal ishlab chiqish uchun). */
-export function parseOwnerEmails(value) {
-  return new Set(String(value ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean));
+const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
+const LOCAL_HOST_RE = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
+
+/** So'rov aynan shu kompyuterdan (proksisiz, localhost manzil bilan) keldimi. */
+export function isLocalRequest(req) {
+  return LOOPBACK.has(req.socket?.remoteAddress) && !req.get("x-forwarded-for") && LOCAL_HOST_RE.test(req.get("host") || "");
 }
 
 /** Standart baza fayli: data/eco.db (ECO_DB_FILE bilan o'zgartiriladi). Global bazasidan alohida. */
@@ -138,7 +142,8 @@ export function createApp({
 
   const store = createAuthStore(database, { supportEmails: new Set() });
   const assistant = createAssistantStore(database);
-  const owners = parseOwnerEmails(env.ECO_OWNER_EMAILS);
+  // Shu kompyuterda parolsiz (ECO_LOCAL_NOAUTH=1). Internet rejimida (production yoki proksi orqasida) — hech qachon.
+  const localNoAuth = env.ECO_LOCAL_NOAUTH === "1" && env.NODE_ENV !== "production" && !env.TRUST_PROXY;
 
   const app = express();
   app.disable("x-powered-by");
@@ -152,16 +157,19 @@ export function createApp({
   app.use(authenticate(store));
   app.use("/api", cors(allowed));
   app.use("/api", express.json({ limit: "16mb" })); // kamera kadri va PDF
-  // Ro'yxatdan o'tish — faqat egasi (ECO_OWNER_EMAILS). Bo'sh bo'lsa — ochiq (lokal ishlab chiqish).
-  app.post("/api/auth/register", (req, res, next) => {
-    let email = "";
+  // Lokal parolsiz kirish: egasi hali yo'q bo'lsa — yaratiladi (tasodifiy parol; boshqa qurilma uchun Sozlamalarda qo'yiladi).
+  app.use(async (req, _res, next) => {
+    if (req.user || !localNoAuth || !isLocalRequest(req)) return next();
     try {
-      email = normalizeEmail(req.body?.email);
+      req.user = store.ownerUser() ?? await store.createUser({ name: "Egasi", email: OWNER_EMAIL, password: randomBytes(18).toString("base64url") });
     } catch {
-      return next(); // noto'g'ri email — auth yo'li o'zi xato qaytaradi
+      req.user = store.ownerUser(); // bir vaqtda ikki so'rov — ikkinchisi tayyor egasini oladi
     }
-    if (owners.size && !owners.has(email)) return res.status(403).json({ error: "Bu tizim faqat egasi uchun.", code: "forbidden" });
     next();
+  });
+  // Kirish sahifasi uchun: parol qo'yilganmi va shu kompyuterdan parolsiz kirish mumkinmi.
+  app.get("/api/auth/status", (req, res) => {
+    res.json({ setup: Boolean(store.ownerUser()), local: localNoAuth && isLocalRequest(req), user: Boolean(req.user) });
   });
   app.use(
     "/api/auth",

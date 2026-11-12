@@ -6,7 +6,7 @@ export const TEST_USER = { name: "Test O'quvchi", email: "test@jigar.uz", passwo
 
 /**
  * @param {object} options createApp parametrlari (jigar, tts, stt, env)
- * @param {{ login?: boolean }} [flags] login: true — foydalanuvchi ro'yxatdan o'tadi, so'rovlar token bilan ketadi
+ * @param {{ login?: boolean }} [flags] login: true — egasi parol qo'yadi (setup), so'rovlar token bilan ketadi
  */
 export async function startServer(options, { login = true } = {}) {
   const app = createApp({ db: openDatabase(":memory:"), ...options });
@@ -16,7 +16,7 @@ export async function startServer(options, { login = true } = {}) {
   const base = `http://127.0.0.1:${server.address().port}`;
   let token = "";
   if (login) {
-    const res = await fetch(`${base}/api/auth/register`, {
+    const res = await fetch(`${base}/api/auth/setup`, { // EcoSystem: egasi parol qo'yadi
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...TEST_USER, client: "extension" }),
