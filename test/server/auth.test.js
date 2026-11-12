@@ -289,3 +289,20 @@ test("/login: kirgan foydalanuvchi to'g'ridan-to'g'ri ilovaga o'tadi", async () 
     s.close();
   }
 });
+
+test("/api/auth/lang: har bir foydalanuvchi tilini o'zgartiradi, profilning qolgani saqlanadi; noto'g'ri til — 400", async () => {
+  const s = await startServer({}, { login: false });
+  try {
+    const reg = await fetch(`${s.base}/api/auth/register`, json({ ...TEST_USER, email: "til@x.uz", profile: { lang: "uz", goal: "study", level: "8-9", persona: "mehribon" } }));
+    const cookie = { Cookie: reg.headers.get("set-cookie").split(";")[0] };
+    const put = (body) => fetch(`${s.base}/api/auth/lang`, { method: "PUT", headers: { "Content-Type": "application/json", ...cookie }, body: JSON.stringify(body) });
+    const res = await put({ lang: "ru" });
+    assert.equal(res.status, 200);
+    assert.deepEqual((await res.json()).user.profile, { lang: "ru", goal: "study", level: "8-9", persona: "mehribon" });
+    assert.equal((await put({ lang: "en" })).status, 400);
+    const anon = await fetch(`${s.base}/api/auth/lang`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lang: "ru" }) });
+    assert.equal(anon.status, 401);
+  } finally {
+    s.close();
+  }
+});

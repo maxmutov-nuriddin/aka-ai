@@ -25,6 +25,7 @@ const PROSODY = {
   kinoyali: { speed: 1.04, temperature: 0.45 },
   jahldor: { speed: 1.12, temperature: 0.5 },
   romantik: { speed: 0.9, temperature: 0.4 },
+  moslashuvchan: { speed: 1.0, temperature: 0.42 },
 };
 const DEFAULT_PROSODY = { speed: 1.0, temperature: 0.3 };
 // Yosh guruhi (ElevenLabs bilan bir xil): 5–9-sinf — yosh, 10–11 va talaba — katta; noma'lum — yosh.
@@ -39,6 +40,7 @@ const PERSONA_VOICE_IDS = {
   kinoyali: { yosh: "3d4d02e438f14fb292a49c954a8587c9", katta: "485beb5315784d629517504dccee9c9c" }, // Yosh O'zbek Erkak / Enerjik O'zbek
   jahldor: { yosh: "d69f7160c8f44fd99cb5f52b0a358a2f", katta: "44ad146afad04e4e99a7b98b8f97106f" }, // Dinamik O'zbek / Confident Uzbek
   romantik: { yosh: "ebe8b1e774544b36a842c30761a67dc5", katta: "d2ae3a2e45b9428f98957f902b23c825" }, // Uzbel / Jonli O'zbek (ayol)
+  moslashuvchan: { yosh: "0725e335143c43bd8650b7d858c3badb", katta: "fef226d2978a42d5b542e7577134f7b2" }, // neytral ovozlari
 };
 
 /** Xarakterga mos tezlik va ifodalilik. Noma'lum — standart. */

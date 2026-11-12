@@ -164,6 +164,14 @@ export function createAuthStore(db, { now = () => new Date(), supportEmails = ne
     return toPublic(q.userById.get(userId));
   }
 
+  /** Til (UZ/RU): har bir foydalanuvchi o'zi o'zgartiradi — profilning qolgan qismi tegilmaydi. */
+  function updateLang(userId, lang) {
+    const current = parseStoredProfile(q.userById.get(userId)?.profile) ?? {};
+    const profile = normalizeProfile({ ...current, lang }); // noto'g'ri til — ValidationError
+    q.updateProfile.run(JSON.stringify(profile), userId);
+    return toPublic(q.userById.get(userId));
+  }
+
   /** Foydalanuvchi o'z hisobidagi ismni o'zgartirishi mumkin. */
   function updateName(userId, input) {
     const name = validateName(input);
@@ -200,5 +208,5 @@ export function createAuthStore(db, { now = () => new Date(), supportEmails = ne
     q.deleteExpired.run(now().toISOString());
   }
 
-  return { createUser, verifyCredentials, createSession, userForToken, updateProfile, updateName, listUsers, setBlocked, deleteUser, deleteSession, deleteExpiredSessions };
+  return { createUser, verifyCredentials, createSession, userForToken, updateProfile, updateLang, updateName, listUsers, setBlocked, deleteUser, deleteSession, deleteExpiredSessions };
 }

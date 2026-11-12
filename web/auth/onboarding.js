@@ -64,6 +64,7 @@ export const QUESTIONS = [
       { value: "kinoyali", face: "kinoyali", label: "Kinoyali", hint: "Kesatadi, lekin o'rinli", ru: ["Ироничный", "Подколет, но по делу"] },
       { value: "jahldor", face: "jahldor", label: "Jahldor", hint: "Qattiqqo'l, xatoni kechirmaydi", ru: ["Строгий", "Ошибок не прощает"] },
       { value: "romantik", face: "romantik", label: "Romantik", hint: "Iltifot qiladi, maqtaydi", ru: ["Романтик", "Делает комплименты, хвалит"] },
+      { value: "moslashuvchan", face: "moslashuvchan", label: "Moslashuvchan", hint: "Senga moslashadi: ohanging va kayfiyatingga", ru: ["Гибкий", "Подстраивается под твой тон и настроение"] },
     ],
   },
   {

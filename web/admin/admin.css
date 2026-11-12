@@ -17,6 +17,7 @@
 [data-persona="kinoyali"] { --pc: #a45cff; }
 [data-persona="jahldor"] { --pc: #ff6a2a; }
 [data-persona="romantik"] { --pc: #ff4f98; }
+[data-persona="moslashuvchan"] { --pc: #7ee081; }
 [data-goal="curious"] { --gc: var(--g-curious); }
 [data-goal="study"] { --gc: var(--g-study); }
 [data-goal="exam"] { --gc: var(--g-exam); }
@@ -314,6 +315,7 @@ button { font: inherit; color: inherit; }
 .pick button[data-persona-color="kinoyali"] { --pc: #a45cff; }
 .pick button[data-persona-color="jahldor"] { --pc: #ff6a2a; }
 .pick button[data-persona-color="romantik"] { --pc: #ff4f98; }
+.pick button[data-persona-color="moslashuvchan"] { --pc: #7ee081; }
 .pick button[data-persona-color][aria-checked="true"] { border-color: var(--pc); background: color-mix(in srgb, var(--pc) 18%, transparent); }
 .form-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 #dDirty { color: var(--warn); }

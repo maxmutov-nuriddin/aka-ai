@@ -24,6 +24,10 @@ const PERSONA_STYLES = {
     yosh: "A strict, impatient teacher who has lost patience. Irritated and sharp, firm and loud, fast clipped pace, stern emphasis.",
     katta: "An angry, demanding drill sergeant of a teacher. Impatient, harsh and forceful, loud, fast and clipped, no warmth at all.",
   },
+  moslashuvchan: {
+    yosh: "A versatile, empathetic friend. Lets each sentence carry its own emotion: warm when comforting, lively when excited, calm and clear when explaining.",
+    katta: "A perceptive, adaptable companion. Natural and responsive tone that follows the content: gentle on hard moments, upbeat on good news, steady on facts.",
+  },
   romantik: {
     yosh: "An inspired teacher in love with the subject. Soft, sincere and dreamy, slow flowing pace, quiet wonder in the voice.",
     katta: "A tender, affectionate voice speaking to someone dear. Soft, warm and intimate, slow and unhurried, gentle smile, lightly playful.",

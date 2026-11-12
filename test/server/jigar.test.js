@@ -547,3 +547,9 @@ test("PDF bo'lsa muqobil miya (Gemini) chetlanadi — javobni Claude beradi", as
   await jigar.chat({ history: [{ role: "user", content: "x" }], llm: "gemini" });
   assert.equal(altCalls, 1); // PDF'siz — odatdagidek Gemini
 });
+
+test("moslashuvchan xarakter: ro'yxatda, prompti ulanadi", () => {
+  assert.ok(PERSONAS.includes("moslashuvchan"));
+  assert.equal(normalizePersona("moslashuvchan"), "moslashuvchan");
+  assert.match(systemPromptFor("oddiy", "uz", { persona: "moslashuvchan" }), /XARAKTER: MOSLASHUVCHAN/);
+});

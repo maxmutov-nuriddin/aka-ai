@@ -64,7 +64,7 @@ const EMOTIONS = {
 };
 
 // Xarakter (ro'yxatdan o'tishda tanlanadi) -> jim turgandagi ifoda.
-const PERSONA_BASE = { neytral: "neutral", mehribon: "kind", kinoyali: "smirk", jahldor: "angry", romantik: "romantic" };
+const PERSONA_BASE = { neytral: "neutral", mehribon: "kind", kinoyali: "smirk", jahldor: "angry", romantik: "romantic", moslashuvchan: "kind" };
 // Romantikning yurak ko'zlari bu kayfiyatlarda oddiy ko'zga qaytadi (yurak bilan jahl yoki g'am chiqmaydi).
 const NO_HEART_EMOTIONS = new Set(["angry", "furious", "sad"]);
 const SILENT_LEVEL = 0.04; // shundan past ovoz — pauza (og'iz yopiladi)

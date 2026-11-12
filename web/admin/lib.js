@@ -1,7 +1,7 @@
 // Support paneli: umumiy yorliqlar, formatlash, API, bildirishnoma va tasdiqlash oynasi.
 
 export const GOALS = { curious: "Qiziqish", study: "Maktab darslari", exam: "Imtihon (DTM)", olympiad: "Olimpiada", university: "Universitet", language: "Til o'rganish", interview: "Suhbatga tayyorgarlik" };
-export const PERSONAS = { neytral: "Neytral", mehribon: "Mehribon", kinoyali: "Kinoyali", jahldor: "Jahldor", romantik: "Romantik" };
+export const PERSONAS = { neytral: "Neytral", mehribon: "Mehribon", kinoyali: "Kinoyali", jahldor: "Jahldor", romantik: "Romantik", moslashuvchan: "Moslashuvchan" };
 export const LEVELS = { "5-7": "5–7 sinf", "8-9": "8–9 sinf", "10-11": "10–11 sinf", student: "Talaba" };
 export const PROVIDERS = { fishaudio: "Fish Audio", elevenlabs: "ElevenLabs", gemini: "Gemini TTS", openai: "OpenAI TTS", omnivoice: "OmniVoice" };
 export const LLMS = { claude: "Claude", haiku: "Haiku", gemini: "Gemini", openai: "OpenAI" };

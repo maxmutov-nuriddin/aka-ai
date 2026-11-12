@@ -21,6 +21,7 @@ export const GEMINI_VOICES = {
   kinoyali: { yosh: "Puck", katta: "Algieba" }, // quvnoq / silliq
   jahldor: { yosh: "Fenrir", katta: "Algenib" }, // hayajonli / xirildoq
   romantik: { yosh: "Zubenelgenubi", katta: "Sulafat" }, // samimiy / iliq
+  moslashuvchan: { yosh: "Sadachbia", katta: "Sadaltager" }, // jonli / bilimdon
 };
 
 // Ohang — xarakter va yoshga mos (speech_metadata.style): server/voice/persona-styles.js.

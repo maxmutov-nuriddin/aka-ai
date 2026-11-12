@@ -22,6 +22,7 @@ export const OPENAI_VOICES = {
   kinoyali: { yosh: "verse", katta: "ballad" },
   jahldor: { yosh: "ash", katta: "onyx" },
   romantik: { yosh: "cedar", katta: "marin" },
+  moslashuvchan: { yosh: "alloy", katta: "cedar" },
 };
 
 // Ohang — xarakter va yoshga mos (instructions): server/voice/persona-styles.js.

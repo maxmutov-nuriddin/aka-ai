@@ -826,6 +826,7 @@ const PERSONA_INFO = {
   kinoyali: { color: "#b46bff", uz: ["Kinoyali", "kesatadi, lekin o'rinli"], ru: ["Ироничный", "подколет по делу"] },
   jahldor: { color: "#ff8a3d", uz: ["Jahldor", "xatoni kechirmaydi"], ru: ["Строгий", "ошибок не прощает"] },
   romantik: { color: "#ff5fa2", uz: ["Romantik", "iltifot qiladi"], ru: ["Романтик", "делает комплименты"] },
+  moslashuvchan: { color: "#7ee081", uz: ["Moslashuvchan", "senga moslashadi"], ru: ["Гибкий", "подстраивается под тебя"] },
 };
 
 function renderPersonaTag() {
@@ -1128,7 +1129,25 @@ for (const btn of document.querySelectorAll(".lang-switch [data-lang]")) {
     updatePageUi();
     renderVoiceStatus();
     if (state.history.length > 0) addNotice(t("notice.lang"));
+    saveLang(btn.dataset.lang);
   });
+}
+
+/** Tanlangan til hisobga ham saqlanadi — boshqa qurilmada ham Jigar shu tilda gapiradi. */
+async function saveLang(lang) {
+  try {
+    const profile = JSON.parse(localStorage.getItem(PROFILE_KEY) || "null");
+    localStorage.setItem(PROFILE_KEY, JSON.stringify({ ...(profile ?? {}), lang }));
+  } catch {
+    /* saqlab bo'lmasa ham shu sahifada ishlaydi */
+  }
+  try {
+    await fetch(`${host.apiBase}/api/auth/lang`, {
+      method: "PUT", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify({ lang }),
+    });
+  } catch {
+    /* tarmoq bo'lmasa — keyingi kirishda shu qurilmadagi tanlov ishlaydi */
+  }
 }
 el.mute.addEventListener("click", () => {
   if (!prefs.muted) voice.stopSpeaking();

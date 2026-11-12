@@ -19,6 +19,7 @@ const PERSONA_VOICE = {
   kinoyali: { stability: 0.28, style: 0.7, speed: 1.04 }, // o'ynoqi, ifodali
   jahldor: { stability: 0.22, style: 0.85, speed: 1.1 }, // keskin, tez, kuchli
   romantik: { stability: 0.38, style: 0.65, speed: 0.9 }, // yumshoq, sekin, hissiyotli
+  moslashuvchan: { stability: 0.32, style: 0.6, speed: 1.0 }, // erkin ohang — gap mazmuniga qarab o'zgaradi
 };
 
 // Har xarakterning o'z ovozi (ElevenLabs Voice Library) — o'quvchining yoshiga qarab ikki guruh:
@@ -32,6 +33,7 @@ const PERSONA_VOICE_IDS = {
   kinoyali: { yosh: "tQBN3grEhnGrrqn0n2Rw", katta: "loY1uopAz31XyhAEhNSa" }, // Samariddin Siroj / Valf (ingliz, kesatuvchi)
   jahldor: { yosh: "GcnlXfqDudh5dSQpZVll", katta: "agoC45V78njTIxYzwmSb" }, // Mirzabek / Davronbek
   romantik: { yosh: "cWMhk6QNJcc3Wl95qwmf", katta: "2phQmOHtyk7rkOtxvxKO" }, // Nazlı (turk) / Guzel (rus) — o'zbekcha ayol ovozi yo'q
+  moslashuvchan: { yosh: "rwtcHtZgYU6HN2zLNBlf", katta: "cfWx14ZbaEUT4BjIA5tH" }, // neytral ovozlari, ohangi erkinroq
 };
 const AGE_BANDS = ["yosh", "katta"];
 const BAND_BY_LEVEL = { "5-7": "yosh", "8-9": "yosh", "10-11": "katta", student: "katta" };

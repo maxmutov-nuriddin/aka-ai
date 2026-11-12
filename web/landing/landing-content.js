@@ -144,6 +144,7 @@ export const PERSONAS = [
   { id: "kinoyali", emotion: "smirk", uz: ["Kinoyali", "Kesatadi, lekin o'rinli", "Kasrni bilmaysanmi? Pitsani-ku bo'lib yeysan-ku!"], ru: ["Ироничный", "Подколет по делу", "Дроби не знаешь? А пиццу-то делить умеешь!"] },
   { id: "jahldor", emotion: "angry", adult: true, uz: ["Jahldor", "Qattiqqo'l, sabrsiz", "Yana Pifagor?! Mayli, oxirgi marta tushuntiraman — qulog'ingni och!"], ru: ["Вспыльчивый", "Строгий и нетерпеливый", "Опять Пифагор?! Ладно, последний раз объясняю — слушай внимательно!"] },
   { id: "romantik", emotion: "happy", uz: ["Romantik", "Iltifot qiladi, maqtaydi", "Bunday aqlli savolni kutmagan edim — sen bilan dars qilish yoqimli."], ru: ["Романтик", "Делает комплименты", "Не ожидал такого умного вопроса — с тобой приятно заниматься."] },
+  { id: "moslashuvchan", emotion: "happy", uz: ["Moslashuvchan", "Senga moslashadi", "Qisqa so'rading — qisqa javob: kasr — butunning bir bo'lagi. Batafsil kerakmi?"], ru: ["Гибкий", "Подстраивается под тебя", "Спросил коротко — отвечу коротко: дробь — часть целого. Рассказать подробнее?"] },
 ];
 
 export const FAQ = {

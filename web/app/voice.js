@@ -24,6 +24,7 @@ const BROWSER_TONE = {
   kinoyali: { rate: 1.03, pitch: 1.0 },
   jahldor: { rate: 1.1, pitch: 0.9 },
   romantik: { rate: 0.9, pitch: 1.1 },
+  moslashuvchan: { rate: 1.0, pitch: 1.02 },
 };
 const LEVEL_GAIN = 4; // RMS odatda 0..0.25 — og'iz uchun 0..1 ga cho'zamiz
 // Ikkinchi tekshiruv (Scribe) shundan uzoq kutilmaydi — aks holda faqat Chrome natijasi yuboriladi.

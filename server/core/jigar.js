@@ -36,7 +36,7 @@ const SIMPLE_PROMPT = readPrompt("style-simple.md");
 
 // Xarakter: o'quvchi ro'yxatdan o'tishda tanlaydi. Har birining o'z prompti bor (ohang bo'yicha asosiydan ustun).
 // Xarakter tanlanmagan bo'lsa — asosiy promptning o'zi.
-export const PERSONAS = ["neytral", "mehribon", "kinoyali", "jahldor", "romantik"];
+export const PERSONAS = ["neytral", "mehribon", "kinoyali", "jahldor", "romantik", "moslashuvchan"];
 const PERSONA_PROMPTS = Object.fromEntries(PERSONAS.map((p) => [p, readPrompt(`persona-${p}.md`)]));
 // Romantik + talaba (katta) — noz-karashmali iliq uslub ("jonim", "go'zalim"). Maktab o'quvchilariga — flirtsiz.
 const ROMANTIC_ADULT_PROMPT = readPrompt("persona-romantik-adult.md");

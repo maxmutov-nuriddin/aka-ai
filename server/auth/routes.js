@@ -75,6 +75,18 @@ export function createAuthRouter({ store, secureCookies, authMax = AUTH_MAX }) {
     }
   });
 
+  // Til (UZ/RU) — har bir kirgan foydalanuvchi o'zi tanlaydi; Jigar shu tilda gapiradi.
+  router.put("/lang", (req, res) => {
+    if (!req.user) return res.status(401).json({ error: "Kirilmagan.", code: "auth_required" });
+    try {
+      res.json({ user: store.updateLang(req.user.id, req.body?.lang) });
+    } catch (err) {
+      if (err instanceof ValidationError) return res.status(400).json({ error: err.message, code: "invalid" });
+      console.error("[/api/auth/lang]", err);
+      res.status(500).json({ error: "Tilni saqlab bo'lmadi.", code: "server" });
+    }
+  });
+
   // Ism — hisobning shaxsiy maydoni; uni har bir kirgan foydalanuvchi yangilay oladi.
   router.put("/name", (req, res) => {
     if (!req.user) return res.status(401).json({ error: "Kirilmagan.", code: "auth_required" });

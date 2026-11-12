@@ -7,6 +7,7 @@ export const FACE_COLORS = {
   kinoyali: "#b46bff",
   jahldor: "#ff8a3d",
   romantik: "#ff5fa2",
+  moslashuvchan: "#7ee081",
 };
 const HEART = (x) => `<path d="M${x} 24.5 l-5.6 -5.4 a3.3 3.3 0 0 1 5.6 -4.3 a3.3 3.3 0 0 1 5.6 4.3 z" fill="currentColor"/>`;
 const FACE_FEATURES = {
@@ -24,6 +25,10 @@ const FACE_FEATURES = {
     <path d="M28 28 q4 3.5 8 0" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
     <ellipse cx="13" cy="26" rx="3" ry="1.8" fill="currentColor" opacity="0.45"/>
     <ellipse cx="51" cy="26" rx="3" ry="1.8" fill="currentColor" opacity="0.45"/>`,
+  // Moslashuvchan: bir ko'z kulgan, biri ochiq — kayfiyatga qarab o'zgaradi
+  moslashuvchan: `<path d="M17 20 q5 -7 10 0" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="42" cy="18" r="3.6" fill="currentColor"/>
+    <path d="M25.5 26 q6.5 4.5 13 0" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>`,
 };
 
 /** Xarakter yuzi (SVG matni); rangi — atrofdagi `color` (currentColor). */

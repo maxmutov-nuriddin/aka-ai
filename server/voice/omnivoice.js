@@ -19,6 +19,7 @@ export const OMNIVOICE_VOICES = {
   kinoyali: { yosh: "male, teenager, moderate pitch", katta: "male, young adult, low pitch" },
   jahldor: { yosh: "male, young adult, low pitch", katta: "male, middle-aged, very low pitch" },
   romantik: { yosh: "male, young adult, low pitch", katta: "female, young adult, moderate pitch" },
+  moslashuvchan: { yosh: "male, young adult, moderate pitch", katta: "male, young adult, moderate pitch" },
 };
 
 // Xarakter ohangi: OmniVoice his-tuyg'uni tavsifdan emas, namunadan oladi. Ovoz shu gapni o'qib yaratiladi va
@@ -40,6 +41,10 @@ export const OMNIVOICE_STYLES = {
   jahldor: {
     speed: 0.97,
     sample: "Yana shu savolmi?! Diqqat bilan eshit! Men buni faqat bir marta tushuntiraman, keyin o'zing takrorlaysan!",
+  },
+  moslashuvchan: {
+    speed: 0.92,
+    sample: "Salom! Qanday kayfiyatdasiz? Xohlasangiz, qisqa va lo'nda, xohlasangiz, batafsil gaplashamiz — o'zingizga qanday qulay bo'lsa.",
   },
   romantik: {
     speed: 0.82,
