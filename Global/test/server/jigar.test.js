@@ -419,16 +419,6 @@ test("til o'rganish: o'zbek o'quvchi rus tilini, rus o'quvchi o'zbek tilini o'rg
 // ---------- Support (cheklovsiz) va kamera ("ko'z") ----------
 const SHOT = "data:image/jpeg;base64,QUJD";
 
-test("systemPromptFor: support — doira qoidalarisiz, SUPPORT REJIMI oxirida", () => {
-  const plain = systemPromptFor("oddiy", "uz", { goal: "study", level: "8-9" });
-  assert.match(plain, /DOIRA: 5–11-sinf/);
-  assert.doesNotMatch(plain, /SUPPORT REJIMI/);
-  const support = systemPromptFor("oddiy", "uz", { goal: "study", level: "8-9", unrestricted: true });
-  assert.doesNotMatch(support, /DOIRA: 5–11-sinf/); // tarif doirasi qo'shilmaydi
-  assert.match(support, /SUPPORT REJIMI/);
-  assert.ok(support.trim().endsWith(systemPromptFor("oddiy", "uz", { unrestricted: true }).split("\n\n").at(-1).trim()));
-});
-
 test("system prompt: qiyin savolga chizma va kamera qoidalari bor", () => {
   assert.match(SYSTEM_PROMPT, /Savol qiyin bo'lsa, chizma ALBATTA bo'lsin/);
   assert.match(SYSTEM_PROMPT, /# Kamera \(Jigarning ko'zi\)/);
@@ -467,17 +457,6 @@ test("chat: kamera kadri modelga boradi, tarix matniga izoh qo'shiladi; noto'g'r
     jigar.chat({ history: [{ role: "user", content: "x" }], image: `data:image/jpeg;base64,${"A".repeat(LIMITS.imageBase64Chars + 4)}` }),
     /juda katta/,
   );
-});
-
-test("chat va summary: unrestricted faqat true bo'lganda support prompti", async () => {
-  const { client, calls } = fakeClient(okResponse("ok"));
-  const jigar = createJigar({ client, config });
-  await jigar.chat({ history: [{ role: "user", content: "Retsept ayt" }], goal: "study", unrestricted: true });
-  await jigar.chat({ history: [{ role: "user", content: "x" }], goal: "study", unrestricted: "true" });
-  await jigar.summary({ items: [{ savol: "s", javob: "j" }], unrestricted: true });
-  assert.match(calls[0].system, /SUPPORT REJIMI/);
-  assert.doesNotMatch(calls[1].system, /SUPPORT REJIMI/);
-  assert.match(calls[2].system, /SUPPORT REJIMI/);
 });
 
 test("normalizeHistory: tarixdagi eski xabar (server izoh qo'shgan) 4000 dan uzun bo'lishi mumkin, yangisi — yo'q", () => {
@@ -554,20 +533,3 @@ test("moslashuvchan xarakter: ro'yxatda, prompti ulanadi", () => {
   assert.match(systemPromptFor("oddiy", "uz", { persona: "moslashuvchan" }), /XARAKTER: MOSLASHUVCHAN/);
 });
 
-test("support — sinfsiz erkin rejim: sinf qatori va sodda rejim yo'q, kattalar ohangi; oddiy o'quvchida o'zgarmaydi", async () => {
-  const support = systemPromptFor("oddiy", "uz", { level: "5-7", simple: true, persona: "romantik", unrestricted: true });
-  assert.doesNotMatch(support, /- Sinf:/);
-  assert.ok(!support.includes(systemPromptFor("oddiy", "uz", { simple: true }).split("\n\n").at(-1))); // sodda rejim qo'shilmaydi
-  assert.match(support, /ROMANTIK \(KATTALAR\)/);
-  const student = systemPromptFor("oddiy", "uz", { level: "5-7", persona: "romantik" });
-  assert.match(student, /- Sinf: 5–7-sinf/);
-  assert.doesNotMatch(student, /ROMANTIK \(KATTALAR\)/);
-  // beparvo: maktab sinfidagi o'quvchiga — o'chiq, support'ga — ruxsat
-  const { client, calls } = fakeClient(okResponse("ok"));
-  const jigar = createJigar({ client, config });
-  await jigar.chat({ history: [{ role: "user", content: "x" }], mode: "beparvo", level: "8-9" });
-  await jigar.chat({ history: [{ role: "user", content: "x" }], mode: "beparvo", level: "8-9", unrestricted: true });
-  assert.equal(calls[0].system, SYSTEM_PROMPT + "\n\n" + systemPromptFor("oddiy", "uz", { level: "8-9" }).slice(SYSTEM_PROMPT.length + 2));
-  assert.match(calls[1].system, /SUPPORT REJIMI/);
-  assert.notEqual(calls[1].system.indexOf(systemPromptFor("beparvo").slice(SYSTEM_PROMPT.length + 2, SYSTEM_PROMPT.length + 60)), -1);
-});

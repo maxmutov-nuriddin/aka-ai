@@ -5,8 +5,6 @@ import { createVoice } from "./voice.js";
 import { createCamera } from "./camera.js";
 import { createSpeechFeed } from "./speech-feed.js";
 import { readPageFile, PageFileError } from "./page-file.js";
-import { createAssistant, fileButton, formatDue, renderAssistantPanel } from "./assistant.js";
-import { createWake } from "./wake.js";
 import { createAvatar } from "../shared/avatar.js";
 import { createCaption } from "./caption.js";
 import { LANGS, getLang, t, setLang, translatePage } from "./i18n.js";
@@ -64,15 +62,6 @@ const el = {
 const avatar = createAvatar($("avatar"));
 const caption = createCaption($("caption"));
 const camera = createCamera({ video: el.lensVideo }); // Jigarning "ko'zi" — pastda: tugmalar
-// "Hey Jigar" (support): "Jigar" so'zi eshitilsa — savolni tinglash boshlanadi. Yoqish — sozlamalarda.
-const wake = createWake({
-  onWake() {
-    if (state.busy || state.finished || !voice.supported.listen) return;
-    state.lastInput = "voice";
-    voice.stopSpeaking();
-    voice.listen();
-  },
-});
 let pageFile = null; // veb-rejim, yuklangan darslik: { kind, name, dataUrl } — pastda: "Darslik fayli"
 
 let state = freshState();
@@ -295,8 +284,6 @@ function addAkaCard(parsed, itemIndex) {
     ref.append(node("strong", null, t("card.quizRef")), document.createTextNode(parsed.quiz.savol));
     card.appendChild(ref);
   }
-
-  if (parsed.fayl) card.appendChild(fileButton(parsed.fayl, t("asst.file"))); // support: Jigar tayyorlagan fayl
 
   el.chat.appendChild(card);
   scrollDown();
@@ -565,7 +552,6 @@ async function sendMessage(text, { fromQuiz = false, fromVoice = false, heardAlt
     }
     state.history.push({ role: "assistant", content: data.text });
     const parsed = data.parsed ?? parseAkaResponse(data.text);
-    announceAssistant(data.assistant);
     // [laughs] kabi ovoz teglari faqat ovozga boradi, ekranda ko'rinmaydi.
     const shown = {
       ...parsed,
@@ -744,8 +730,6 @@ const voice = createVoice({
   sttUrl: () => `${host.apiBase}/api/stt`,
   onState(next) {
     voiceState = next;
-    if (next === "idle") wake.resume();
-    else wake.pause();
     if (next !== "speaking") caption.done();
     el.mic.classList.toggle("listening", next === "listening");
     el.mic.classList.toggle("speaking", next === "speaking");
@@ -1024,12 +1008,6 @@ $("nameForm").addEventListener("submit", async (event) => {
 function renderSupport(user) {
   const isSupport = user?.role === "support";
   for (const node of el.settingsPop.querySelectorAll(".support-only")) node.hidden = !isSupport;
-  if (isSupport) {
-    assistant.start(); // eslatmalar vaqtida keladi
-    $("wakeToggle").checked = Boolean(prefs.wake) && wake.supported;
-    $("wakeToggle").disabled = !wake.supported;
-    wake.setEnabled(prefs.wake, prefs.lang);
-  }
   const link = el.settingsPop.querySelector(".admin-link");
   if (link) link.href = `${host.apiBase}/admin`; // kengaytmada ham server manziliga ochiladi
 }
@@ -1230,40 +1208,6 @@ el.input.addEventListener("input", () => {
   el.send.textContent = el.input.value.trim() ? t("btn.send") : t("btn.explain");
 });
 el.newChat.addEventListener("click", resetChat);
-
-// ---------- Shaxsiy yordamchi (support, "Jarvis") ----------
-const assistant = createAssistant({
-  apiBase: () => host.apiBase,
-  authHeaders,
-  t,
-  // Vaqti kelgan eslatma: chatda yoziladi va Jigar ovoz chiqarib aytadi.
-  onReminder(reminder) {
-    addNotice(`⏰ ${t("asst.reminder")}: ${reminder.text}`);
-    if (!state.busy) speakReply(`${t("asst.reminder")}. ${reminder.text}`, { listenAfter: false, shownText: reminder.text });
-  },
-});
-
-/** Javobdagi yordamchi natijasi: qo'yilgan eslatmalar va eslab qolingan faktlar haqida qisqa yozuv. */
-function announceAssistant(result) {
-  if (!result) return;
-  for (const r of result.reminders ?? []) {
-    const when = formatDue(r.dueAt, prefs.lang);
-    addNotice(`⏰ ${t("asst.set")}: ${when} — ${r.text}`);
-  }
-  if (result.reminders?.length) assistant.askNotifications();
-  if (result.remembered?.length) addNotice(`🧠 ${t("asst.remembered")}: ${result.remembered.join("; ")}`);
-}
-
-$("assistantOpen").addEventListener("click", () => {
-  setSettingsOpen(false);
-  $("assistantDialog").showModal();
-  renderAssistantPanel($("assistantBody"), assistant, { t, lang: prefs.lang });
-});
-
-$("wakeToggle").addEventListener("change", () => {
-  updatePrefs({ wake: $("wakeToggle").checked });
-  wake.setEnabled(prefs.wake, prefs.lang);
-});
 
 // ---------- Kamera (Jigarning ko'zi) ----------
 

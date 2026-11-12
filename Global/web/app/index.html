@@ -89,15 +89,6 @@
               <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/></svg>
               <span>Support paneli</span>
             </a>
-            <!-- Faqat support — shaxsiy yordamchi ("Jarvis"): "Hey Jigar" va xotira/eslatmalar (assistant.js, wake.js) -->
-            <label class="setting switch-row support-only" hidden>
-              <span>
-                <span class="setting-label" data-i18n="asst.wake">"Hey Jigar"</span>
-                <small data-i18n="asst.wakeHint">"Jigar" desangiz, tugmasiz tinglaydi</small>
-              </span>
-              <input type="checkbox" class="switch" id="wakeToggle" role="switch">
-            </label>
-            <button type="button" class="setting ghost support-only asst-open" id="assistantOpen" hidden data-i18n="asst.open">Xotira va eslatmalar</button>
             <!-- Obuna (PayGate): holat va to'lov tugmasi. billing.js — paywall o'chiq va obuna yo'q bo'lsa yashirin. -->
             <div class="setting billing-row" id="billingRow" hidden>
               <span class="setting-label" data-i18n="pay.title">Obuna</span>
@@ -263,17 +254,6 @@
           <button type="submit" class="link" data-i18n-aria="btn.close" aria-label="Yopish">×</button>
         </div>
         <div class="diagram" id="visualFull"></div>
-      </form>
-    </dialog>
-
-    <!-- Support: Jigar eslab qolgan faktlar va eslatmalar (assistant.js: renderAssistantPanel) -->
-    <dialog class="page-dialog asst-dialog" id="assistantDialog" aria-labelledby="assistantTitle">
-      <form method="dialog" class="page-form">
-        <div class="visual-head">
-          <h2 id="assistantTitle" data-i18n="asst.open">Xotira va eslatmalar</h2>
-          <button type="submit" class="link" data-i18n-aria="btn.close" aria-label="Yopish">×</button>
-        </div>
-        <div class="asst-body" id="assistantBody"></div>
       </form>
     </dialog>
 

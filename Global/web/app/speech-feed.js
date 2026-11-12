@@ -5,7 +5,7 @@ import { toSpeechText } from "./speech.js";
 
 const EXPLAIN_HEADER_RE = /^[ \t>#*_]*\[TUSHUNTIRISH\][ \t*_:]*/im;
 // Keyingi bo'lim sarlavhasi — tushuntirish shu yerda tugaydi.
-const NEXT_HEADER_RE = /^[ \t>#*_]*\[(?:ESDA QOLSIN|VIZUAL|QUIZ|SAVOL|XOTIRA|ESLATMA|FAYL)\]/im;
+const NEXT_HEADER_RE = /^[ \t>#*_]*\[(?:ESDA QOLSIN|VIZUAL|QUIZ|SAVOL)\]/im;
 // Gap oxiri: tinish belgisi va undan keyin bo'shliq (oxirgi belgi hali tugamagan gap ham bo'lishi mumkin).
 const SENTENCE_END_RE = /[.!?…](?=\s)/g;
 const FIRST_PIECE_MIN = 25; // birinchi bo'lak: bitta qisqa gap ham yetadi — ovoz tez boshlansin
