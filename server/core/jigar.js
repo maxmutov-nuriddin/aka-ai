@@ -328,8 +328,10 @@ export function normalizeHistory(history) {
   });
 }
 
-function pageBlock(page) {
+function pageBlock(page, { unrestricted = false } = {}) {
   if (!page) {
+    // Support (shaxsiy yordamchi) — sahifa haqida umuman gap yo'q: "sahifa yuborilmagan" deb gapirmasin.
+    if (unrestricted) return "";
     return "<sahifa>\n(Sahifa matni berilmagan. O'quvchi faqat savol berdi.)\n</sahifa>";
   }
   const lines = ["<sahifa>"];
@@ -353,13 +355,14 @@ function pageBlock(page) {
  * Sahifa har doim birinchi user xabariga qo'shiladi — shu tufayli prefiks o'zgarmaydi va kesh ishlaydi.
  * Tanlangan qism (selection) faqat oxirgi xabarga qo'shiladi.
  */
-export function buildMessages({ page, history, selection, image = null }) {
+export function buildMessages({ page, history, selection, image = null, unrestricted = false }) {
   const msgs = history.map((m) => ({ role: m.role, content: m.content }));
   const sel = clip(str(selection).trim(), LIMITS.selectionChars);
   const last = msgs[msgs.length - 1];
   const question = last.content || "Shu sahifani tushuntirib ber.";
   last.content = sel ? `O'quvchi sahifadan shu qismni tanladi:\n"""\n${sel}\n"""\n\n${question}` : question;
-  const firstText = `${pageBlock(page)}\n\n${msgs[0].content || "Shu sahifani tushuntirib ber."}`;
+  const block = pageBlock(page, { unrestricted });
+  const firstText = block ? `${block}\n\n${msgs[0].content || "Shu sahifani tushuntirib ber."}` : msgs[0].content;
   // Skrinshot bo'lsa — birinchi xabar: rasm + matn (Claude ko'radi). Har so'rovda bir xil — kesh buzilmaydi.
   const pageBlocks = [
     ...(page?.pdf ? [{ type: "document", source: { type: "base64", media_type: "application/pdf", data: page.pdf.data } }] : []),
@@ -557,7 +560,7 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ra
       };
       const normHistory = normalizeHistory(history).map((m, i) => (i === lastIndex ? { ...m, content: lastContent(m) } : m));
       const userContent = normHistory[normHistory.length - 1].content;
-      const messages = buildMessages({ page: normPage, history: normHistory, selection, image: camera });
+      const messages = buildMessages({ page: normPage, history: normHistory, selection, image: camera, unrestricted: unrestricted === true });
       const result = await call(messages, normMode, normLang, style, llm, typeof onDelta === "function" ? onDelta : null);
       // userContent: mijoz tarixga aynan shuni yozadi — keyingi so'rovlarda prefiks o'zgarmaydi (kesh ishlaydi).
       return { ...result, userContent, pageTruncated: Boolean(normPage?.truncated), parsed: parseAkaResponse(result.text) };

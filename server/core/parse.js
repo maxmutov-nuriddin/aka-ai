@@ -40,7 +40,7 @@ export function parseAkaResponse(raw) {
     structured: hasStructure,
     savol: parseHeard(sections.SAVOL),
     tushuntirish: hasStructure ? (sections.TUSHUNTIRISH ?? "") : plain.trim(),
-    esdaQolsin: sections["ESDA QOLSIN"] ?? "",
+    esdaQolsin: isNone(sections["ESDA QOLSIN"]) ? "" : sections["ESDA QOLSIN"], // "yo'q" — bo'lim yo'q
     vizual: parseVisual(sections.VIZUAL),
     quiz: parseQuiz(sections.QUIZ),
     xotira: parseFacts(sections.XOTIRA),
