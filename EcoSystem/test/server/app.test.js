@@ -119,3 +119,32 @@ test("rate limit: 429", async () => {
     s.close();
   }
 });
+
+test("/api/settings: miya, ovoz, chuqurlik — saqlanadi va chatga o'tadi; noto'g'ri — 400; kirmagan — 401", async () => {
+  const seen = [];
+  const gemini = tts("G");
+  const eleven = tts("E");
+  const s = await startServer({ jigar: spyJigar(seen), ttsProviders: { gemini, elevenlabs: eleven }, stt, env: { ECO_LLM: "claude", ECO_TTS: "gemini" } });
+  try {
+    const put = (body) => s.raw("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const first = await (await s.raw("/api/settings")).json();
+    assert.equal(first.llm, "claude");
+    assert.equal(first.ready.tts.fishaudio, false); // kaliti yo'q
+    const next = await (await put({ llm: "haiku", tts: "elevenlabs", effort: "high" })).json();
+    assert.deepEqual([next.llm, next.tts, next.effort], ["haiku", "elevenlabs", "high"]);
+    assert.equal((await put({ llm: "gpt-9" })).status, 400);
+    await s.post("/api/chat", { history: [{ role: "user", content: "x" }] });
+    assert.equal(seen[0].llm, "haiku");
+    assert.equal(seen[0].effort, "high");
+    const audio = await s.post("/api/tts", { text: "Salom" });
+    assert.equal(Buffer.from(await audio.arrayBuffer()).toString(), "E"); // tanlangan ovoz — ElevenLabs
+  } finally {
+    s.close();
+  }
+  const anon = await startServer({ jigar: spyJigar(), ttsProviders: { gemini: tts("G") }, stt }, { login: false });
+  try {
+    assert.equal((await fetch(`${anon.base}/api/settings`)).status, 401);
+  } finally {
+    anon.close();
+  }
+});

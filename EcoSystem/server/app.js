@@ -18,6 +18,7 @@ import { createFishAudio } from "./voice/fishaudio.js";
 import { openDatabase } from "./db/database.js";
 import { createAuthStore, normalizeEmail } from "./auth/store.js";
 import { createAssistantStore } from "./assistant/store.js";
+import { createEcoSettings, LLM_CHOICES, TTS_CHOICES, EFFORT_CHOICES } from "./settings.js";
 import { createAssistantRouter, tashkentNowNote } from "./assistant/routes.js";
 import { authenticate, requireUser, requireUserPage } from "./auth/session.js";
 import { createAuthRouter } from "./auth/routes.js";
@@ -29,8 +30,6 @@ const root = path.join(here, "..");
 const webDir = path.join(root, "web");
 const DEFAULT_RATE_WINDOW_MS = 5 * 60_000;
 const ADULT_LEVEL = "student"; // ovoz — doim katta yoshli
-export const TTS_PROVIDERS = ["gemini", "elevenlabs", "fishaudio", "openai"];
-export const LLM_PROVIDERS = ["claude", "haiku", "gemini", "openai"];
 
 function apiErrorResponse(err) {
   if (err instanceof ValidationError) return [400, err.message];
@@ -91,9 +90,6 @@ export function createVoiceServices(env) {
   };
 }
 
-/** .env dan tanlov: ro'yxatda bo'lmasa — standart. */
-const pick = (value, list, fallback) => (list.includes(String(value ?? "").trim()) ? String(value).trim() : fallback);
-
 /** Ro'yxatdan o'tishi mumkin bo'lgan emaillar (egasi). Bo'sh — hamma (faqat lokal ishlab chiqish uchun). */
 export function parseOwnerEmails(value) {
   return new Set(String(value ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean));
@@ -115,11 +111,11 @@ export function createApp({
   const defaults = (tts || ttsProviders) && stt ? null : createVoiceServices(env);
   const providers = ttsProviders ?? (tts ? { gemini: tts } : defaults.providers);
   const database = db ?? openDatabase(defaultDbFile(env));
-  const ttsChoice = pick(env.ECO_TTS, TTS_PROVIDERS, "gemini");
-  const llm = pick(env.ECO_LLM, LLM_PROVIDERS, "claude");
+  // Miya, ovoz va chuqurlik — egasi ilovadagi sozlamalardan tanlaydi (standart — .env).
+  const settings = createEcoSettings(database, env);
   // Tanlangan xizmat sozlanmagan bo'lsa — birinchi sozlangani.
   const currentTts = () => {
-    const chosen = providers[ttsChoice];
+    const chosen = providers[settings.all().tts];
     return chosen?.configured ? chosen : Object.values(providers).find((p) => p?.configured) ?? chosen ?? providers.gemini;
   };
   const voice = { get tts() { return currentTts(); }, stt: stt ?? defaults.stt };
@@ -178,6 +174,27 @@ export function createApp({
   app.use("/api/assistant", createAssistantRouter({ assistant }));
 
   app.get("/api/health", (_req, res) => res.json({ ok: true }));
+
+  // Sozlamalar (egasi): miya, ovoz xizmati, chuqurlik + qaysilari sozlangan (kaliti bor).
+  const llmReady = {
+    claude: Boolean(env.ANTHROPIC_API_KEY?.trim()), haiku: Boolean(env.ANTHROPIC_API_KEY?.trim()),
+    gemini: Boolean(geminiLlm?.configured), openai: Boolean(openaiLlm?.configured),
+  };
+  const settingsView = () => ({
+    ...settings.all(),
+    choices: { llm: LLM_CHOICES, tts: TTS_CHOICES, effort: EFFORT_CHOICES },
+    ready: { llm: llmReady, tts: Object.fromEntries(TTS_CHOICES.map((k) => [k, Boolean(providers[k]?.configured)])) },
+  });
+  app.get("/api/settings", requireUser, (_req, res) => res.json(settingsView()));
+  app.put("/api/settings", requireUser, (req, res) => {
+    try {
+      settings.update(req.body);
+      res.json(settingsView());
+    } catch (err) {
+      const [status, message] = apiErrorResponse(err);
+      res.status(status).json({ error: message });
+    }
+  });
   app.get("/api/voice-config", (_req, res) =>
     res.json({
       tts: Boolean(voice.tts?.configured),
@@ -226,7 +243,7 @@ export function createApp({
       if (req.body?.stream === true) stream = createNdjsonWriter(res);
       const result = await jigar.chat({
         page, history, selection, heardAlt, lang, length, persona, image, voice: fromVoice,
-        userName: req.user?.name, llm,
+        userName: req.user?.name, llm: settings.all().llm, effort: settings.all().effort,
         memories: assistant.listMemories(req.user.id).map((m) => m.text),
         nowNote: tashkentNowNote(),
         onDelta: stream ? (text) => stream.write({ type: "delta", text }) : null,

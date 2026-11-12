@@ -521,3 +521,13 @@ code { font: 0.92em ui-monospace, monospace; background: rgba(255, 255, 255, 0.0
 
 /* EcoSystem: dars xulosasi ("Tugatish") yo'q */
 #endLesson[hidden] { display: none; }
+
+/* EcoSystem sozlamalari: miya, ovoz, chuqurlik, xarakter */
+.eco-settings { display: grid; gap: 8px; }
+.eco-settings[hidden] { display: none; }
+.eco-field { display: grid; gap: 4px; }
+.eco-field select {
+  width: 100%; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--line);
+  background: var(--glass); color: var(--text); font: inherit;
+}
+.eco-status { min-height: 1em; color: var(--muted); font-size: 12px; }

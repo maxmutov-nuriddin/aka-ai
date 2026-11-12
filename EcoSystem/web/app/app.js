@@ -7,6 +7,7 @@ import { createSpeechFeed } from "./speech-feed.js";
 import { readPageFile, PageFileError } from "./page-file.js";
 import { createAssistant, fileButton, formatDue, renderAssistantPanel } from "./assistant.js";
 import { createWake } from "./wake.js";
+import { mountEcoSettings } from "./eco-settings.js";
 import { createAvatar } from "../shared/avatar.js";
 import { createCaption } from "./caption.js";
 import { LANGS, getLang, t, setLang, translatePage } from "./i18n.js";
@@ -1027,6 +1028,8 @@ function renderSupport(user) {
     $("wakeToggle").checked = Boolean(prefs.wake) && wake.supported;
     $("wakeToggle").disabled = !wake.supported;
     wake.setEnabled(prefs.wake, prefs.lang);
+    // Miya, ovoz, chuqurlik va xarakter — shu yerdan tanlanadi (to'liq boshqaruv egasida).
+    mountEcoSettings($("ecoSettings"), { apiBase: () => host.apiBase, authHeaders, persona: prefs.persona, onProfile: syncServerProfile });
   }
   const link = el.settingsPop.querySelector(".admin-link");
   if (link) link.href = `${host.apiBase}/admin`; // kengaytmada ham server manziliga ochiladi

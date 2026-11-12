@@ -271,7 +271,7 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ge
       max_tokens: config.maxTokens,
       system,
       cache_control: { type: "ephemeral" }, // tizim prompti + sahifa keshlanadi
-      output_config: { effort: config.effort },
+      output_config: { effort: style.effort || config.effort }, // egasi sozlamalarda tanlaydi
       ...(haiku ? { thinking: { type: "disabled" } } : {}),
       tools: [webSearchTool(haiku)], // internet qidiruvi
       messages,
@@ -304,7 +304,7 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ge
   return {
     async chat({
       page, history, selection, heardAlt, lang, length, persona, userName, studentName, llm, image,
-      voice = false, onDelta = null, memories = null, nowNote = null,
+      voice = false, onDelta = null, memories = null, nowNote = null, effort = null,
     }) {
       const normLang = normalizeLang(lang);
       const style = {
@@ -312,6 +312,7 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ge
         persona: normalizePersona(persona),
         name: userName ?? studentName, // promptga tozalanib yoziladi (cleanName)
         memories,
+        effort: ["low", "medium", "high"].includes(effort) ? effort : null,
       };
       const normPage = normalizePage(page);
       const camera = normalizeCameraImage(image);
