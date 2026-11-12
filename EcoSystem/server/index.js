@@ -19,6 +19,8 @@ const app = createApp({ env, db: openDatabase(dbFile) });
 // Muddati o'tgan sessiyalarni vaqti-vaqti bilan tozalash.
 app.store.deleteExpiredSessions();
 setInterval(() => app.store.deleteExpiredSessions(), SESSION_CLEANUP_MS).unref();
+// Jigarning o'z tashabbusi: ekranga qarab maslahat, ertalabki va kechki xulosa (Sozlamalarda o'chiriladi).
+app.proactive.start();
 
 const port = Number(env.PORT) || 3100; // Global — 3000, EcoSystem — 3100 (aralashmasin)
 // HOST=0.0.0.0 (standart) — bir Wi-Fi'dagi boshqa qurilmalar ham kira oladi. Faqat shu kompyuter: HOST=127.0.0.1

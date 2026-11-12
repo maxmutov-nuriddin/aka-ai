@@ -77,6 +77,16 @@ const MIGRATIONS = [
      created_at TEXT    NOT NULL DEFAULT (datetime('now'))
    );
    CREATE INDEX reminders_by_user ON reminders(user_id, done, due_at);`,
+  // Jigar o'zi birinchi aytgan gaplar (ekranga qarab maslahat, ertalabki/kechki xulosa) — ilova o'qib ko'rsatadi.
+  `CREATE TABLE nudges (
+     id         INTEGER PRIMARY KEY AUTOINCREMENT,
+     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     kind       TEXT    NOT NULL,
+     text       TEXT    NOT NULL,
+     seen       INTEGER NOT NULL DEFAULT 0,
+     created_at TEXT    NOT NULL
+   );
+   CREATE INDEX nudges_by_user ON nudges(user_id, seen, id);`,
 ];
 
 /**

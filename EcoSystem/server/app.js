@@ -1,6 +1,7 @@
 // Jigar EcoSystem — shaxsiy yordamchi ("Jarvis") serveri. Global (o'quvchilar) tizimidan to'liq alohida.
 //   /login  kirish (egasi — faqat parol; shu kompyuterda — parolsiz, ECO_LOCAL_NOAUTH=1)      /app/  Jigar-yordamchi
 //   /api/chat, /api/tts, /api/stt, /api/assistant (xotira, eslatmalar) — faqat kirganlarga
+//   /api/devices (kompyuter — Jigarning qo'li), /api/actions (xavfli amalga ruxsat), /api/nudges (Jigar o'zi aytgan gaplar)
 // Tarif, to'lov, kunlik limit va support panel yo'q: kirgan har kim — egasi, Jigar u bilan cheklovsiz gaplashadi.
 import express from "express";
 import Anthropic from "@anthropic-ai/sdk";
@@ -21,6 +22,12 @@ import { createAuthStore, OWNER_EMAIL } from "./auth/store.js";
 import { createAssistantStore } from "./assistant/store.js";
 import { createEcoSettings, LLM_CHOICES, TTS_CHOICES, EFFORT_CHOICES } from "./settings.js";
 import { createAssistantRouter, tashkentNowNote } from "./assistant/routes.js";
+import { createDeviceHub } from "./devices/hub.js";
+import { createApprovals } from "./devices/approvals.js";
+import { createPcToolbox } from "./devices/tools.js";
+import { createDeviceRouter } from "./devices/routes.js";
+import { createNudgeStore } from "./proactive/store.js";
+import { createProactive } from "./proactive/scheduler.js";
 import { authenticate, requireUser, requireUserPage } from "./auth/session.js";
 import { createAuthRouter } from "./auth/routes.js";
 import { cors } from "./http/cors.js";
@@ -31,6 +38,22 @@ const root = path.join(here, "..");
 const webDir = path.join(root, "web");
 const DEFAULT_RATE_WINDOW_MS = 5 * 60_000;
 const ADULT_LEVEL = "student"; // ovoz — doim katta yoshli
+const RECENT_NUDGE_MS = 60 * 60_000; // Jigar o'zi aytgan gaplar shuncha vaqt suhbatda eslanadi
+const RECENT_NUDGE_COUNT = 2;
+const NUDGE_NOTE_CHARS = 150;
+const MOBILE_UA_RE = /Android|iPhone|iPad|Mobile/i;
+
+/**
+ * Oxirgi xabarga izoh: vaqt, kompyuter holati, qayerdan yozilgani, Jigar yaqinda o'zi aytgan gaplar.
+ * @param {{ device: {name: string, platform: string} | null, mobile: boolean, recentNudges: string[] }} parts
+ */
+export function contextNote({ device, mobile, recentNudges }, now = new Date()) {
+  const lines = [tashkentNowNote(now)];
+  lines.push(device ? `Kompyuter ulangan: ${device.name} (${device.platform}), pc_* asboblari bor` : "Kompyuter ulanmagan");
+  if (mobile) lines.push("Xabar telefondan yozildi");
+  for (const text of recentNudges) lines.push(`Sen o'zing yaqinda aytgan eding: "${text.slice(0, NUDGE_NOTE_CHARS)}"`);
+  return lines.join(". ");
+}
 
 function apiErrorResponse(err) {
   if (err instanceof ValidationError) return [400, err.message];
@@ -142,6 +165,11 @@ export function createApp({
 
   const store = createAuthStore(database, { supportEmails: new Set() });
   const assistant = createAssistantStore(database);
+  // Kompyuter (desktop ilova) — Jigarning qo'li; xavfli amallar egasining "Ha"si bilan; Jigarning o'z tashabbusi.
+  const hub = createDeviceHub();
+  const approvals = createApprovals();
+  const nudges = createNudgeStore(database);
+  const proactive = createProactive({ jigar, hub, nudges, assistant, settings, store });
   // Shu kompyuterda parolsiz (ECO_LOCAL_NOAUTH=1). Internet rejimida (production yoki proksi orqasida) — hech qachon.
   const localNoAuth = env.ECO_LOCAL_NOAUTH === "1" && env.NODE_ENV !== "production" && !env.TRUST_PROXY;
 
@@ -180,6 +208,7 @@ export function createApp({
     }),
   );
   app.use("/api/assistant", createAssistantRouter({ assistant }));
+  app.use("/api", createDeviceRouter({ hub, approvals, nudges }));
 
   app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
@@ -244,16 +273,41 @@ export function createApp({
     return { remembered: assistant.addMemories(user.id, parsed.xotira), reminders: assistant.addReminders(user.id, parsed.eslatmalar) };
   }
 
+  /**
+   * Kompyuter asboblari: xavfli amalda oqimga {"type":"confirm"} yuboriladi va egasining javobi kutiladi.
+   * Oqimsiz so'rovda ruxsat so'rab bo'lmaydi — xavfli amal bajarilmaydi.
+   */
+  function toolboxFor(req, res, stream) {
+    const asked = [];
+    res.on("close", () => asked.forEach((id) => approvals.cancel(id)));
+    return createPcToolbox({
+      hub,
+      userId: req.user.id,
+      onStatus: (text) => stream?.write({ type: "status", text }),
+      async confirm(action) {
+        if (!stream) return false;
+        const { id, decision } = approvals.request(req.user.id);
+        asked.push(id);
+        stream.write({ type: "confirm", id, ...action });
+        return decision;
+      },
+    });
+  }
+
   app.post("/api/chat", requireUser, limiter, async (req, res) => {
     let stream = null;
     try {
       const { page, history, selection, heardAlt, lang, length, persona, image, voice: fromVoice } = req.body ?? {};
       if (req.body?.stream === true) stream = createNdjsonWriter(res);
+      const toolbox = toolboxFor(req, res, stream);
+      const recentNudges = nudges.since(req.user.id, RECENT_NUDGE_MS)
+        .filter((n) => n.text !== "—").slice(-RECENT_NUDGE_COUNT).map((n) => n.text);
       const result = await jigar.chat({
         page, history, selection, heardAlt, lang, length, persona, image, voice: fromVoice,
         userName: req.user?.name, llm: settings.all().llm, effort: settings.all().effort,
         memories: assistant.listMemories(req.user.id).map((m) => m.text),
-        nowNote: tashkentNowNote(),
+        nowNote: contextNote({ device: toolbox?.device ?? null, mobile: MOBILE_UA_RE.test(req.get("User-Agent") || ""), recentNudges }),
+        toolbox,
         onDelta: stream ? (text) => stream.write({ type: "delta", text }) : null,
       });
       const parts = saveAssistantParts(req.user, result.parsed);
@@ -288,5 +342,5 @@ export function createApp({
     res.status(500).json({ error: "Kutilmagan xato yuz berdi." });
   });
 
-  return Object.assign(app, { store });
+  return Object.assign(app, { store, hub, proactive });
 }

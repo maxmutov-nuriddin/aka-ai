@@ -143,3 +143,51 @@ test("chat: haiku — arzon model, zaxirasiz, oddiy qidiruv; rad javobi yumshoq"
   assert.match(r.text, /javob bera olmayman/);
   assert.equal(getConfig({}).model, "claude-opus-5-5");
 });
+
+test("chat: kompyuter asboblari — tool_use → bajariladi → tool_result yuboriladi, matn birlashadi", async () => {
+  const toolUse = {
+    content: [{ type: "tool_use", id: "tu_1", name: "pc_screenshot", input: {} }],
+    stop_reason: "tool_use", model: "claude-opus-5-5", usage: { input_tokens: 1, output_tokens: 1 },
+  };
+  let n = 0;
+  const { client, calls } = fakeClient(() => (n++ === 0 ? toolUse : okResponse("[TUSHUNTIRISH]\nEkranda VS Code ochiq.")));
+  const ran = [];
+  const toolbox = {
+    definitions: [{ name: "pc_screenshot", description: "ekran", input_schema: { type: "object", properties: {} } }],
+    async run(name, input) {
+      ran.push([name, input]);
+      return { content: [{ type: "text", text: "rasm" }], isError: false };
+    },
+  };
+  const jigar = createJigar({ client, config });
+  const res = await jigar.chat({ history: [{ role: "user", content: "ekranimga qara" }], toolbox });
+  assert.deepEqual(ran, [["pc_screenshot", {}]]);
+  assert.equal(calls.length, 2);
+  assert.ok(calls[0].tools.some((t) => t.name === "pc_screenshot"), "asbob berildi");
+  const last = calls[1].messages;
+  assert.equal(last.at(-2).role, "assistant");
+  assert.deepEqual(last.at(-1), { role: "user", content: [{ type: "tool_result", tool_use_id: "tu_1", content: [{ type: "text", text: "rasm" }] }] });
+  assert.match(res.parsed.tushuntirish, /VS Code/);
+});
+
+test("chat: kompyuter ulangan bo'lsa muqobil miya (Gemini) emas, Claude javob beradi", async () => {
+  const { client, calls } = fakeClient(okResponse("[TUSHUNTIRISH]\nclaude"));
+  const gemini = { configured: true, async generate() { throw new Error("chaqirilmasligi kerak"); } };
+  const toolbox = { definitions: [], run: async () => ({ content: [], isError: false }) };
+  const res = await createJigar({ client, config, gemini }).chat({ history: [{ role: "user", content: "x" }], llm: "gemini", toolbox });
+  assert.equal(calls.length, 1);
+  assert.match(res.text, /claude/);
+});
+
+test("think: proaktiv fikr — Haiku, fikrlashsiz, rad etilsa bo'sh", async () => {
+  const { client, calls } = fakeClient(okResponse("JIM"));
+  const jigar = createJigar({ client, config: { ...config, haikuModel: "claude-haiku-5-5" } });
+  assert.equal(await jigar.think({ system: "s", content: "c" }), "JIM");
+  assert.equal(calls[0].model, "claude-haiku-5-5");
+  assert.deepEqual(calls[0].thinking, { type: "disabled" });
+  assert.equal(calls[0].tools, undefined);
+  await jigar.think({ system: "s", content: "c", search: true });
+  assert.equal(calls[1].tools[0].name, "web_search");
+  const refused = fakeClient({ ...okResponse("yo'q"), stop_reason: "refusal" });
+  assert.equal(await createJigar({ client: refused.client, config }).think({ system: "s", content: "c" }), "");
+});

@@ -102,8 +102,10 @@ h1 { font: 800 18px/1.1 var(--font-display); margin: 0; }
   display: flex; flex-direction: column; gap: 14px; padding: 16px;
   background: color-mix(in srgb, var(--surface) 96%, transparent); backdrop-filter: blur(18px);
   border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  max-height: calc(100dvh - 96px); overflow-y: auto; overscroll-behavior: contain; /* uzun ro'yxat ekrandan chiqmasin: ichida scroll */
   animation: rise var(--dur) var(--ease);
 }
+.settings-pop > * { flex-shrink: 0; }
 .settings-title { margin: 0; font: 800 14px/1.2 var(--font-display); }
 .setting { display: flex; flex-direction: column; gap: 8px; }
 .setting-label { font-size: 13px; font-weight: 600; }

@@ -16,7 +16,7 @@
   "build": {
     "appId": "uz.jigar.eco",
     "productName": "Jigar",
-    "files": ["main.js", "icon.png"],
+    "files": ["main.js", "bridge.js", "tools.js", "policy.js", "icon.png"],
     "mac": { "category": "public.app-category.productivity", "target": "dmg" },
     "win": { "target": "nsis" }
   }

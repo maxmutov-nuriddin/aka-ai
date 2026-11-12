@@ -1,8 +1,11 @@
 // Jigar EcoSystem — desktop ilova (Windows .exe, macOS .app). Electron oynasi EcoSystem serverini ochadi.
 // Server manzili: ECO_URL (standart http://localhost:3100). Internetdagi server bo'lsa — https://... manzil.
 // Tugmalar: Cmd/Ctrl+Shift+J — Jigarni ochadi va tinglashni boshlaydi (istalgan ilovada turganingizda).
+// Jigarning qo'li: bridge.js serverga ulanadi, tools.js buyruqlarni bajaradi (ekran, fayl, ilova; buyruq va yozish — ruxsat bilan).
 const { app, BrowserWindow, Tray, Menu, globalShortcut, session, nativeImage } = require("electron");
 const path = require("node:path");
+const { startBridge } = require("./bridge.js");
+const { runTool } = require("./tools.js");
 
 const ECO_URL = process.env.ECO_URL || "http://localhost:3100";
 const SHORTCUT = "CommandOrControl+Shift+J";
@@ -50,6 +53,8 @@ app.whenReady().then(() => {
   ]));
   tray.on("click", summon);
   globalShortcut.register(SHORTCUT, summon);
+  // Kompyuter Jigarga ulanadi: telefondan yoki shu oynadan aytilgan ishni shu yerda bajaradi.
+  startBridge({ baseUrl: ECO_URL, runTool: (command) => runTool(command, { getWindow: () => win }) });
 });
 
 app.on("activate", () => win?.show());

@@ -84,6 +84,9 @@ const webSearchTool = (haiku) => ({
   user_location: { type: "approximate", city: "Tashkent", timezone: "Asia/Tashkent" }, // "UZ" mamlakat kodi qo'llanmaydi (400)
 });
 const MAX_PAUSE_CONTINUES = 3; // qidiruv uzoq cho'zilsa server "pause_turn" qaytaradi — shuncha marta davom ettiramiz
+const MAX_TOOL_ROUNDS = 8; // kompyuter asboblari (ekran, fayl, buyruq): bitta javobda shuncha qadamgacha
+const NOW_NOTE_MAX = 400; // vaqt + qurilma izohi (oxirgi xabarga)
+const THINK_MAX_TOKENS = 2000; // proaktiv fikr (ekranga o'zi qarash, kunlik xulosa) — qisqa
 
 export const LIMITS = {
   pageChars: 60_000, // sahifa matni (undan uzuni kesiladi va modelga aytiladi)
@@ -228,6 +231,12 @@ function extractText(message) {
   return message.content.filter((b) => b.type === "text").map((b) => b.text).join("").trim();
 }
 
+/** Oxirgi qidiruv natijasidan keyingi matn ("tekshirib ko'raman" kabi oraliq gaplar kirmaydi). */
+function finalText(message) {
+  const lastResult = message.content.findLastIndex((b) => b.type.endsWith("_tool_result"));
+  return extractText({ content: message.content.slice(lastResult + 1) });
+}
+
 const REFUSAL_TEXT = "Kechirasiz, bu savolga javob bera olmayman. Boshqa narsada yordam beraymi?";
 
 export function createJigar({ client = new Anthropic(), config = getConfig(), gemini = null, openai = null } = {}) {
@@ -256,9 +265,23 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ge
     return stream.finalMessage();
   }
 
-  async function call(messages, lang, style, llm = "claude", onDelta = null) {
+  /** Asbob chaqiruvlarini bajaradi: tool_result'lar bitta user xabarida (Claude talabi). */
+  async function runTools(message, toolbox) {
+    const results = [];
+    for (const use of message.content.filter((b) => b.type === "tool_use")) {
+      const { content, isError } = await toolbox.run(use.name, use.input);
+      results.push({ type: "tool_result", tool_use_id: use.id, content, ...(isError ? { is_error: true } : {}) });
+    }
+    return results;
+  }
+
+  /**
+   * @param {{ definitions: object[], run: (name: string, input: object) => Promise<{content: object[], isError: boolean}> } | null} toolbox
+   *   kompyuter asboblari (ulangan bo'lsa); muqobil miyalarda (Gemini, OpenAI) asbob yo'q — javobni Claude beradi.
+   */
+  async function call(messages, lang, style, llm = "claude", onDelta = null, toolbox = null) {
     const system = systemPromptFor(lang, style);
-    if (alternatives[llm]?.configured && !hasDocument(messages)) {
+    if (alternatives[llm]?.configured && !hasDocument(messages) && !toolbox) {
       const viaAlternative = await callAlternative(llm, messages, system);
       if (viaAlternative) {
         onDelta?.(viaAlternative.text); // muqobil miya oqimsiz — javob bir bo'lakda
@@ -273,15 +296,31 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ge
       cache_control: { type: "ephemeral" }, // tizim prompti + sahifa keshlanadi
       output_config: { effort: style.effort || config.effort }, // egasi sozlamalarda tanlaydi
       ...(haiku ? { thinking: { type: "disabled" } } : {}),
-      tools: [webSearchTool(haiku)], // internet qidiruvi
+      tools: [webSearchTool(haiku), ...(toolbox?.definitions ?? [])], // internet qidiruvi + kompyuter (ulangan bo'lsa)
       messages,
     };
-    let message = await requestClaude(params, config.fallbacks && !haiku, onDelta);
+    const useFallbacks = config.fallbacks && !haiku;
+    let message = await requestClaude(params, useFallbacks, onDelta);
     let text = extractText(message);
-    for (let i = 0; message.stop_reason === "pause_turn" && i < MAX_PAUSE_CONTINUES; i++) {
-      const next = { ...params, messages: [...params.messages, { role: "assistant", content: message.content }] };
-      message = await requestClaude(next, config.fallbacks && !haiku, onDelta);
-      text = `${text}${extractText(message)}`;
+    let conversation = params.messages;
+    let pauses = 0;
+    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+      const paused = message.stop_reason === "pause_turn" && pauses < MAX_PAUSE_CONTINUES;
+      const wantsTools = message.stop_reason === "tool_use" && toolbox;
+      if (!paused && !wantsTools) break;
+      if (paused) pauses++;
+      const toolResults = wantsTools ? await runTools(message, toolbox) : null;
+      conversation = [
+        ...conversation,
+        { role: "assistant", content: message.content },
+        ...(toolResults ? [{ role: "user", content: toolResults }] : []),
+      ];
+      // Asbobdan oldingi va keyingi matn orasida bo'sh qator — oqim va yakuniy matn bir xil bo'lsin.
+      const gap = wantsTools && text ? "\n\n" : "";
+      if (gap) onDelta?.(gap);
+      message = await requestClaude({ ...params, messages: conversation }, useFallbacks, onDelta);
+      const more = extractText(message);
+      text = more ? `${text}${gap}${more}` : text;
     }
     const refused = message.stop_reason === "refusal";
     return {
@@ -304,7 +343,7 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ge
   return {
     async chat({
       page, history, selection, heardAlt, lang, length, persona, userName, studentName, llm, image,
-      voice = false, onDelta = null, memories = null, nowNote = null, effort = null,
+      voice = false, onDelta = null, memories = null, nowNote = null, effort = null, toolbox = null,
     }) {
       const normLang = normalizeLang(lang);
       const style = {
@@ -321,15 +360,36 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ge
         const heardText = withHeardAlternative(m.content, heardAlt);
         const withVoice = voice === true && m.content ? `${heardText}\n\n${VOICE_NOTE}` : heardText;
         // Hozirgi vaqt (eslatma va "bugun/ertaga" uchun) — faqat oxirgi xabarga, kesh buzilmaydi.
-        const timed = nowNote ? `${withVoice}\n\n(${clip(str(nowNote), 120)})` : withVoice;
+        const timed = nowNote ? `${withVoice}\n\n(${clip(str(nowNote), NOW_NOTE_MAX)})` : withVoice;
         return camera ? withCameraNote(timed) : timed;
       };
       const normHistory = normalizeHistory(history).map((m, i) => (i === lastIndex ? { ...m, content: lastContent(m) } : m));
       const userContent = normHistory[normHistory.length - 1].content;
       const messages = buildMessages({ page: normPage, history: normHistory, selection, image: camera });
-      const result = await call(messages, normLang, style, llm, typeof onDelta === "function" ? onDelta : null);
+      const result = await call(messages, normLang, style, llm, typeof onDelta === "function" ? onDelta : null, toolbox);
       // userContent: mijoz tarixga aynan shuni yozadi — keyingi so'rovlarda prefiks o'zgarmaydi (kesh ishlaydi).
       return { ...result, userContent, pageTruncated: Boolean(normPage?.truncated), parsed: parseAkaResponse(result.text) };
+    },
+
+    /**
+     * Proaktiv fikr (foydalanuvchi so'ramagan): ekranga o'zi qarash, kunlik xulosa. Bitta so'rov, oqimsiz.
+     * @param {{ system: string, content: string | object[], haiku?: boolean, search?: boolean }} request
+     * @returns {Promise<string>} modelning matni
+     */
+    async think({ system, content, haiku = true, search = false }) {
+      const params = {
+        model: haiku ? config.haikuModel : config.model,
+        max_tokens: THINK_MAX_TOKENS,
+        system,
+        ...(haiku ? { thinking: { type: "disabled" } } : { output_config: { effort: "low" } }),
+        ...(search ? { tools: [webSearchTool(haiku)] } : {}),
+        messages: [{ role: "user", content }],
+      };
+      let message = await client.messages.create(params);
+      for (let i = 0; message.stop_reason === "pause_turn" && i < MAX_PAUSE_CONTINUES; i++) {
+        message = await client.messages.create({ ...params, messages: [...params.messages, { role: "assistant", content: message.content }] });
+      }
+      return message.stop_reason === "refusal" ? "" : finalText(message);
     },
   };
 }

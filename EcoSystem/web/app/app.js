@@ -8,6 +8,8 @@ import { readPageFile, PageFileError } from "./page-file.js";
 import { createAssistant, fileButton, formatDue, renderAssistantPanel } from "./assistant.js";
 import { createWake } from "./wake.js";
 import { mountEcoSettings } from "./eco-settings.js";
+import { confirmCard, createNudgeWatcher, nudgeCard } from "./pc-actions.js";
+import { createPhoneScreen } from "./phone-screen.js";
 import { createAvatar } from "../shared/avatar.js";
 import { createCaption } from "./caption.js";
 import { LANGS, getLang, t, setLang, translatePage } from "./i18n.js";
@@ -71,6 +73,12 @@ const wake = createWake({
     state.lastInput = "voice";
     voice.stopSpeaking();
     voice.listen();
+  },
+  // Fonda tinglash ishlamadi (masalan, desktop ilovada Google nutq xizmati yo'q) — o'chiramiz, mikrofon yonib-o'chmasin.
+  onUnavailable() {
+    updatePrefs({ wake: false });
+    $("wakeToggle").checked = false;
+    showError(t("asst.wakeOff"));
   },
 });
 let pageFile = null; // veb-rejim, yuklangan darslik: { kind, name, dataUrl } — pastda: "Darslik fayli"
@@ -217,6 +225,26 @@ function addTyping() {
   el.chat.appendChild(dots);
   scrollDown();
   return dots;
+}
+
+/** Typing pufakchasi yonida holat ("Ekranga qarayapman") — Jigar kompyuterda ish qilayotganda. */
+function setTypingStatus(typing, text) {
+  let label = typing.querySelector(".typing-status");
+  if (!label) {
+    label = node("small", "typing-status");
+    typing.appendChild(label);
+  }
+  label.textContent = text;
+  scrollDown();
+}
+
+/** Oqimdagi kompyuter hodisalari: holat yozuvi yoki ruxsat kartasi (typing'dan oldin). */
+function handleStreamEvent(msg, typing) {
+  if (msg.type === "status") return setTypingStatus(typing, msg.text);
+  const card = confirmCard(msg, { post: postApi, t });
+  el.chat.insertBefore(card, typing);
+  card.querySelector("button")?.focus();
+  scrollDown();
 }
 
 function addNotice(text, kind = "info") {
@@ -387,7 +415,7 @@ async function postApi(pathname, body) {
  * Oqimli so'rov: server javobni bo'laklab yuboradi (NDJSON) — har matn bo'lagi onDelta ga, oxirida to'liq javob
  * (api() bilan bir xil shakl). Server oqimsiz (oddiy JSON) javob bersa ham ishlaydi.
  */
-async function apiStream(pathname, body, onDelta) {
+async function apiStream(pathname, body, onDelta, onEvent = () => {}) {
   const res = await postApi(pathname, { ...body, stream: true });
   if (!res.ok || !(res.headers.get("Content-Type") || "").includes("ndjson") || !res.body) return readJsonResponse(res);
   const reader = res.body.getReader();
@@ -404,6 +432,7 @@ async function apiStream(pathname, body, onDelta) {
       if (!line) continue;
       const msg = JSON.parse(line);
       if (msg.type === "delta") onDelta(msg.text);
+      else if (msg.type === "status" || msg.type === "confirm") onEvent(msg); // kompyuter: holat va ruxsat so'rovi
       else if (msg.type === "done") return msg;
       else if (msg.type === "error") throw new Error(serverErrorText(msg.status, msg));
     }
@@ -507,9 +536,11 @@ async function sendMessage(text, { fromQuiz = false, fromVoice = false, heardAlt
   if (state.busy || state.finished) return;
   showError("");
   // Kamera yoqiq — joriy kadr shu savolga ilova qilinadi (quiz javobiga emas).
-  const image = !fromQuiz && camera.active ? camera.snapshot() : null;
+  // Android: telefon ekrani ulashilgan bo'lsa — boshqa ilovadagi oxirgi ekran surati.
+  const screenShot = !fromQuiz && !camera.active && phoneScreen.active ? await phoneScreen.snapshot().catch(() => null) : null;
+  const image = !fromQuiz && camera.active ? camera.snapshot() : screenShot;
   if (!fromQuiz && camera.active && !image) return showError(t("cam.notReady"));
-  const message = (text ?? "").trim() || (image ? t("cam.ask") : "");
+  const message = (text ?? "").trim() || (screenShot ? t("phone.screenAsk") : image ? t("cam.ask") : "");
   setBusy(true);
 
   let page;
@@ -550,7 +581,7 @@ async function sendMessage(text, { fromQuiz = false, fromVoice = false, heardAlt
       page, history: state.history, selection, mode: prefs.mode, lang: prefs.lang, length: prefs.length, simple: prefs.simple,
       ...profileFields(), heardAlt, ...(pronunciation ? { pronunciation } : {}), ...(image ? { image } : {}),
       ...(fromVoice && message ? { voice: true } : {}), // Jigar tushungan savolni to'g'ri yozib qaytaradi ([SAVOL])
-    }, (delta) => feed?.push(delta));
+    }, (delta) => feed?.push(delta), (msg) => handleStreamEvent(msg, typing));
     typing.remove();
     // Tarif: kunlik limit tugashiga oz qolganda oldindan ogohlantiramiz.
     renderUsage(data.dailyUsage);
@@ -1025,11 +1056,12 @@ function renderSupport(user) {
   for (const node of el.settingsPop.querySelectorAll(".support-only")) node.hidden = !isSupport;
   if (isSupport) {
     assistant.start(); // eslatmalar vaqtida keladi
+    nudgeWatcher.start(); // Jigar o'zi aytgan gaplar (ekranga qarab maslahat, kunlik xulosa)
     $("wakeToggle").checked = Boolean(prefs.wake) && wake.supported;
     $("wakeToggle").disabled = !wake.supported;
     wake.setEnabled(prefs.wake, prefs.lang);
     // Miya, ovoz, chuqurlik va xarakter — shu yerdan tanlanadi (to'liq boshqaruv egasida).
-    mountEcoSettings($("ecoSettings"), { apiBase: () => host.apiBase, authHeaders, persona: prefs.persona, onProfile: syncServerProfile });
+    mountEcoSettings($("ecoSettings"), { apiBase: () => host.apiBase, authHeaders, persona: prefs.persona, onProfile: syncServerProfile, t });
   }
   const link = el.settingsPop.querySelector(".admin-link");
   if (link) link.href = `${host.apiBase}/admin`; // kengaytmada ham server manziliga ochiladi
@@ -1231,6 +1263,24 @@ const assistant = createAssistant({
   },
 });
 
+// Jigarning o'z tashabbusi: karta + bildirishnoma; ovoz yoqiq va band bo'lmasa — ovoz chiqarib aytadi.
+const nudgeWatcher = createNudgeWatcher({
+  apiBase: () => host.apiBase,
+  authHeaders,
+  onNudge(nudge) {
+    el.chat.appendChild(nudgeCard(nudge, t));
+    scrollDown();
+    if (document.hidden && "Notification" in window && Notification.permission === "granted") {
+      try {
+        new Notification(t(`nudge.${nudge.kind}`), { body: nudge.text, tag: `jigar-nudge-${nudge.id}` });
+      } catch {
+        /* mobil brauzer sahifadan bildirishnoma bermaydi — karta baribir chatda */
+      }
+    }
+    if (!state.busy && !prefs.muted) speakReply(nudge.text, { listenAfter: false, shownText: nudge.text });
+  },
+});
+
 /** Javobdagi yordamchi natijasi: qo'yilgan eslatmalar va eslab qolingan faktlar haqida qisqa yozuv. */
 function announceAssistant(result) {
   if (!result) return;
@@ -1280,6 +1330,26 @@ el.camBtn.addEventListener("click", async () => {
   }
   renderCamera();
 });
+// ---------- Telefon ekrani (Android) ----------
+const phoneScreen = createPhoneScreen();
+const screenBtn = $("screenBtn");
+if (screenBtn) {
+  screenBtn.hidden = !phoneScreen.supported;
+  screenBtn.addEventListener("click", async () => {
+    showError("");
+    try {
+      if (phoneScreen.active) await phoneScreen.stop();
+      else {
+        await phoneScreen.start();
+        addNotice(`📱 ${t("phone.screenOn")}`);
+      }
+    } catch {
+      showError(t("cam.denied"));
+    }
+    screenBtn.setAttribute("aria-pressed", String(phoneScreen.active));
+  });
+}
+
 el.lensClose.addEventListener("click", () => {
   camera.stop();
   renderCamera();

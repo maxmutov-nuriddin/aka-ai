@@ -1,4 +1,6 @@
-// EcoSystem sozlamalari (Sozlamalar oynasida): miya, ovoz xizmati, javob chuqurligi va Jigar xarakteri.
+// EcoSystem sozlamalari (Sozlamalar oynasida): miya, ovoz xizmati, javob chuqurligi, Jigar xarakteri,
+// faol rejim (ekranga o'zi qaraydi), kunlik xulosa va kompyuter holati.
+import { deviceStatusText } from "./pc-actions.js";
 // Server: GET/PUT /api/settings (server/settings.js), xarakter — PUT /api/auth/profile.
 
 const PROFILE_KEY = "jigar.profile";
@@ -6,13 +8,18 @@ const LABELS = {
   llm: { claude: "Claude Opus", haiku: "Claude Haiku (arzon)", gemini: "Gemini", openai: "OpenAI" },
   tts: { gemini: "Gemini", elevenlabs: "ElevenLabs", fishaudio: "Fish Audio", openai: "OpenAI" },
   effort: { low: "Tez", medium: "O'rtacha", high: "Chuqur" },
+  proactive: { on: "Yoqiq", off: "O'chiq" },
+  briefs: { on: "Yoqiq", off: "O'chiq" },
   length: { qisqa: "Qisqa", odatiy: "O'rtacha", batafsil: "Batafsil" },
   persona: {
     "": "Standart", neytral: "Neytral", mehribon: "Mehribon", kinoyali: "Kinoyali",
     jahldor: "Jahldor", romantik: "Romantik", moslashuvchan: "Moslashuvchan",
   },
 };
-const TITLES = { llm: "Miya", tts: "Ovoz", effort: "Javob chuqurligi", length: "Javob uzunligi", persona: "Xarakter" };
+const TITLES = {
+  llm: "Miya", tts: "Ovoz", effort: "Javob chuqurligi", length: "Javob uzunligi", persona: "Xarakter",
+  proactive: "Faol rejim (ekranga o'zi qarab maslahat beradi)", briefs: "Ertalabki reja va kechki xulosa",
+};
 
 /** Saqlangan profil (til, uzunlik, xarakter) — bitta maydon o'zgarganda qolganlari saqlanib qolsin. */
 function savedProfile() {
@@ -29,7 +36,7 @@ function savedProfile() {
  * @param {{ apiBase: () => string, authHeaders: () => Record<string, string>, persona: string | null,
  *           onProfile: (profile: object) => void }} deps
  */
-export async function mountEcoSettings(container, { apiBase, authHeaders, persona, onProfile }) {
+export async function mountEcoSettings(container, { apiBase, authHeaders, persona, onProfile, t }) {
   const request = async (path, method = "GET", body) => {
     const res = await fetch(`${apiBase()}${path}`, {
       method, headers: { "Content-Type": "application/json", ...authHeaders() }, body: body && JSON.stringify(body),
@@ -121,12 +128,19 @@ export async function mountEcoSettings(container, { apiBase, authHeaders, person
     return form;
   }
 
+  const device = document.createElement("small");
+  device.className = "eco-device";
+  deviceStatusText({ apiBase, authHeaders, t }).then((text) => { device.textContent = text; });
+
   container.replaceChildren(
+    device,
     field("llm", state.llm, state.choices.llm, state.ready.llm, saveSetting("llm")),
     field("tts", state.tts, state.choices.tts, state.ready.tts, saveSetting("tts")),
     field("effort", state.effort, state.choices.effort, null, saveSetting("effort")),
     field("length", savedProfile().length ?? "odatiy", Object.keys(LABELS.length), null, saveProfileField("length")),
     field("persona", persona ?? "", Object.keys(LABELS.persona), null, saveProfileField("persona")),
+    field("proactive", state.proactive, ["on", "off"], null, saveSetting("proactive")),
+    field("briefs", state.briefs, ["on", "off"], null, saveSetting("briefs")),
     passwordField(),
     status,
   );
