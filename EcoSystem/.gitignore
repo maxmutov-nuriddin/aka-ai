@@ -5,5 +5,3 @@ data/
 
 # Desktop / mobil ilovalar yig'indisi
 desktop/src-tauri/target/
-mobile/android/
-mobile/ios/

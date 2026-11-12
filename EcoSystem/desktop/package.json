@@ -1,0 +1,23 @@
+{
+  "name": "jigar-desktop",
+  "version": "2.0.0",
+  "description": "Jigar — shaxsiy yordamchi (desktop)",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^45.3.1",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "uz.jigar.eco",
+    "productName": "Jigar",
+    "files": ["main.js", "icon.png"],
+    "mac": { "category": "public.app-category.productivity", "target": "dmg" },
+    "win": { "target": "nsis" }
+  }
+}

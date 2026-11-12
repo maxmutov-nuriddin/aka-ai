@@ -94,4 +94,10 @@ aka-ai/
 - [x] **0-bosqich** — `jigar-2-split` tarmog'i, qaytish nuqtasi: tag `v1-before-split`.
 - [x] **1-bosqich** — loyiha `Global/` ga ko'chirildi (git tarixi saqlangan). `.env`, `data/`, `node_modules/`, `dist/`, `omnivoice/.venv` ham `Global/` ichida. Tekshirildi: 245/245 test, kengaytma yig'iladi, server haqiqiy baza bilan ochiladi.
   Endi ishga tushirish: `cd Global && npm start`.
-- [ ] **2-bosqich** — `EcoSystem/` (keyingi qadam).
+- [x] **2–3-bosqich** — `EcoSystem/`: Global'dan nusxa, o'quvchi qismlari olib tashlandi (tarif, to'lov, limit, admin, landing, kengaytma). Kirgan har kim — egasi (`ECO_OWNER_EMAILS`), port 3100, `data/eco.db`, `.env`: `ECO_TTS`, `ECO_LLM`. Testlar 179/179, brauzerda tekshirildi.
+- [x] **4-bosqich** — Global'dan yordamchi qismi olib tashlandi (assistant, wake, unrestricted, web_search, [XOTIRA]/[ESLATMA]/[FAYL], memories/reminders migratsiyasi). Global support — faqat panel. Testlar 234/234, brauzerda tekshirildi.
+- [x] **5-bosqich** — ko'chiradigan ma'lumot yo'q: haqiqiy Global baza 10-versiyada edi (xotira jadvallari hech qachon yaratilmagan).
+- [x] **6-bosqich (qobiqlar)** — `EcoSystem/desktop` (Electron; macOS `.app` yig'ildi, imzosiz; Cmd/Ctrl+Shift+J), `EcoSystem/mobile` (Capacitor 8; iOS va Android loyihalari, mikrofon/kamera ruxsatlari).
+- [ ] **6-bosqich (qolgan)** — "Hey Jigar" doim tinglash: Porcupine (desktop, Android), iOS — Siri Shortcuts. Imzolash (Apple Developer), Android SDK bilan yig'ish.
+- [ ] **7-bosqich** — EcoSystem serverini internetga chiqarish (VPS, domen, HTTPS) → `capacitor.config.json` va `desktop/main.js` dagi manzil.
+- [ ] Keyin: EcoSystem kirish sahifasidagi o'quvchi savollarini (yo'nalish, sinf) soddalashtirish.

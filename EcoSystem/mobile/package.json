@@ -1,0 +1,19 @@
+{
+  "name": "jigar-mobile",
+  "version": "2.0.0",
+  "description": "Jigar — shaxsiy yordamchi (Android, iOS). Capacitor qobig'i EcoSystem serverini ochadi.",
+  "private": true,
+  "scripts": {
+    "sync": "cap sync",
+    "ios": "cap open ios",
+    "android": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/ios": "^8.6.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.2"
+  }
+}
