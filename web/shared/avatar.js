@@ -67,6 +67,7 @@ const EMOTIONS = {
 const PERSONA_BASE = { neytral: "neutral", mehribon: "kind", kinoyali: "smirk", jahldor: "angry", romantik: "romantic" };
 // Romantikning yurak ko'zlari bu kayfiyatlarda oddiy ko'zga qaytadi (yurak bilan jahl yoki g'am chiqmaydi).
 const NO_HEART_EMOTIONS = new Set(["angry", "furious", "sad"]);
+const SILENT_LEVEL = 0.04; // shundan past ovoz — pauza (og'iz yopiladi)
 const HEART_SIZE = 13;
 
 const lerp = (a, b, k) => a + (b - a) * k;
@@ -276,7 +277,9 @@ export function createAvatar(root) {
     if (ui.state === "thinking") Object.assign(t, { browTilt: -0.4, browShow: 0.8, brow: 4, mouthW: 14, curve: 0, mouthDx: 5 });
     if (speaking) {
       // Gapirganda: og'iz ovozga qarab ochiladi, qoshlar urg'u bilan ko'tariladi.
-      t.open = Math.max(t.open * 0.5, 0.15) + cur.level * (preset === EMOTIONS.furious ? 1.45 : preset === EMOTIONS.angry ? 1.25 : 1);
+      // Pauzada (ovoz yo'q) og'iz deyarli yopiladi — gap bilan birga ochilib-yopiladi, ochiq qotib qolmaydi.
+      const voiced = cur.level > SILENT_LEVEL ? 0.12 : 0;
+      t.open = t.open * 0.35 + voiced + cur.level * (preset === EMOTIONS.furious ? 1.45 : preset === EMOTIONS.angry ? 1.25 : 1);
       t.brow += cur.level * 6 + cur.beat * 7; // urg'uda qosh sakraydi
       t.browShow = Math.max(t.browShow, 0.55);
     } else {

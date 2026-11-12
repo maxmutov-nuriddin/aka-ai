@@ -147,6 +147,15 @@ const EMOTION_BY_TAG = {
   shouts: "furious",
   frustrated: "angry",
   sarcastic: "smirk",
+  // Yuz teglari: ovozga ta'sir qilmaydi (ovoz xizmatlari ularni olib tashlaydi), faqat robot yuzini o'zgartiradi.
+  smiles: "happy",
+  proud: "happy",
+  surprised: "excited",
+  thinking: "curious",
+  serious: "neutral",
+  warm: "kind",
+  teasing: "smirk",
+  sad: "sad",
 };
 
 /**
@@ -161,14 +170,15 @@ export function detectEmotion(text) {
   return null;
 }
 
-// Teg bo'lmasa, kayfiyat gapning o'zidan taxmin qilinadi (robot qotib qolmasin). O'zbekcha va ruscha.
+// Teg bo'lmasa, kayfiyat gapning o'zidan taxmin qilinadi — faqat ma'nosi aniq so'zlar bilan. Ikki ma'noli so'zlar
+// ("qiyin", "og'ir" — fizikada vazn, "albatta", "sir" — "sirt") yo'q: noto'g'ri yuzdan neytral yuz yaxshi.
 const words = (list) => new RegExp(`(?<![\\p{L}'])(${list})`, "iu");
 const EMOTION_WORDS = [
   ["angry", words("jin ursin|la'nat|padarqusur|go'rso'xta|o'lgur|yer yutgur|ablah|badbaxt|itvachcha|eshak|ahmoq|tentak|kallavaram|miyasiz|xumpar|dangasa|bekorchi|чёрт|черт|чтоб тебя|балбес|дубин|болван|олух|бестолоч|тупиц|лентяй|бездельник|голова садовая")],
   ["happy", words("ha-ha|xa-xa|kulgili|zo'r|ofarin|barakalla|ajoyib|a'lo|qoyil|mana shunaqa|ana shunaqa|to'g'ri topding|yasha|ха-ха|класс|супер|отлично|молодец|красавчик|здорово|круто|вот так")],
-  ["sad", words("afsus|attang|achinarli|xafa|qiyin|og'ir|жаль|увы|грустно|сложно|тяжело")],
-  ["smirk", words("albatta|akademik|professor|daho|tabriklayman|конечно|академик|профессор|гений|поздравляю")],
-  ["whisper", words("sir|pichirlab|sekin aytaman|секрет|по секрету|шёпотом")],
+  ["sad", words("afsus|attang|achinarli|xafa bo'lma|xafa bo'ldim|жаль|увы|грустно")],
+  ["smirk", words("akademik|professor|daho|tabriklayman|академик|профессор|гений|поздравляю")],
+  ["whisper", words("bir sir|sirini aytaman|sirni aytaman|pichirlab|sekin aytaman|по секрету|шёпотом")],
 ];
 // Baqiriq: kamida 3 harfli KATTA HARFLI so'z (beparvo rejimda g'azab).
 const SHOUT_RE = /(?<!\p{L})\p{Lu}[\p{Lu}']{2,}(?!\p{Ll})/u;
@@ -180,9 +190,10 @@ const SHOUT_RE = /(?<!\p{L})\p{Lu}[\p{Lu}']{2,}(?!\p{Ll})/u;
  * @param {{ mode?: string }} [options]
  * @returns {string | null}
  */
-export function inferEmotion(sentence, { mode = "oddiy" } = {}) {
+export function inferEmotion(sentence, { mode = "oddiy", persona = null } = {}) {
   const text = String(sentence ?? "").replace(/[ʻʼ‘’`´]/g, "'");
   const wild = mode === "beparvo";
+  const stern = persona === "jahldor"; // jahldor undovi — g'azab, quvonch emas
   for (const [emotion, re] of EMOTION_WORDS) {
     if (!re.test(text)) continue;
     return wild && emotion === "angry" && SHOUT_RE.test(text) ? "furious" : emotion;
@@ -191,29 +202,30 @@ export function inferEmotion(sentence, { mode = "oddiy" } = {}) {
   const exclaims = /!["»”)]*$/.test(trimmed);
   if (wild && (exclaims || SHOUT_RE.test(text))) return "furious";
   if (/\?["»”)]*$/.test(trimmed)) return wild ? "smirk" : "curious";
-  if (exclaims) return "excited";
+  if (exclaims) return stern ? "angry" : "excited";
   return null;
 }
 
 /**
  * Bo'lakni gaplarga bo'lib, har gap qaysi belgidan boshlanishi va kayfiyatini topadi.
- * Kayfiyat: teg > gapdan taxmin > shu bo'lakdagi oldingi teg.
+ * Kayfiyat: o'sha gapning tegi > gapdan aniq taxmin > yo'q (xarakterning odatiy yuzi).
+ * Teg keyingi gaplarga o'tmaydi: kulgidan keyingi jiddiy gap kulib aytilmasin.
  * @param {string} rawChunk teglar bilan
  * @returns {{ text: string, marks: { at: number, emotion: string | null }[] }}
  */
-export function planEmotions(rawChunk, { mode = "oddiy" } = {}) {
+export function planEmotions(rawChunk, { mode = "oddiy", persona = null } = {}) {
   const sentences = String(rawChunk ?? "").split(/(?<=[.!?…])\s+/).filter((x) => x.trim());
   const marks = [];
   let text = "";
-  let carried = null;
   for (const raw of sentences) {
     const tagged = detectEmotion(raw);
-    if (tagged) carried = tagged;
     const plainSentence = raw.replace(/\s*\[[a-z]+(?:[ ,'-]+[a-z]+){0,4}\]\s*/g, " ").replace(/\s{2,}/g, " ").trim();
     if (!plainSentence) continue;
     const at = text ? text.length + 1 : 0;
     text = text ? `${text} ${plainSentence}` : plainSentence;
-    marks.push({ at, emotion: tagged || inferEmotion(plainSentence, { mode }) || carried });
+    // Jahldorning xo'rsinishi — sabri tugagani (jahl), g'am emas.
+    const emotion = persona === "jahldor" && tagged === "sad" && /\[sighs/.test(raw) ? "angry" : tagged;
+    marks.push({ at, emotion: emotion || inferEmotion(plainSentence, { mode, persona }) });
   }
   return { text, marks };
 }
