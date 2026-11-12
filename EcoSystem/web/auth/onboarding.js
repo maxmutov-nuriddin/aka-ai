@@ -1,8 +1,7 @@
-// Ro'yxatdan o'tishdan oldingi savollar: Jigar o'quvchiga moslashishi uchun javoblarni yig'adi.
+// Ro'yxatdan o'tishdan oldingi savollar (EcoSystem): til, javob uzunligi, xarakter — Jigar shunga moslashadi.
 // Birinchi savol — til: qolgan savollar, sahifa va Jigarning ovozi shu tilda bo'ladi.
 // Javoblar shu brauzerda (localStorage) saqlanadi; ro'yxatdan o'tish formasi shundan keyin ochiladi.
 
-import { fitLevel, levelsForGoal } from "/shared/levels.js"; // yo'nalish -> mos sinflar (server bilan bitta qoida)
 import { FACE_COLORS, faceSvg } from "/shared/faces.js"; // xarakter yuzlari (landing bilan umumiy)
 import { GOAL_COLORS, iconSvg } from "/shared/icons.js"; // brend ikonkalari (emoji o'rniga)
 
@@ -23,26 +22,8 @@ export const QUESTIONS = [
     ],
   },
   {
-    id: "goal",
-    title: "Jigar senga nima uchun kerak?",
-    hint: "Tushuntirish va misollarni shunga moslayman.",
-    bubble: "Zo'r! Endi tanishib olaylik",
-    ru: { title: "Зачем тебе Джигар?", hint: "Подстрою объяснения и примеры под цель.", bubble: "Отлично! Теперь познакомимся" },
-    options: [
-      { value: "study", icon: "study", label: "Maktab darslari", hint: "Darslar, uy vazifasi, yangi mavzular", ru: ["Школьные уроки", "Уроки, домашка, новые темы"] },
-      { value: "exam", icon: "exam", label: "Imtihonga tayyorgarlik (DTM)", hint: "DTM, test, nazorat ishlari", ru: ["Подготовка к экзаменам (ДТМ)", "ДТМ, тесты, контрольные"] },
-      { value: "olympiad", icon: "olympiad", label: "Olimpiada", hint: "Murakkab masalalar, chuqur bilim", ru: ["Олимпиада", "Сложные задачи, глубокие знания"] },
-      { value: "university", icon: "university", label: "Universitet yoki kurs", hint: "Ma'ruza, seminar, kurs ishi", ru: ["Университет или курсы", "Лекции, семинары, курсовые"] },
-      // Til o'rganish: o'zbekcha tanlagan — rus tilini, ruscha tanlagan — o'zbek tilini o'rganadi (server/core/jigar.js).
-      { value: "language", icon: "language", label: "Rus tilini o'rganish", hint: "Erkin gapirish, so'zlar, talaffuz, rolli o'yin", ru: ["Изучение узбекского языка", "Разговор, слова, произношение, ролевые игры"] },
-      // Suhbatga tayyorgarlik — oylik emas, paket (server/usage/plan-pricing.js: PACKAGES).
-      { value: "interview", icon: "interview", label: "Suhbatga tayyorgarlik", hint: "Ish, OTM yoki grant suhbati — paket bilan", ru: ["Подготовка к собеседованию", "Работа, вуз или грант — разовый пакет"] },
-      { value: "curious", icon: "curious", label: "Qiziqish, umumiy bilim", hint: "Qiziqarli faktlar va dunyoqarash (darslarsiz)", ru: ["Интерес, общие знания", "Интересные факты и кругозор (без уроков)"] },
-    ],
-  },
-  {
     id: "length",
-    title: "Qanday tushuntirishni yoqtirasan?",
+    title: "Javoblar qanday bo'lsin?",
     hint: "Javoblarim uzunligi shunga mos bo'ladi.",
     bubble: "Ko'p gapiraymi yoki lo'nda?",
     ru: { title: "Как тебе объяснять?", hint: "Длина ответов будет под тебя.", bubble: "Подробно или коротко?" },
@@ -56,7 +37,7 @@ export const QUESTIONS = [
     id: "persona",
     title: "Men qanday xarakterda gapiray?",
     hint: "Ovozim va gapirish uslubim shunga mos bo'ladi.",
-    bubble: "Xarakterimni o'zing tanla",
+    bubble: "Xarakterimni o'zingiz tanlang",
     ru: { title: "Каким мне быть?", hint: "Голос и манера речи будут под этот характер.", bubble: "Выбери мой характер" },
     options: [
       { value: "neytral", face: "neytral", label: "Neytral", hint: "Xotirjam va lo'nda", ru: ["Нейтральный", "Спокойно и по делу"] },
@@ -64,25 +45,7 @@ export const QUESTIONS = [
       { value: "kinoyali", face: "kinoyali", label: "Kinoyali", hint: "Kesatadi, lekin o'rinli", ru: ["Ироничный", "Подколет, но по делу"] },
       { value: "jahldor", face: "jahldor", label: "Jahldor", hint: "Qattiqqo'l, xatoni kechirmaydi", ru: ["Строгий", "Ошибок не прощает"] },
       { value: "romantik", face: "romantik", label: "Romantik", hint: "Iltifot qiladi, maqtaydi", ru: ["Романтик", "Делает комплименты, хвалит"] },
-      { value: "moslashuvchan", face: "moslashuvchan", label: "Moslashuvchan", hint: "Senga moslashadi: ohanging va kayfiyatingga", ru: ["Гибкий", "Подстраивается под твой тон и настроение"] },
-    ],
-  },
-  {
-    // Darajani to'g'ridan-to'g'ri so'ramaymiz (tushunarsiz) — sinf aniq javob beradi va shundan daraja chiqadi.
-    id: "level",
-    title: "Nechanchi sinfda o'qiysan?",
-    hint: "Tushuntirishlarimni yoshingga moslayman.",
-    bubble: "Oxirgi savol!",
-    ru: { title: "В каком ты классе?", hint: "Подстрою объяснения под твой возраст.", bubble: "Последний вопрос!" },
-    options: [
-      { value: "5-7", icon: "5-7", label: "5–7-sinf", hint: "Eng oddiy so'zlar va misollar bilan", ru: ["5–7 класс", "Самыми простыми словами"] },
-      { value: "8-9", icon: "8-9", label: "8–9-sinf", hint: "Asoslarini bilaman", ru: ["8–9 класс", "Основы знаю"] },
-      { value: "10-11", icon: "10-11", label: "10–11-sinf yoki litsey", hint: "Chuqurroq tushuntirsang ham bo'ladi", ru: ["10–11 класс или лицей", "Можно глубже"] },
-      {
-        value: "student", icon: "student", label: "Talaba yoki kattaman", hint: "Ilmiy atamalar bilan ham tushunaman", ru: ["Студент или старше", "Пойму и научные термины"],
-        // Imtihon yo'nalishida bu — maktabni bitirib, DTMga tayyorlanayotgan abituriyent.
-        byGoal: { exam: { label: "Maktabni bitirganman", hint: "Abituriyent, DTMga tayyorlanyapman", ru: ["Окончил(а) школу", "Абитуриент, готовлюсь к ДТМ"] } },
-      },
+      { value: "moslashuvchan", face: "moslashuvchan", label: "Moslashuvchan", hint: "Sizga moslashadi: ohangingiz va kayfiyatingizga", ru: ["Гибкий", "Подстраивается под твой тон и настроение"] },
     ],
   },
 ];
@@ -132,18 +95,14 @@ export function questionText(question, key, lang = currentLang()) {
   return (lang === "ru" && question.ru?.[key]) || question[key];
 }
 
-/** Javoblarga qarab ko'rsatiladigan savollar: sinf bitta bo'lsa (universitet) — savol so'ralmaydi. */
-function stepsFor(answers) {
-  return QUESTIONS.filter((q) => q.id !== "level" || levelsForGoal(answers.goal).length > 1);
+/** Ko'rsatiladigan savollar (EcoSystem'da hammasi doim so'raladi). */
+function stepsFor() {
+  return QUESTIONS;
 }
 
-/** Savol variantlari: sinf — tanlangan yo'nalishga mos (maktab darsida "talaba" yo'q va h.k.). */
-function optionsFor(question, answers) {
-  if (question.id !== "level") return question.options;
-  const allowed = levelsForGoal(answers.goal);
-  return question.options
-    .filter((o) => allowed.includes(o.value))
-    .map((o) => (o.byGoal?.[answers.goal] ? { ...o, ...o.byGoal[answers.goal] } : o));
+/** Savol variantlari. */
+function optionsFor(question) {
+  return question.options;
 }
 
 function optionText(option, lang) {
@@ -217,8 +176,6 @@ export function renderOnboarding(container, { onStep, onAnswer, onPick, onDone }
     if (locked) return;
     locked = true;
     answers[question.id] = value;
-    // Yo'nalish almashsa, avvalgi sinf unga mos kelmasligi mumkin — qayta so'raymiz.
-    if (question.id === "goal" && answers.level && !levelsForGoal(value).includes(answers.level)) delete answers.level;
     container.querySelectorAll(".ob-choice").forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
     onAnswer?.(question.id, value);
     onPick?.();
@@ -228,8 +185,7 @@ export function renderOnboarding(container, { onStep, onAnswer, onPick, onDone }
         step += 1;
         show();
       } else {
-        const level = fitLevel(answers.goal, answers.level); // universitet — avtomatik "talaba"
-        onDone({ ...answers, ...(level ? { level } : {}) });
+        onDone({ ...answers });
       }
     }, ADVANCE_MS);
   }

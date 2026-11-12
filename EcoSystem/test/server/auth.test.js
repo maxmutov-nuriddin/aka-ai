@@ -107,12 +107,12 @@ test("register: takroriy email 409, noto'g'ri ma'lumot 400", async () => {
 });
 
 test("register: savollar javobi (profil) saqlanadi va /me qaytaradi, noto'g'risi 400", async () => {
-  const profile = { lang: "ru", goal: "exam", length: "batafsil", persona: "mehribon", level: "8-9" };
+  const profile = { lang: "ru", length: "batafsil", persona: "mehribon" };
   const s = await startServer(appOptions, { login: false });
   try {
-    const res = await fetch(`${s.base}/api/auth/register`, json({ ...TEST_USER, profile: { ...profile, extra: "x" } }));
+    const res = await fetch(`${s.base}/api/auth/register`, json({ ...TEST_USER, profile: { ...profile, extra: "x", goal: "exam", level: "8-9" } }));
     assert.equal(res.status, 201);
-    assert.deepEqual((await res.json()).user.profile, profile); // noma'lum maydon tashlanadi
+    assert.deepEqual((await res.json()).user.profile, profile); // noma'lum maydon (goal, level ham) tashlanadi
     const cookie = res.headers.get("set-cookie").split(";")[0];
     const me = await fetch(`${s.base}/api/auth/me`, { headers: { Cookie: cookie } });
     assert.deepEqual((await me.json()).user.profile, profile);
@@ -162,18 +162,18 @@ test("PUT /api/auth/name: har bir kirgan foydalanuvchi ismini yangilaydi", async
 test("PUT /api/auth/profile: support profilni yangilaydi, /me qaytaradi; noto'g'ri — 400, kirmagan — 401", async () => {
   const s = await startServer({ ...appOptions, env: { SUPPORT_EMAILS: TEST_USER.email } }, { login: false });
   try {
-    const res = await fetch(`${s.base}/api/auth/register`, json({ ...TEST_USER, profile: { persona: "mehribon", level: "5-7" } }));
+    const res = await fetch(`${s.base}/api/auth/register`, json({ ...TEST_USER, profile: { persona: "mehribon" } }));
     const cookie = res.headers.get("set-cookie").split(";")[0];
     const put = (body, headers = { Cookie: cookie }) =>
       fetch(`${s.base}/api/auth/profile`, { method: "PUT", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) });
 
-    const ok = await put({ profile: { persona: "jahldor", level: "student" } });
+    const ok = await put({ profile: { persona: "jahldor", length: "qisqa" } });
     assert.equal(ok.status, 200);
-    assert.deepEqual((await ok.json()).user.profile, { persona: "jahldor", level: "student" });
+    assert.deepEqual((await ok.json()).user.profile, { persona: "jahldor", length: "qisqa" });
     const me = await fetch(`${s.base}/api/auth/me`, { headers: { Cookie: cookie } });
-    assert.deepEqual((await me.json()).user.profile, { persona: "jahldor", level: "student" });
+    assert.deepEqual((await me.json()).user.profile, { persona: "jahldor", length: "qisqa" });
 
-    assert.equal((await put({ profile: { level: "99" } })).status, 400);
+    assert.equal((await put({ profile: { length: "99" } })).status, 400);
     assert.equal((await put({ profile: { persona: "neytral" } }, {})).status, 401);
   } finally {
     s.close();
@@ -221,12 +221,12 @@ test("/login: kirgan foydalanuvchi to'g'ridan-to'g'ri ilovaga o'tadi", async () 
 test("/api/auth/lang: har bir foydalanuvchi tilini o'zgartiradi, profilning qolgani saqlanadi; noto'g'ri til — 400", async () => {
   const s = await startServer({}, { login: false });
   try {
-    const reg = await fetch(`${s.base}/api/auth/register`, json({ ...TEST_USER, email: "til@x.uz", profile: { lang: "uz", goal: "study", level: "8-9", persona: "mehribon" } }));
+    const reg = await fetch(`${s.base}/api/auth/register`, json({ ...TEST_USER, email: "til@x.uz", profile: { lang: "uz", length: "qisqa", persona: "mehribon" } }));
     const cookie = { Cookie: reg.headers.get("set-cookie").split(";")[0] };
     const put = (body) => fetch(`${s.base}/api/auth/lang`, { method: "PUT", headers: { "Content-Type": "application/json", ...cookie }, body: JSON.stringify(body) });
     const res = await put({ lang: "ru" });
     assert.equal(res.status, 200);
-    assert.deepEqual((await res.json()).user.profile, { lang: "ru", goal: "study", level: "8-9", persona: "mehribon" });
+    assert.deepEqual((await res.json()).user.profile, { lang: "ru", length: "qisqa", persona: "mehribon" });
     assert.equal((await put({ lang: "en" })).status, 400);
     const anon = await fetch(`${s.base}/api/auth/lang`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lang: "ru" }) });
     assert.equal(anon.status, 401);

@@ -100,4 +100,4 @@ aka-ai/
 - [x] **6-bosqich (qobiqlar)** — `EcoSystem/desktop` (Electron; macOS `.app` yig'ildi, imzosiz; Cmd/Ctrl+Shift+J), `EcoSystem/mobile` (Capacitor 8; iOS va Android loyihalari, mikrofon/kamera ruxsatlari).
 - [ ] **6-bosqich (qolgan)** — "Hey Jigar" doim tinglash: Porcupine (desktop, Android), iOS — Siri Shortcuts. Imzolash (Apple Developer), Android SDK bilan yig'ish.
 - [ ] **7-bosqich** — EcoSystem serverini internetga chiqarish (VPS, domen, HTTPS) → `capacitor.config.json` va `desktop/main.js` dagi manzil.
-- [ ] Keyin: EcoSystem kirish sahifasidagi o'quvchi savollarini (yo'nalish, sinf) soddalashtirish.
+- [x] **EcoSystem tozalandi** — o'z asosiy prompti (shaxsiy yordamchi, o'qituvchi qoidalarisiz), `jigar.js` qayta yozildi (yo'nalish, sinf, beparvo, til/suhbat mashqi, dars xulosasi, talaffuz yo'q), profil: til/uzunlik/xarakter, kirish — 3 savol, "Tugatish" yo'q. Testlar 131/131, brauzerda tekshirildi.

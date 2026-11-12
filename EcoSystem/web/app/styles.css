@@ -518,3 +518,6 @@ code { font: 0.92em ui-monospace, monospace; background: rgba(255, 255, 255, 0.0
 }
 .pay-legal { margin: 10px 0 0; color: var(--muted); font-size: 12px; text-align: center; }
 .pay-legal a { color: var(--accent-2); }
+
+/* EcoSystem: dars xulosasi ("Tugatish") yo'q */
+#endLesson[hidden] { display: none; }

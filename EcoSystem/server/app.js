@@ -222,12 +222,11 @@ export function createApp({
   app.post("/api/chat", requireUser, limiter, async (req, res) => {
     let stream = null;
     try {
-      const { page, history, selection, mode, heardAlt, lang, length, persona, image, voice: fromVoice } = req.body ?? {};
+      const { page, history, selection, heardAlt, lang, length, persona, image, voice: fromVoice } = req.body ?? {};
       if (req.body?.stream === true) stream = createNdjsonWriter(res);
       const result = await jigar.chat({
-        page, history, selection, mode, heardAlt, lang, length, persona, image, voice: fromVoice,
-        studentName: req.user?.name, llm,
-        unrestricted: true, // EcoSystem — doim shaxsiy yordamchi rejimi
+        page, history, selection, heardAlt, lang, length, persona, image, voice: fromVoice,
+        userName: req.user?.name, llm,
         memories: assistant.listMemories(req.user.id).map((m) => m.text),
         nowNote: tashkentNowNote(),
         onDelta: stream ? (text) => stream.write({ type: "delta", text }) : null,
@@ -252,7 +251,6 @@ export function createApp({
   app.get(["/app/", "/app/index.html"], requireUserPage, page("app", "index.html"));
 
   app.get("/shared/parse.js", (_req, res) => res.sendFile(path.join(here, "core", "parse.js")));
-  app.get("/shared/levels.js", (_req, res) => res.sendFile(path.join(here, "core", "levels.js")));
   app.get("/vendor/mermaid.min.js", (_req, res) =>
     res.sendFile(path.join(root, "node_modules", "mermaid", "dist", "mermaid.min.js")),
   );

@@ -67,7 +67,7 @@ test("/api/chat: doim yordamchi rejimi — xotira, hozirgi vaqt; javobdagi xotir
     const first = await (await s.post("/api/chat", { history: [{ role: "user", content: "Eslab qol" }] })).json();
     assert.deepEqual(first.assistant.remembered, ["Ismi Nuriddin"]);
     assert.equal(first.assistant.reminders.length, 0); // 2099 — 1 yildan uzoq
-    assert.equal(seen[0].unrestricted, true);
+    assert.equal(seen[0].userName, TEST_USER.name);
     assert.match(seen[0].nowNote, /^Hozir: /);
     await s.post("/api/chat", { history: [{ role: "user", content: "x" }] });
     assert.deepEqual(seen[1].memories, ["Ismi Nuriddin"]); // keyingi so'rovda xotira promptga boradi

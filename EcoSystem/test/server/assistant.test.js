@@ -67,19 +67,16 @@ const fakeClaude = (replies, calls) => {
   return { messages: { create }, beta: { messages: { create } } };
 };
 
-test("support prompti: xotira bo'limi, hozirgi vaqt va internet qidiruvi; o'quvchida — yo'q", async () => {
-  assert.match(systemPromptFor("oddiy", "uz", { unrestricted: true, memories: ["Ismi Nuriddin"] }), /# XOTIRA[\s\S]*- Ismi Nuriddin/);
-  assert.doesNotMatch(systemPromptFor("oddiy", "uz", { memories: ["Ismi Nuriddin"] }), /# XOTIRA/);
+test("prompt: xotira bo'limi, hozirgi vaqt va internet qidiruvi doim", async () => {
+  assert.match(systemPromptFor("uz", { memories: ["Ismi Nuriddin"] }), /# XOTIRA[\s\S]*- Ismi Nuriddin/);
+  assert.doesNotMatch(systemPromptFor("uz", {}), /# XOTIRA/);
   const calls = [];
   const jigar = createJigar({ client: fakeClaude([], calls), config: { model: "m", effort: "medium", maxTokens: 100, fallbacks: true } });
-  await jigar.chat({ history: [{ role: "user", content: "Ob-havo?" }], unrestricted: true, memories: ["Ismi Nuriddin"], nowNote: "Hozir: payshanba" });
-  await jigar.chat({ history: [{ role: "user", content: "Ob-havo?" }], memories: ["x"], nowNote: "Hozir: payshanba" });
+  await jigar.chat({ history: [{ role: "user", content: "Ob-havo?" }], memories: ["Ismi Nuriddin"], nowNote: "Hozir: payshanba" });
   assert.equal(calls[0].tools[0].name, "web_search");
   assert.match(calls[0].messages[0].content, /\(Hozir: payshanba\)$/);
-  assert.equal(calls[1].tools, undefined);
-  assert.doesNotMatch(calls[1].messages[0].content, /Hozir/);
+  assert.match(calls[0].system, /- Ismi Nuriddin/);
 });
-
 test("pause_turn: qidiruv uzoq cho'zilsa javob davom ettiriladi va matnlar qo'shiladi", async () => {
   const replies = [
     { content: [{ type: "text", text: "[TUSHUNTIRISH]\nQidir" }], stop_reason: "pause_turn", model: "m" },
@@ -87,7 +84,7 @@ test("pause_turn: qidiruv uzoq cho'zilsa javob davom ettiriladi va matnlar qo'sh
   ];
   const calls = [];
   const jigar = createJigar({ client: fakeClaude(replies, calls), config: { model: "m", effort: "medium", maxTokens: 100, fallbacks: false } });
-  const r = await jigar.chat({ history: [{ role: "user", content: "x" }], unrestricted: true });
+  const r = await jigar.chat({ history: [{ role: "user", content: "x" }] });
   assert.equal(r.text, "[TUSHUNTIRISH]\nQidirdim.");
   assert.equal(calls[1].messages.at(-1).role, "assistant");
 });
