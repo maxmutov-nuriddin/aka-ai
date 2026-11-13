@@ -26,17 +26,31 @@ export function parseAkaResponse(raw) {
   }
 
   const hasStructure = SECTION_NAMES.some((n) => n in sections);
+  // [TUSHUNTIRISH] sarlavhasi tushib qolgan (erkin gapda model ba'zan shunday yozadi): javob — birinchi sarlavhadan
+  // oldingi matn va [SAVOL] dagi birinchi qatordan keyingisi (savol — bitta qator).
+  let savolBody = sections.SAVOL;
+  let tushuntirish = sections.TUSHUNTIRISH;
+  if (hasStructure && tushuntirish == null) {
+    const [first = "", ...rest] = String(savolBody ?? "").split("\n");
+    if (savolBody != null) savolBody = first;
+    tushuntirish = [preamble(text, found), rest.join("\n").trim()].filter(Boolean).join("\n");
+  }
   // Tuzilmasiz javob — butun matn tushuntirish ([SAVOL] bo'limi bo'lsa, u ajratib olinadi).
   const savolHeader = found.find((f) => f.name === "SAVOL");
   const plain = savolHeader ? text.slice(found[found.indexOf(savolHeader) + 1]?.start ?? text.length) : text;
   return {
     structured: hasStructure,
-    savol: parseHeard(sections.SAVOL),
-    tushuntirish: hasStructure ? (sections.TUSHUNTIRISH ?? "") : plain.trim(),
+    savol: parseHeard(savolBody),
+    tushuntirish: hasStructure ? tushuntirish : plain.trim(),
     esdaQolsin: isNone(sections["ESDA QOLSIN"]) ? "" : sections["ESDA QOLSIN"], // "yo'q" — bo'lim yo'q
     vizual: parseVisual(sections.VIZUAL),
     quiz: parseQuiz(sections.QUIZ),
   };
+}
+
+/** Birinchi sarlavhadan oldingi matn (sarlavhasiz yozilgan javob boshi). */
+function preamble(text, found) {
+  return text.slice(0, found[0]?.start ?? text.length).trim();
 }
 
 const isNone = (s) => NO_VISUAL.has(String(s ?? "").toLowerCase().replace(/[."!]+$/g, "").trim());

@@ -38,6 +38,8 @@ export const PERSONAS = ["neytral", "mehribon", "kinoyali", "jahldor", "romantik
 const PERSONA_PROMPTS = Object.fromEntries(PERSONAS.map((p) => [p, readPrompt(`persona-${p}.md`)]));
 // Romantik + talaba (katta) — noz-karashmali iliq uslub ("jonim", "go'zalim"). Maktab o'quvchilariga — flirtsiz.
 const ROMANTIC_ADULT_PROMPT = readPrompt("persona-romantik-adult.md");
+// Talaba (katta yoshli): bolalarcha uslub o'rniga tengdosh ohangi — xarakter va profildan keyin, ohang bo'yicha ustun.
+const STUDENT_TONE_PROMPT = readPrompt("level-student.md");
 const NAME_MAX = 40;
 
 /** O'quvchi ismi promptga: faqat harf, bo'shliq, apostrof va chiziqcha (yangi qator — in'yeksiya emas). */
@@ -74,8 +76,8 @@ const GOAL_GUIDE = {
 const LEVEL_GUIDE = {
   "5-7": "5–7-sinf (taxminan 11–13 yosh). Eng oddiy so'zlar, kundalik misollar. Har bir atamani oddiy so'z bilan izohla.",
   "8-9": "8–9-sinf (taxminan 14–15 yosh). Maktab atamalarini ishlat, lekin har yangi atamani qisqa izohla.",
-  "10-11": "10–11-sinf yoki litsey (taxminan 16–18 yosh). To'liq ilmiy atamalar, formulalar, chuqurroq sabab-oqibat.",
-  student: "Talaba yoki katta yoshli. Akademik til, aniq ta'riflar, ortiqcha soddalashtirmasdan.",
+  "10-11": "10–11-sinf yoki litsey (taxminan 16–18 yosh). To'liq ilmiy atamalar, formulalar, chuqurroq sabab-oqibat. Gaplashganda — katta o'smirga: bolalarcha so'z va dalda yo'q.",
+  student: "Talaba yoki katta yoshli. Akademik til, aniq ta'riflar, ortiqcha soddalashtirmasdan. Erkin gapda — TENGDOSHDEK, katta yoshli do'stdek gaplash: maktab, sinf, uy vazifasi, ota-ona haqida so'rama; mavzular — universitet, sessiya, imtihon, ish, loyiha, sport, hayot. Bolalarcha savol va dalda (\"maktab qalay o'tdi?\", \"kayfiyating qalay, jigar?\") yo'q; hazil — kattalarcha, o'tkirroq.",
 };
 export const GOALS = Object.keys(GOAL_GUIDE);
 export const LEVELS = Object.keys(LEVEL_GUIDE);
@@ -182,6 +184,7 @@ export function systemPromptFor(
   if (simple) parts.push(SIMPLE_PROMPT);
   const profile = profilePromptFor(allGoals, level, name);
   if (profile) parts.push(profile);
+  if (ADULT_LEVELS.has(level) && mode !== "beparvo") parts.push(STUDENT_TONE_PROMPT);
   if (lang === "ru") parts.push(RUSSIAN_PROMPT);
   if (allGoals.includes("language")) parts.push(languageModePrompt(lang)); // ikki tilda gapirish — til qoidasidan keyin, ustun
   if (allGoals.includes("interview")) parts.push(INTERVIEW_MODE_PROMPT); // suhbat mashqi — uzunlik va quiz qoidalaridan ustun
@@ -301,7 +304,8 @@ export function normalizeHistory(history) {
 
 function pageBlock(page) {
   if (!page) {
-    return "<sahifa>\n(Sahifa matni berilmagan. O'quvchi faqat savol berdi.)\n</sahifa>";
+    // Sahifasiz suhbat — oddiy holat (savol yoki erkin gap). Jigar buni o'quvchiga aytmasin.
+    return "<sahifa>\n(Sahifa ochilmagan — bu oddiy holat, buni o'quvchiga aytma. O'quvchi savol beryapti yoki shunchaki gaplashyapti.)\n</sahifa>";
   }
   const lines = ["<sahifa>"];
   if (page.title) lines.push(`Sarlavha: ${page.title}`);

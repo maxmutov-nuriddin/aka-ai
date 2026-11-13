@@ -20,9 +20,12 @@ test("nextHeat: haqorat va rashk oshiradi, baqiriq — ikki pog'ona, mehr va maq
   assert.equal(nextHeat(1, ["jealous", "angry"]), 3);
   assert.equal(nextHeat(0, ["furious"]), 2);
   assert.equal(nextHeat(3, ["furious", "angry"]), HEAT_MAX, "yuqoridan oshmaydi");
-  assert.equal(nextHeat(2, ["love"]), 1);
+  assert.equal(nextHeat(2, ["love"]), 0, "kechirim — olov darhol o'chadi");
+  assert.equal(nextHeat(3, ["happy", "proud"]), 2, "iliq javob — bir pog'ona");
   assert.equal(nextHeat(0, ["happy", "proud"]), 0, "pastdan tushmaydi");
   assert.equal(nextHeat(1, ["curious", "sad"]), 1, "boshqa kayfiyatlar ta'sir qilmaydi");
+  assert.equal(nextHeat(0, ["shocked", "angry", "happy"]), 2, "roast'dagi kulgi jahlni o'chirmaydi");
+  assert.equal(nextHeat(1, ["crying", "smirk"]), 2, "drama ham jahl");
   assert.equal(nextHeat(1, ["furious"], 2), 2, "jahldor/beparvo — eng ko'pi 2");
 });
 

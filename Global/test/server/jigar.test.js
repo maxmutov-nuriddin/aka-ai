@@ -533,3 +533,12 @@ test("moslashuvchan xarakter: ro'yxatda, prompti ulanadi", () => {
   assert.match(systemPromptFor("oddiy", "uz", { persona: "moslashuvchan" }), /XARAKTER: MOSLASHUVCHAN/);
 });
 
+
+test("talaba: kattalarcha ohang qatlami qo'shiladi; maktab o'quvchisiga va beparvo rejimda — yo'q", () => {
+  const student = systemPromptFor("oddiy", "uz", { level: "student", persona: "moslashuvchan" });
+  assert.match(student, /TALABA BILAN GAPLASHISH/);
+  assert.ok(student.indexOf("TALABA BILAN GAPLASHISH") > student.indexOf("XARAKTER: MOSLASHUVCHAN"), "xarakterdan keyin — ohang bo'yicha ustun");
+  assert.doesNotMatch(systemPromptFor("oddiy", "uz", { level: "8-9" }), /TALABA BILAN GAPLASHISH/);
+  assert.doesNotMatch(systemPromptFor("oddiy", "uz", {}), /TALABA BILAN GAPLASHISH/);
+  assert.doesNotMatch(systemPromptFor("beparvo", "uz", { level: "student" }), /TALABA BILAN GAPLASHISH/);
+});

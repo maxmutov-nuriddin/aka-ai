@@ -110,3 +110,13 @@ test("parseVisual: ```svg bloki — SVG kodi ajratib olinadi", () => {
   assert.equal(parseVisual(svg), svg); // qobiqsiz ham
   assert.equal(parseVisual("```mermaid\ntimeline\n  1336 : Tug'ildi\n```"), "timeline\n  1336 : Tug'ildi");
 });
+
+test("[TUSHUNTIRISH] sarlavhasi tushib qolsa — birinchi sarlavhadan oldingi matn javob bo'ladi (bo'sh karta chiqmaydi)", () => {
+  const r = parseAkaResponse("[smiles] Ooo, jigar, o'zingda nima gap?\n\n[ESDA QOLSIN]\nyo'q\n\n[VIZUAL]\nyo'q\n\n[QUIZ]\nyo'q");
+  assert.equal(r.tushuntirish, "[smiles] Ooo, jigar, o'zingda nima gap?");
+  assert.equal(r.esdaQolsin, "");
+  assert.equal(r.vizual, null);
+  const voiced = parseAkaResponse("[SAVOL]\nNma gap?\nZo'r, jigar!\n[ESDA QOLSIN]\nyo'q");
+  assert.equal(voiced.savol, "Nma gap?");
+  assert.equal(parseAkaResponse("[TUSHUNTIRISH]\nOddiy javob\n[ESDA QOLSIN]\nyo'q").tushuntirish, "Oddiy javob");
+});
