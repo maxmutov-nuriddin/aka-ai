@@ -6,7 +6,7 @@ import { createCamera } from "./camera.js";
 import { createSpeechFeed } from "./speech-feed.js";
 import { readPageFile, PageFileError } from "./page-file.js";
 import { createAssistant, fileButton, formatDue, renderAssistantPanel } from "./assistant.js";
-import { createWake } from "./wake.js";
+import { createWake, isStopCommand, isDeliberateWake } from "./wake.js";
 import { createServerWake } from "./wake-server.js";
 import { startPhoneAgent } from "./phone-agent.js";
 import { renderApps } from "./settings-apps.js";
@@ -14,6 +14,7 @@ import { renderApps } from "./settings-apps.js";
 // Desktop ilova (Electron): brauzer nutq xizmati (Google) yo'q — tinglash server orqali (ElevenLabs Scribe).
 const IS_DESKTOP_APP = /JigarDesktop\//.test(navigator.userAgent);
 import { mountEcoSettings } from "./eco-settings.js";
+import { setupSettingsNav } from "./settings-nav.js";
 import { confirmCard, createNudgeWatcher, nudgeCard } from "./pc-actions.js";
 import { createPhoneScreen } from "./phone-screen.js";
 import { createAvatar } from "../shared/avatar.js";
@@ -70,19 +71,39 @@ const el = {
 };
 
 const avatar = createAvatar($("avatar"));
+// Desktop: oyna yashirilsa — avatar to'xtaydi (fonda faqat quloq va miya ishlaydi).
+window.jigarDesktop?.onVisibility((visible) => {
+  avatar.setActive(visible);
+  // Yashirin oynada interfeys umuman chizilmaydi (CSS animatsiyalar GPU'ni yemasin); ovoz va miya ishlayveradi.
+  document.documentElement.classList.toggle("in-background", !visible);
+});
 const caption = createCaption($("caption"));
 const camera = createCamera({ video: el.lensVideo }); // Jigarning "ko'zi" — pastda: tugmalar
 // "Hey Jigar" (support): "Jigar" so'zi eshitilsa — savolni tinglash boshlanadi. Yoqish — sozlamalarda.
 const wakeHandlers = {
-  onWake() {
-    if (state.busy || state.finished || !voice.supported.listen) return;
+  // Oyna ochilmaydi: Jigar fonda eshitadi, javob beradi va gapiradi (holati — tray'da).
+  // "Hey Jigar, ovozni 40 qil" — buyruq birga aytilsa, qayta so'ramasdan bajariladi.
+  // Jigar gapirayotgan yoki o'ylayotgan bo'lsa ham eshitadi: "Jigar, stop" — "Xo'p" deydi va jim turadi
+  // (keyingi chaqiruvgacha tinglamaydi); boshqa gap — joriy javobni to'xtatib, yangisini boshlaydi.
+  onWake(command = "", heard = "") {
+    if (state.finished || !voice.supported.listen) return;
+    const engaged = voiceState === "speaking" || state.busy;
+    if (engaged && !isDeliberateWake(heard, command)) return; // o'z ovozidagi "Jigar" — e'tiborsiz
+    if (isStopCommand(command)) return hushJigar();
+    if (engaged) interruptReply();
     state.lastInput = "voice";
-    voice.stopSpeaking();
+    if (state.busy) {
+      state.afterBusy = command || LISTEN_NEXT; // javob tayyorlanayotgan edi — tugashi bilan yangisi
+      return;
+    }
+    if (command) return handleSpoken(command);
     voice.listen();
   },
   // Fonda tinglash ishlamadi (masalan, desktop ilovada Google nutq xizmati yo'q) — o'chiramiz, mikrofon yonib-o'chmasin.
+  // Desktop'da bu holat saqlanmaydi: vaqtinchalik xato (ruxsat, server) "Hey Jigar"ni butunlay o'chirib qo'ymasin —
+  // keyingi ochilishda yana eshitadi. O'chirish — faqat egasi o'zi tugmani o'chirsa (wakeOff).
   onUnavailable() {
-    updatePrefs({ wake: false });
+    if (!IS_DESKTOP_APP) updatePrefs({ wake: false });
     $("wakeToggle").checked = false;
     showError(t("asst.wakeOff"));
   },
@@ -100,6 +121,7 @@ function freshState() {
     history: [], // [{role, content}]
     items: [], // xulosa uchun: [{savol, javob, quiz}]
     busy: false,
+    afterBusy: null, // "Hey Jigar" javob tayyorlanayotganda aytildi — keyin bajariladigan ish
     finished: false,
     selection: "",
     pendingQuiz: null, // {quiz, answer(letter)} — ovoz bilan javob berish uchun
@@ -472,6 +494,12 @@ function serverErrorText(status, data) {
 
 function setBusy(busy) {
   state.busy = busy;
+  if (!busy && state.afterBusy) {
+    const next = state.afterBusy;
+    state.afterBusy = null;
+    queueMicrotask(() => (next === LISTEN_NEXT ? voice.listen() : handleSpoken(next)));
+  }
+  window.jigarDesktop?.status(busy ? "thinking" : voiceState); // tray: javob tayyorlanmoqda
   el.send.disabled = busy || state.finished;
   el.input.disabled = busy || state.finished;
   el.endLesson.disabled = busy || state.finished || state.items.length === 0;
@@ -582,6 +610,7 @@ async function sendMessage(text, { fromQuiz = false, fromVoice = false, heardAlt
   }
   updatePageUi();
   const typing = addTyping();
+  const hushAtStart = hush;
   // Ovoz yoqiq — javob oqim bilan keladi va Jigar birinchi gap tayyor bo'lishi bilan gapira boshlaydi.
   const feed = !prefs.muted && voice.supported.speak ? startStreamSpeech() : null;
 
@@ -609,7 +638,7 @@ async function sendMessage(text, { fromQuiz = false, fromVoice = false, heardAlt
     const shown = {
       ...parsed,
       tushuntirish: stripAudioTags(parsed.tushuntirish),
-      esdaQolsin: stripAudioTags(parsed.esdaQolsin),
+      esdaQolsin: "", // EcoSystem — shaxsiy yordamchi: "Esda qolsin" kartasi kerak emas (Global — o'quvchilar uchun)
     };
     // Ovozli savol: chatda brauzer eshitgan xom matn o'rniga Jigar tushungan, to'g'ri yozilgani.
     const heardRight = fromVoice && message && parsed.savol ? parsed.savol : "";
@@ -631,7 +660,7 @@ async function sendMessage(text, { fromQuiz = false, fromVoice = false, heardAlt
     if (data.truncated) addNotice(t("notice.answerTruncated"));
     if (feed && !data.refused) {
       feed.finish(parsed); // qolgan qismi ("Esda qolsin", savol) — o'qilayotganining ortidan
-    } else {
+    } else if (hushAtStart === hush) {
       if (feed) voice.stopSpeaking(); // rad javobi: oqimda kelgan qisman matn o'rniga — yakuniy javob
       speakReply(toSpeechText(parsed, prefs.lang), {
         listenAfter: state.lastInput === "voice",
@@ -720,6 +749,7 @@ const ICON_CLOSE = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path
 const PROFILE_KEY = "jigar.profile"; // profil: til, uzunlik, xarakter (server bilan sinxron)
 const SIMPLE_LEVELS = ["5-7", "8-9"];
 
+const ECO_PERSONA = "moslashuvchan"; // EcoSystem: xarakter bitta
 let prefs = loadPrefs();
 let voiceState = "idle";
 let paused = false; // o'quvchi "Pauza" bosgan — Jigar o'zi qayta tinglamaydi
@@ -737,8 +767,9 @@ function profilePrefs() {
       level: profile.level || null, // murakkablik sinfga mos
       // Jahldor + Talaba = "beparvo" (so'kinadigan, baqiradigan) rejim — faqat kattalar uchun.
       // Maktab o'quvchisi uchun Jahldor — so'kinmaydigan qattiqqo'l ustoz (serverda ham tekshiriladi).
-      mode: profile.persona === "jahldor" && profile.level === "student" ? MODES.wild : MODES.normal,
-      persona: profile.persona || null, // robot yuzi va javob uslubi shu xarakterda
+      mode: MODES.normal,
+      // Xarakter bitta — do'st va yordamchi, egasiga moslashadi (server: prompts/character.md). Tanlov yo'q.
+      persona: ECO_PERSONA,
     };
   } catch {
     return {};
@@ -748,7 +779,6 @@ function profilePrefs() {
 /** So'rovga qo'shiladigan profil maydonlari (bo'sh bo'lsa yuborilmaydi). */
 function profileFields() {
   return {
-    persona: prefs.persona ?? undefined,
     goal: prefs.goal ?? undefined,
     level: prefs.level ?? undefined,
   };
@@ -783,7 +813,9 @@ const voice = createVoice({
   sttUrl: () => `${host.apiBase}/api/stt`,
   onState(next) {
     voiceState = next;
-    if (next === "idle") wake.resume();
+    window.jigarDesktop?.status(next); // tray: 👂 tinglayapti, 💭 o'ylayapti, 🗣 gapiryapti
+    // Jigar gapirayotganda ham "Hey Jigar" / "Jigar, stop" eshitiladi; faqat savol tinglanayotganda — mikrofon bitta.
+    if (next === "idle" || next === "speaking") wake.resume();
     else wake.pause();
     if (next !== "speaking") caption.done();
     el.mic.classList.toggle("listening", next === "listening");
@@ -878,12 +910,7 @@ function renderPrefs() {
 
 // Sarlavhada tanlangan xarakter (ranglar shared/faces.js va shared/avatar.css bilan bir xil).
 const PERSONA_INFO = {
-  neytral: { color: "#2ee6c8", uz: ["Neytral", "xotirjam va lo'nda"], ru: ["Нейтральный", "спокойно и по делу"] },
-  mehribon: { color: "#ffc94d", uz: ["Mehribon", "qo'llab-quvvatlaydi"], ru: ["Добрый", "всегда поддержит"] },
-  kinoyali: { color: "#d264ff", uz: ["Kinoyali", "kesatadi, lekin o'rinli"], ru: ["Ироничный", "подколет по делу"] },
-  jahldor: { color: "#ff8a3d", uz: ["Jahldor", "xatoni kechirmaydi"], ru: ["Строгий", "ошибок не прощает"] },
-  romantik: { color: "#ff5fa2", uz: ["Romantik", "iltifot qiladi"], ru: ["Романтик", "делает комплименты"] },
-  moslashuvchan: { color: "#7ee081", uz: ["Moslashuvchan", "senga moslashadi"], ru: ["Гибкий", "подстраивается под тебя"] },
+  moslashuvchan: { color: "#7ee081", uz: ["Do'st va yordamchi", "senga moslashadi"], ru: ["Друг и помощник", "подстраивается под тебя"] },
 };
 
 function renderPersonaTag() {
@@ -903,6 +930,23 @@ function renderPersonaTag() {
   brand.style.setProperty("--persona", info.color);
   $("personaName").textContent = name;
   $("personaHint").textContent = hint;
+}
+
+const LISTEN_NEXT = Symbol("listen"); // "Hey Jigar" javob tayyorlanayotganda aytildi — tugagach savol tinglanadi
+let hush = 0; // "Jigar, stop" sanog'i: to'xtatilgan javob keyin ovoz chiqarmaydi va qayta tinglamaydi
+
+/** Joriy javobni to'xtatadi (ovoz, tinglash); tayyorlanayotgan javob kelganda ham gapirmaydi. */
+function interruptReply() {
+  hush += 1;
+  state.afterBusy = null;
+  voice.stopAll();
+}
+
+/** "Jigar, stop": to'xtaydi, "Xo'p" deydi va jim turadi — keyingi "Hey Jigar"gacha tinglamaydi. */
+function hushJigar() {
+  interruptReply();
+  state.lastInput = "stopped";
+  if (!prefs.muted) voice.speak(prefs.lang === "ru" ? "Хорошо." : "Xo'p.");
 }
 
 function handleSpoken(text, heardAlt = "", pronunciation = null) {
@@ -1022,7 +1066,10 @@ el.typeToggle.addEventListener("click", () => {
   if (!el.textRow.hidden) el.input.focus();
 });
 // ---------- Sozlamalar — alohida sahifa (to'liq ekran): Orqaga yoki Esc bilan yopiladi ----------
+// Chapda bo'limlar, o'ngda tanlangan bo'lim (settings-nav.js).
+const settingsNav = setupSettingsNav($("settingsGrid"), $("settingsNav"));
 function setSettingsOpen(open) {
+  if (open) settingsNav.refresh();
   el.settingsPop.hidden = !open;
   el.settingsBtn.setAttribute("aria-expanded", String(open));
   document.body.classList.toggle("settings-open", open); // orqadagi sahifa aylanmasin
@@ -1066,14 +1113,22 @@ $("nameForm").addEventListener("submit", async (event) => {
 function renderSupport(user) {
   const isSupport = Boolean(user); // EcoSystem: kirgan har kim — egasi, yordamchi imkoniyatlari doim ochiq
   for (const node of document.querySelectorAll(".support-only")) node.hidden = !isSupport; // sozlamalar va navbar (Xotira)
-  $("appsOpen").href = `${host.apiBase}/download`;
   if (isSupport) {
     assistant.start(); // eslatmalar vaqtida keladi
     nudgeWatcher.start(); // Jigar o'zi aytgan gaplar (ekranga qarab maslahat, kunlik xulosa)
     startPhoneAgent({ apiBase: () => host.apiBase, authHeaders }); // Android ilovada — telefon Jigar'ga ulanadi
-    $("wakeToggle").checked = Boolean(prefs.wake) && wake.supported;
+    // Eski /download havolasi (yoki QR) → Sozlamalar ochiladi, kerakli bo'lim tanlanadi (?settings=apps).
+    const wantedSection = new URLSearchParams(location.search).get("settings");
+    if (wantedSection) {
+      history.replaceState(null, "", location.pathname);
+      setSettingsOpen(true);
+      settingsNav.select(wantedSection);
+    }
+    // Desktop ilovada "Hey Jigar" standart bo'yicha yoqiq — fonda doim eshitadi (o'chirsa — o'chiq qoladi).
+    const wakeOn = (IS_DESKTOP_APP ? prefs.wakeOff !== true : Boolean(prefs.wake)) && wake.supported;
+    $("wakeToggle").checked = Boolean(wakeOn);
     $("wakeToggle").disabled = !wake.supported;
-    wake.setEnabled(prefs.wake, prefs.lang);
+    wake.setEnabled(wakeOn, prefs.lang);
     // Miya, ovoz, chuqurlik va xarakter — shu yerdan tanlanadi (to'liq boshqaruv egasida).
     mountEcoSettings($("ecoSettings"), { apiBase: () => host.apiBase, authHeaders, persona: prefs.persona, onProfile: syncServerProfile, t });
   }
@@ -1315,8 +1370,9 @@ $("memoryBtn").addEventListener("click", () => {
 });
 
 $("wakeToggle").addEventListener("change", () => {
-  updatePrefs({ wake: $("wakeToggle").checked });
-  wake.setEnabled(prefs.wake, prefs.lang);
+  const on = $("wakeToggle").checked;
+  updatePrefs({ wake: on, wakeOff: !on }); // wakeOff — egasining o'z qarori (desktop shunga qaraydi)
+  wake.setEnabled(on, prefs.lang);
 });
 
 // ---------- Kamera (Jigarning ko'zi) ----------

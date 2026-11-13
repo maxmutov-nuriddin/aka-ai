@@ -34,6 +34,13 @@
       "screen-text.js",
       "server-url.js",
       "setup-preload.js",
+      "app-preload.js",
+      "trayTemplate.png",
+      "trayTemplate@2x.png",
+      "tray-listenTemplate.png",
+      "tray-listenTemplate@2x.png",
+      "tray-speakTemplate.png",
+      "tray-speakTemplate@2x.png",
       "setup.html",
       "youtube-search.js",
       "access-cap.js",
@@ -43,7 +50,14 @@
       "category": "public.app-category.productivity",
       "target": "dmg",
       "artifactName": "Jigar-mac.${ext}",
-      "identity": null
+      "identity": "-",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Jigar sizni eshitishi uchun mikrofon kerak (savol, \"Hey Jigar\").",
+        "NSCameraUsageDescription": "Jigarga kamerada narsa ko'rsatish uchun.",
+        "NSAppleEventsUsageDescription": "Jigar ilovalarni ochish, yashirish va boshqarish uchun."
+      }
     },
     "win": {
       "target": "nsis",

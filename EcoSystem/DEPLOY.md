@@ -3,26 +3,36 @@
 Maqsad: Jigar internetda, **HTTPS** bilan ishlasin (mikrofon, Siri va uydan tashqarida telefon uchun shart).
 
 ## 0. Nima kerak
-- Linux server (VPS, 1 GB RAM yetadi), Docker va Docker Compose.
-- Domen (masalan `jigar.sizning-domen.uz`), A-yozuvi server IP'siga qaratilgan; 80 va 443 portlar ochiq.
+- Server: **4 CPU / 8 GB RAM / 100 GB disk** (Ubuntu 22.04/24.04 yoki Debian 12). Jigar 2 CPU va 2 GB bilan cheklangan (Claude bulutda ishlaydi) — qolgani zaxirada.
+- **Domen** (masalan `jigar.sizning-domen.uz`), A-yozuvi server IP'siga qaratilgan. HTTPS (va mikrofon) domensiz ishlamaydi.
 - Anthropic API kaliti. **Konsolda oylik limit qo'ying** (Settings → Limits): fon ishlari cheksiz so'rov yuborishi mumkin.
+- Serverga faqat **EcoSystem** yuklanadi (Global, lokal `.env`, lokal baza — yo'q).
 
 > Serverga **hech qachon** lokal `.env` ni ko'chirmang: unda `ECO_LOCAL_NOAUTH=1` (parolsiz kirish). Server production'da bunday sozlama bilan umuman ishga tushmaydi.
 
-## 1. Fayllarni olish
+## 1. Serverni tayyorlash (bir marta)
+Mac'da SSH kalitini serverga qo'ying (parol bilan kirish keyin o'chiriladi):
 ```bash
-git clone https://github.com/maxmutov-nuriddin/aka-ai.git
-cd aka-ai && git checkout jigar-2-split
-cd EcoSystem
+ssh-copy-id root@<server-ip>
+scp EcoSystem/deploy/setup-server.sh root@<server-ip>:/root/
+ssh root@<server-ip> "bash /root/setup-server.sh"
 ```
+Skript: tizim yangilanadi va xavfsizlik yangilanishlari avtomatik bo'ladi; faervol — faqat SSH, 80, 443; fail2ban;
+SSH — faqat kalit bilan; Docker; `/opt/jigar` papkasi.
 
-## 2. Sozlash
+## 2. Yuklash va sozlash
+Mac'da (faqat EcoSystem fayllari yuboriladi):
 ```bash
-cp deploy/.env.production.example .env.production
-nano .env.production        # ANTHROPIC_API_KEY va boshqa kalitlarni yozing
-export DOMAIN=jigar.sizning-domen.uz
+bash EcoSystem/deploy/upload.sh root@<server-ip>
 ```
-Majburiy qiymatlar `.env.production` da tayyor: `NODE_ENV=production`, `ECO_LOCAL_NOAUTH=0`, `TRUST_PROXY=1`.
+Serverda:
+```bash
+cd /opt/jigar
+cp deploy/.env.production.example .env.production
+chmod 600 .env.production   # kalitlarni faqat root o'qiy oladi
+nano .env.production        # ANTHROPIC_API_KEY va boshqa kalitlarni yozing
+echo "DOMAIN=jigar.sizning-domen.uz" > .env   # docker compose shu domenga HTTPS oladi
+```
 
 ## 3. Ishga tushirish
 ```bash
@@ -38,17 +48,17 @@ Caddy HTTPS sertifikatini (Let's Encrypt) o'zi oladi. `https://<domen>/` ni ochi
    - **Ruxsat darajasi** — "Xavfsiz" yoki "Keng" (kundalik ish uchun).
 
 ## 5. Ilovalarni ulash
-- **Mac / Windows:** `/download` sahifasidan yuklang. Birinchi ochilganda server manzilini so'raydi → `https://<domen>`. Keyin parolni kiriting.
+- **Mac / Windows:** Sozlamalar → "Jigar ilovalari" bo'limidan yuklang (telefon uchun QR ham shu yerda). Birinchi ochilganda server manzilini so'raydi → `https://<domen>`. Keyin parolni kiriting.
 - **Android:** `.apk` ni yuklab o'rnating (yig'ilgach), ilova manzilni so'raydi.
 - **iPhone:** Safari → `https://<domen>/app/` → Ulashish → Bosh ekranga qo'shish.
-- **Siri:** Sozlamalar → "Siri uchun kalit" → `/download` sahifasidagi yo'riqnoma. Siri kaliti eng ko'pi bilan "keng" darajada ishlaydi.
-- Yuklab olinadigan ilovalar: `.dmg`, `.zip`, `.apk` fayllarni serverdagi `EcoSystem/downloads/` papkasiga qo'ying.
+- **Siri:** Sozlamalar → Xavfsizlik → "Siri uchun kalit"; yo'riqnoma — "Jigar ilovalari" bo'limida. Siri kaliti eng ko'pi bilan "keng" darajada ishlaydi.
+- Yuklab olinadigan ilovalar: `.dmg`, `.zip`, `.apk` — Mac'dagi `EcoSystem/downloads/` da bo'lsa, `upload.sh` ularni ham yuboradi.
 
 ## 6. Doimiy ish
 | Nima | Qanday |
 |---|---|
-| Yangilash | `git pull && docker compose up -d --build` |
-| Zaxira | Baza har kuni `/data/backups/` ga nusxalanadi (oxirgi 7 kun). Boshqa joyga ko'chirib turing: `docker compose cp jigar:/data/backups ./zaxira` |
+| Yangilash | Mac'da `bash EcoSystem/deploy/upload.sh root@<ip>`, serverda `cd /opt/jigar && docker compose up -d --build` |
+| Zaxira | Baza har kuni `/data/backups/` ga nusxalanadi (oxirgi 7 kun). Haftada bir Mac'ga ko'chiring: `bash EcoSystem/deploy/backup-pull.sh root@<ip>` |
 | Loglar | `docker compose logs --tail=100 jigar` |
 | Jurnal fayllari | `/data/journal/*.md` (qilolmagan ishlar, xatolar, harakatlar) |
 | To'xtatish | `docker compose down` (ma'lumot saqlanadi) |
@@ -61,6 +71,9 @@ Caddy HTTPS sertifikatini (Let's Encrypt) o'zi oladi. `https://<domen>/` ni ochi
 - [ ] Desktop ilova server manzilini qabul qilib ulandi: Sozlamalar → "Miya va ovoz" da qurilma nomi ko'rinadi.
 - [ ] Anthropic konsolida oylik limit qo'yilgan.
 - [ ] Zaxira fayli paydo bo'lgan: `docker compose exec jigar ls /data/backups`.
+- [ ] Faervol: `ufw status` — faqat OpenSSH, 80, 443. Tashqaridan `http://<ip>:3100` OCHILMAYDI.
+- [ ] SSH parol bilan kirmaydi: `ssh -o PubkeyAuthentication=no root@<ip>` rad etiladi.
+- [ ] `.env.production` huquqi: `ls -l .env.production` → `-rw-------`.
 
 ## Xavfsizlik qoidalari
 - Siri va qurilma kalitlari alohida; Siri kaliti qurilma bo'lib ulana olmaydi. Kalit sirib ketsa — Sozlamalardan o'chiring.

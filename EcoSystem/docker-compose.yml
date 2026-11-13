@@ -1,6 +1,13 @@
 # Jigar EcoSystem: server + HTTPS (Caddy, Let's Encrypt avtomatik).
 #   1) .env.production yarating (deploy/.env.production.example dan), 2) DOMAIN ni yozing, 3) docker compose up -d
-# Ilovalar (.dmg, .zip, .apk) — ./downloads papkasiga qo'ying: /download sahifasida chiqadi.
+# Server: 4 CPU / 8 GB RAM / 100 GB — Jigar uchun 2 CPU va 2 GB yetarli (Claude bulutda ishlaydi), qolgani zaxirada.
+# Ilovalar (.dmg, .zip, .apk) — ./downloads papkasiga qo'ying: Sozlamalar → "Jigar ilovalari" da chiqadi.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m" # loglar diskni to'ldirmasin
+    max-file: "5"
+
 services:
   jigar:
     build: .
@@ -13,7 +20,13 @@ services:
       - jigar-data:/data
       - ./downloads:/app/downloads:ro
     expose:
-      - "3100"
+      - "3100" # faqat ichki tarmoqda — tashqaridan faqat Caddy (HTTPS) orqali
+    cpus: 2
+    mem_limit: 2g
+    pids_limit: 256
+    cap_drop: [ALL] # node oddiy foydalanuvchi va 3100-port — maxsus huquq kerak emas
+    security_opt: ["no-new-privileges:true"]
+    logging: *logging
   caddy:
     image: caddy:2
     restart: unless-stopped
@@ -22,12 +35,17 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "443:443/udp" # HTTP/3
     environment:
       DOMAIN: ${DOMAIN:?DOMAIN ni yozing (masalan jigar.sizning-domen.uz)}
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
+    cpus: 1
+    mem_limit: 512m
+    security_opt: ["no-new-privileges:true"]
+    logging: *logging
 volumes:
   jigar-data:
   caddy-data:

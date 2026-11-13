@@ -95,8 +95,11 @@
           <h2 class="settings-title" id="settingsTitle" data-i18n="settings.title">Sozlamalar</h2>
           <small class="eco-status" id="settingsStatus" role="status" aria-live="polite"></small>
         </div>
-        <div class="settings-grid">
-          <section class="settings-card">
+        <!-- Chapda bo'limlar (settings-nav.js), o'ngda tanlangan bo'lim; telefonda bo'limlar tepada -->
+        <div class="settings-body">
+        <nav class="settings-nav" id="settingsNav" aria-label="Sozlamalar bo'limlari"></nav>
+        <div class="settings-grid" id="settingsGrid">
+          <section class="settings-card" data-nav="general">
             <h3 data-i18n="settings.general">Umumiy</h3>
             <!-- Til: interfeys, Jigarning javobi va ovozi shu tilda (hisobga saqlanadi) -->
             <div class="setting">
@@ -132,12 +135,11 @@
           <!-- Egasi: miya, ovoz, Jarvis, Siri, jurnal, parol — kartochkalar (eco-settings.js) -->
           <div class="eco-settings" id="ecoSettings" hidden></div>
           <!-- Jigar ilovalari: macOS, Windows, Android, iPhone (settings-apps.js, /api/downloads) -->
-          <section class="settings-card support-only" id="appsCard" hidden>
+          <section class="settings-card support-only" id="appsCard" data-nav="apps" hidden>
             <h3 data-i18n="settings.apps">Jigar ilovalari</h3>
             <div class="apps-list" id="appsList"></div>
-            <a class="ghost apps-open" id="appsOpen" href="/download" target="_blank" rel="noopener" data-i18n="settings.appsOpen">Yuklab olish sahifasi (QR-kod bilan)</a>
           </section>
-          <section class="settings-card account">
+          <section class="settings-card account" data-nav="account">
             <h3 data-i18n="settings.account">Hisob</h3>
             <form class="name-form" id="nameForm">
               <label class="setting-label" for="accountNameInput" data-i18n="settings.name">Ism</label>
@@ -151,6 +153,7 @@
               <button type="button" class="ghost logout-btn" id="logoutBtn" data-i18n="settings.logout">Chiqish</button>
             </div>
           </section>
+        </div>
         </div>
       </div>
     </div>

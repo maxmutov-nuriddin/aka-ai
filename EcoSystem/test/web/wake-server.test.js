@@ -1,7 +1,7 @@
 // Desktop "Hey Jigar": ovoz faolligi bo'yicha bo'laklash — qisqa gap yuboriladi, shovqin va uzun nutq yuborilmaydi.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createSegmenter } from "../../web/app/wake-server.js";
+import { createSegmenter, encodeWav } from "../../web/app/wake-server.js";
 
 /** [daraja, davomiylik ms] ketma-ketligini 50 ms qadam bilan beradi. */
 function run(segmenter, pattern) {
@@ -28,7 +28,23 @@ test("qisqa taqillash (< 0.35 s) — yuborilmaydi; jimlik — hech narsa", () =>
   assert.deepEqual(run(createSegmenter(), [[0.001, 5000]]), []);
 });
 
-test("uzun nutq (> 3 s, oddiy suhbat) — kesiladi va yuborilmaydi", () => {
-  const events = run(createSegmenter(), [[0.1, 5000]]);
+test("'Hey Jigar, ovozni 40 qil' (≈4 s, bir nafasda) — yuboriladi", () => {
+  const events = run(createSegmenter(), [[0, 300], [0.1, 4000], [0, 800]]);
+  assert.equal(events[1].keep, true);
+});
+
+test("uzun nutq (> 6 s, oddiy suhbat yoki TV) — kesiladi va yuborilmaydi", () => {
+  const events = run(createSegmenter(), [[0.1, 8000]]);
   assert.equal(events[1].keep, false);
+});
+
+test("encodeWav: 16-bit mono WAV sarlavhasi va namunalar", async () => {
+  const blob = encodeWav([new Float32Array([0, 1, -1]), new Float32Array([0.5])], 16000);
+  const view = new DataView(await blob.arrayBuffer());
+  assert.equal(blob.type, "audio/wav");
+  assert.equal(view.byteLength, 44 + 4 * 2);
+  assert.equal(String.fromCharCode(...new Uint8Array(await blob.slice(0, 4).arrayBuffer())), "RIFF");
+  assert.equal(view.getUint32(24, true), 16000);
+  assert.equal(view.getInt16(46, true), 0x7fff);
+  assert.equal(view.getInt16(48, true), -0x8000);
 });

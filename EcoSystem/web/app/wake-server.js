@@ -1,10 +1,15 @@
 // "Hey Jigar" — desktop ilova uchun (Electron'da Google nutq xizmati yo'q, shuning uchun wake.js ishlamaydi).
 // Mikrofon doim ochiq, lekin serverga hamma narsa ketmaydi: ovoz faolligi (VAD) bo'yicha faqat qisqa gap bo'lagi
-// (0.35–3 s) yoziladi va /api/stt ga yuboriladi; matnda "Jigar" bo'lsa — savol tinglash boshlanadi.
-import { hasWakeWord } from "./wake.js";
+// (0.35–6 s) yoziladi va /api/stt ga yuboriladi; matnda "Jigar" bo'lsa — savol tinglash boshlanadi
+// (ismdan keyin buyruq ham aytilgan bo'lsa — darhol bajariladi).
+// Ovoz PCM (16 kHz) sifatida olinadi va ovoz boshlanishidan 0.4 s OLDINGI qism ham qo'shiladi —
+// aks holda "Hey" kesilib, tanish xizmati ismni eshitmay qoladi.
+import { hasWakeWord, wakeRemainder } from "./wake.js";
 
-const VAD = { threshold: 0.018, startMs: 60, silenceMs: 600, minMs: 350, maxMs: 3000 };
-const FRAME_MS = 50;
+const VAD = { threshold: 0.018, startMs: 60, silenceMs: 600, minMs: 350, maxMs: 6000 };
+const SAMPLE_RATE = 16_000;
+const CHUNK_SAMPLES = 1024; // ≈ 64 ms
+const PREROLL_MS = 400;
 const SEND_GAP_MS = 1500; // ketma-ket yuborishlar orasida (xarajat va limit)
 
 /**
@@ -43,17 +48,46 @@ export function createSegmenter(options = {}) {
 
 const rms = (samples) => Math.sqrt(samples.reduce((sum, v) => sum + v * v, 0) / samples.length);
 
+/** Float32 PCM bo'laklari → WAV (16-bit mono). Sof — testlanadi. */
+export function encodeWav(chunks, sampleRate = SAMPLE_RATE) {
+  const length = chunks.reduce((n, c) => n + c.length, 0);
+  const view = new DataView(new ArrayBuffer(44 + length * 2));
+  const text = (offset, value) => [...value].forEach((ch, i) => view.setUint8(offset + i, ch.charCodeAt(0)));
+  text(0, "RIFF");
+  view.setUint32(4, 36 + length * 2, true);
+  text(8, "WAVE");
+  text(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, 1, true); // mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  text(36, "data");
+  view.setUint32(40, length * 2, true);
+  let offset = 44;
+  for (const chunk of chunks) {
+    for (const v of chunk) {
+      const s = Math.max(-1, Math.min(1, v));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+      offset += 2;
+    }
+  }
+  return new Blob([view.buffer], { type: "audio/wav" });
+}
+
 /**
  * wake.js bilan bir xil interfeys: { supported, enabled, setEnabled, pause, resume }.
  * @param {{ onWake: () => void, onUnavailable?: (reason: string) => void, apiBase: () => string,
  *           authHeaders: () => Record<string, string> }} deps
  */
 export function createServerWake({ onWake, onUnavailable = () => {}, apiBase, authHeaders }) {
-  const supported = Boolean(globalThis.navigator?.mediaDevices?.getUserMedia && globalThis.MediaRecorder);
+  const supported = Boolean(globalThis.navigator?.mediaDevices?.getUserMedia && globalThis.AudioContext);
   let wanted = false;
   let paused = false;
   let lang = "uz";
-  let live = null; // { stream, ctx, timer, recorder }
+  let live = null; // { stream, ctx, processor }
   let lastSent = 0;
 
   async function send(blob) {
@@ -66,7 +100,7 @@ export function createServerWake({ onWake, onUnavailable = () => {}, apiBase, au
       const { text } = await res.json();
       if (wanted && !paused && hasWakeWord(text)) {
         halt();
-        onWake();
+        onWake(wakeRemainder(text), text); // "Hey Jigar, ovozni 40 qil" — buyruq ham birga
       }
     } catch {
       /* tarmoq — keyingi gap bo'lagida */
@@ -88,39 +122,38 @@ export function createServerWake({ onWake, onUnavailable = () => {}, apiBase, au
       return giveUp("not-allowed");
     }
     if (!wanted || paused || live) return stream.getTracks().forEach((t) => t.stop());
-    const ctx = new AudioContext();
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 1024;
-    ctx.createMediaStreamSource(stream).connect(analyser);
-    const samples = new Float32Array(analyser.fftSize);
+    const ctx = new AudioContext({ sampleRate: SAMPLE_RATE });
+    const source = ctx.createMediaStreamSource(stream);
+    // ScriptProcessor — oddiy va alohida fayl talab qilmaydi (AudioWorklet modul yuklashni talab qiladi).
+    const processor = ctx.createScriptProcessor(CHUNK_SAMPLES, 1, 1);
+    const prerollChunks = Math.ceil((PREROLL_MS / 1000) * SAMPLE_RATE / CHUNK_SAMPLES);
     const segmenter = createSegmenter();
-    const current = { stream, ctx, recorder: null, timer: null };
-    current.timer = setInterval(() => {
-      analyser.getFloatTimeDomainData(samples);
-      const event = segmenter.feed(rms(samples), performance.now());
+    let preroll = [];
+    let recording = null;
+    let clock = 0;
+    processor.onaudioprocess = (e) => {
+      const chunk = new Float32Array(e.inputBuffer.getChannelData(0));
+      clock += (CHUNK_SAMPLES / SAMPLE_RATE) * 1000;
+      if (recording) recording.push(chunk);
+      else preroll = [...preroll.slice(1 - prerollChunks), chunk];
+      const event = segmenter.feed(rms(chunk), clock);
       if (event === "start") {
-        const chunks = [];
-        const recorder = new MediaRecorder(stream);
-        recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
-        recorder.onstop = () => recorder.keep && send(new Blob(chunks, { type: recorder.mimeType }));
-        recorder.start();
-        current.recorder = recorder;
-      } else if (event && current.recorder) {
-        current.recorder.keep = event.keep;
-        if (current.recorder.state !== "inactive") current.recorder.stop();
-        current.recorder = null;
+        recording = [...preroll];
+        preroll = [];
+      } else if (event && recording) {
+        if (event.keep) send(encodeWav(recording));
+        recording = null;
       }
-    }, FRAME_MS);
-    live = current;
+    };
+    source.connect(processor);
+    processor.connect(ctx.destination); // ScriptProcessor faqat ulangan bo'lsa ishlaydi (chiqish — jim)
+    live = { stream, ctx, processor };
   }
 
   function halt() {
     if (!live) return;
-    clearInterval(live.timer);
-    if (live.recorder?.state === "recording") {
-      live.recorder.keep = false;
-      live.recorder.stop();
-    }
+    live.processor.onaudioprocess = null;
+    live.processor.disconnect();
     live.stream.getTracks().forEach((t) => t.stop());
     live.ctx.close().catch(() => {});
     live = null;

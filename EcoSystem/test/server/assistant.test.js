@@ -114,6 +114,27 @@ test("/api/assistant: kirgan egasi uchun; chat javobidagi xotira saqlanadi; kirm
 });
 
 test("\"Hey Jigar\": uyg'otish so'zi turli yozilishda topiladi, boshqa so'z ichida emas", () => {
-  for (const t of ["hey jigar", "Jigar, qara", "эй джигар", "salom jiger"]) assert.ok(hasWakeWord(t), t);
-  for (const t of ["jigarrang ko'ylak", "salom"]) assert.ok(!hasWakeWord(t), t);
+  for (const t of ["hey jigar", "Jigar, qara", "эй джигар", "salom jiger", "Хей, Джигр!", "hey jigr", "Чигар", "dzhiger", "Hey, Jigga!", "Эй, джиги"]) assert.ok(hasWakeWord(t), t);
+  for (const t of ["jigarrang ko'ylak", "salom", "jigarlar", "чигирик"]) assert.ok(!hasWakeWord(t), t);
+});
+
+test("wakeRemainder: ismdan keyingi buyruq ajratiladi; buyruqsiz yoki juda qisqa — bo'sh", async () => {
+  const { wakeRemainder } = await import("../../web/app/wake.js");
+  assert.equal(wakeRemainder("Jigar ovozni 40 qil"), "ovozni 40 qil");
+  assert.equal(wakeRemainder("Hey, Jiggar! Овозни pesaeter"), "Овозни pesaeter");
+  assert.equal(wakeRemainder("Хей, Джигр!"), "");
+  assert.equal(wakeRemainder("hey jigar ha"), "");
+  assert.equal(wakeRemainder("salom"), "");
+  assert.equal(wakeRemainder(null), "");
+});
+
+test("isStopCommand / isDeliberateWake: 'Jigar, stop' to'xtatadi; gapirayotganda faqat aniq chaqiruv", async () => {
+  const { isStopCommand, isDeliberateWake, wakeRemainder } = await import("../../web/app/wake.js");
+  for (const t of ["Jigar, stop", "Jigar to'xta", "Hey Jigar, bas", "Джигар, стоп", "Jigar хватит", "jigar jim"]) {
+    assert.ok(isStopCommand(wakeRemainder(t)), t);
+  }
+  for (const t of ["Jigar, ovozni 40 qil", "Hey Jigar, stoplarni sanab ber", "Jigar"]) assert.ok(!isStopCommand(wakeRemainder(t)), t);
+  assert.ok(isDeliberateWake("Hey Jigar, nima gap", "nima gap"));
+  assert.ok(isDeliberateWake("Jigar, stop", "stop"));
+  assert.ok(!isDeliberateWake("Men Jigarman, yordamchingiz", "")); // o'z ovozidagi ism — chaqiruv emas
 });

@@ -39,7 +39,14 @@ function readSaved() {
 
 function save(url) {
   fs.mkdirSync(path.dirname(configFile()), { recursive: true });
-  fs.writeFileSync(configFile(), JSON.stringify({ serverUrl: url }));
+  let current = {};
+  try {
+    current = JSON.parse(fs.readFileSync(configFile(), "utf8"));
+  } catch {
+    /* birinchi saqlash */
+  }
+  // Boshqa sozlamalar (autoStart, maxAccess) saqlanib qoladi — faqat manzil yangilanadi.
+  fs.writeFileSync(configFile(), JSON.stringify({ ...current, serverUrl: url }, null, 2));
 }
 
 /** Manzil kiritish oynasi; saqlangach — manzil bilan resolve. */

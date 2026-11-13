@@ -77,7 +77,7 @@ test("/api/tts: ECO_TTS tanlovi, ovoz doim katta yoshli; xato bo'lsa zaxira xizm
     const res = await s.post("/api/tts", { text: "Salom", level: "5-7", persona: "mehribon" });
     assert.equal(Buffer.from(await res.arrayBuffer()).toString(), "E"); // Gemini yiqildi — ElevenLabs
     assert.equal(gemini.calls[0].level, "student");
-    assert.equal(gemini.calls[0].persona, "mehribon");
+    assert.equal(gemini.calls[0].persona, "moslashuvchan"); // xarakter bitta — eski tanlov e'tiborsiz
     const heard = await (await s.raw("/api/stt?lang=ru", { method: "POST", headers: { "Content-Type": "audio/webm" }, body: Buffer.from([1, 2]) })).json();
     assert.equal(heard.text, "eshitildi:ru");
   } finally {
@@ -135,5 +135,28 @@ test("/api/settings: miya, ovoz, chuqurlik — saqlanadi va chatga o'tadi; noto'
     assert.equal((await fetch(`${anon.base}/api/settings`)).status, 401);
   } finally {
     anon.close();
+  }
+});
+
+test("ovoz: limiti tugagan xizmat (429) tiklanguncha qayta chaqirilmaydi — darhol zaxira", async () => {
+  const limited = {
+    configured: true,
+    calls: 0,
+    async synthesize() {
+      this.calls++;
+      throw new Error("Gemini TTS 429: Rate limit exceeded. Please retry in 5h4m25s or upgrade");
+    },
+  };
+  const backup = tts("E");
+  const s = await startServer({ jigar: spyJigar(), ttsProviders: { gemini: limited, elevenlabs: backup }, stt });
+  try {
+    for (let i = 0; i < 3; i++) {
+      const audio = await s.post("/api/tts", { text: "Salom" });
+      assert.equal(Buffer.from(await audio.arrayBuffer()).toString(), "E");
+    }
+    assert.equal(limited.calls, 1, "faqat birinchi marta urinildi");
+    assert.equal(backup.calls.length, 3);
+  } finally {
+    s.close();
   }
 });

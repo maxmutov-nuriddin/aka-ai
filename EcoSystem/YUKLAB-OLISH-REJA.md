@@ -4,6 +4,7 @@ Maqsad: `npm start` bilan EcoSystem ochilganda veb-sahifada "Yuklab olish" bo'li
 
 Holat (2026-11-13):
 - ✅ Server: `/api/downloads`, `/downloads/:file`, `/download` sahifasi (QR, OS aniqlash, yo'riqnomalar), testlar.
+- ✅ 2026-11-13: alohida `/download` sahifasi olib tashlandi — hammasi (QR, OS aniqlash, yo'riqnomalar, Siri) Sozlamalar → "Jigar ilovalari" ichida; `/download` → `/app/?settings=apps` ga yo'naltiradi.
 - ✅ Sozlamalarda "📥 Ilovalarni yuklab olish" havolasi; PWA manifest (iPhone uchun).
 - ✅ macOS: `npm run build:mac` → `downloads/Jigar-mac.dmg` (universal, imzosiz) — yig'ildi.
 - ✅ Windows: `npm run build:win-zip` → `downloads/Jigar-win.zip` (o'rnatishsiz Jigar.exe, belgisiz). Belgili `.exe` o'rnatuvchi — GitHub Actions (`eco-v*` tegi), artifact'ni `downloads/Jigar-win.exe` ga qo'yish.

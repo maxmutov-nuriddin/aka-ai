@@ -380,8 +380,19 @@ export function createAvatar(root) {
     cur.beat = Math.max(0, 1 - (now - talk.beatAt) / BEAT_MS);
   }
 
+  // Oyna yashirin (desktop: fonda) — kadr chizilmaydi, protsessor tejaladi; ko'rinsa — davom etadi.
+  let active = true;
+  const IDLE_CHECK_MS = 500;
+  function setActive(on) {
+    active = Boolean(on);
+  }
+
   // Kadrda xato chiqsa ham animatsiya to'xtamaydi — robot qotib qolmasin.
   function tick(now) {
+    if (!active) {
+      setTimeout(() => requestAnimationFrame(tick), IDLE_CHECK_MS);
+      return;
+    }
     try {
       frame(now);
     } catch (err) {
@@ -468,5 +479,5 @@ export function createAvatar(root) {
     gaze.next = 0;
   }
 
-  return { setState, setMode, setPersona, setLevel, setEmotion, lookAt };
+  return { setState, setMode, setPersona, setLevel, setEmotion, lookAt, setActive };
 }

@@ -22,13 +22,9 @@ const LABELS = {
     unlimited: "Cheksiz — 1 soat (parol bilan)",
   },
   length: { qisqa: "Qisqa", odatiy: "O'rtacha", batafsil: "Batafsil" },
-  persona: {
-    "": "Standart", neytral: "Neytral", mehribon: "Mehribon", kinoyali: "Kinoyali",
-    jahldor: "Jahldor", romantik: "Romantik", moslashuvchan: "Moslashuvchan",
-  },
 };
 const TITLES = {
-  llm: "Miya", tts: "Ovoz", effort: "Javob chuqurligi", length: "Javob uzunligi", persona: "Xarakter",
+  llm: "Miya", tts: "Ovoz", effort: "Javob chuqurligi", length: "Javob uzunligi",
   proactive: "Faol rejim (ekranga o'zi qarab maslahat beradi)", briefs: "Ertalabki reja va kechki xulosa",
   monitor: "Kuzatish: batareya, disk, protsessor", access: "Ruxsat darajasi (Jigar kompyuterda nimalar qila oladi)",
 };
@@ -36,8 +32,8 @@ const TITLES = {
 /** Saqlangan profil (til, uzunlik, xarakter) — bitta maydon o'zgarganda qolganlari saqlanib qolsin. */
 function savedProfile() {
   try {
-    const { lang, length, persona } = JSON.parse(localStorage.getItem(PROFILE_KEY) || "{}");
-    return { ...(lang ? { lang } : {}), ...(length ? { length } : {}), ...(persona ? { persona } : {}) };
+    const { lang, length } = JSON.parse(localStorage.getItem(PROFILE_KEY) || "{}");
+    return { ...(lang ? { lang } : {}), ...(length ? { length } : {}) };
   } catch {
     return {};
   }
@@ -157,10 +153,11 @@ export async function mountEcoSettings(container, { apiBase, authHeaders, person
   device.className = "eco-device";
   deviceStatusText({ apiBase, authHeaders, t }).then((text) => { device.textContent = text; });
 
-  /** Bo'lim kartochkasi: sarlavha va maydonlar. */
-  const card = (title, ...children) => {
+  /** Bo'lim kartochkasi: sarlavha va maydonlar; nav — chapdagi bo'limlar ro'yxatidagi kaliti (settings-nav.js). */
+  const card = (nav, title, ...children) => {
     const section = document.createElement("section");
     section.className = "settings-card";
+    section.dataset.nav = nav;
     const heading = document.createElement("h3");
     heading.textContent = title;
     section.append(heading, ...children);
@@ -168,20 +165,18 @@ export async function mountEcoSettings(container, { apiBase, authHeaders, person
   };
 
   container.replaceChildren(
-    card("Miya va ovoz",
+    card("brain", "Miya va ovoz",
       device,
       field("llm", state.llm, state.choices.llm, state.ready.llm, saveSetting("llm")),
       field("tts", state.tts, state.choices.tts, state.ready.tts, saveSetting("tts")),
       field("effort", state.effort, state.choices.effort, null, saveSetting("effort")),
-      field("length", savedProfile().length ?? "odatiy", Object.keys(LABELS.length), null, saveProfileField("length")),
-      field("persona", persona ?? "", Object.keys(LABELS.persona), null, saveProfileField("persona"))),
-    card("Jarvis: o'zi kuzatish va ruxsat",
+      field("length", savedProfile().length ?? "odatiy", Object.keys(LABELS.length), null, saveProfileField("length"))),
+    card("jarvis", "Jarvis: o'zi kuzatish va ruxsat",
       field("proactive", state.proactive, ["on", "off"], null, saveSetting("proactive")),
       field("briefs", state.briefs, ["on", "off"], null, saveSetting("briefs")),
       field("monitor", state.monitor, ["on", "off"], null, saveSetting("monitor")),
       field("access", state.access, state.choices.access ?? Object.keys(LABELS.access), null, saveAccess)),
-    card("Siri, jurnal va xavfsizlik", agentSection({ apiBase, authHeaders, status })),
-    card("Parol", passwordField()),
+    card("security", "Xavfsizlik: Siri, jurnal va parol", passwordField(), agentSection({ apiBase, authHeaders, status })),
   );
   container.hidden = false;
 }

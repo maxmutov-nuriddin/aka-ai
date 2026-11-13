@@ -18,7 +18,10 @@ const DETAILED_PROMPT = readPrompt("style-detailed.md");
 
 // Xarakter (ohang): ro'yxatdan o'tishda tanlanadi; har birining o'z prompti bor. Tanlanmagan — asosiy ohang.
 export const PERSONAS = ["neytral", "mehribon", "kinoyali", "jahldor", "romantik", "moslashuvchan"];
-const PERSONA_PROMPTS = Object.fromEntries(PERSONAS.map((p) => [p, readPrompt(`persona-${p}.md`)]));
+// EcoSystem'da xarakter bitta: do'st va yordamchi, egasining gapirishi va ishiga qarab moslashadi (prompts/character.md).
+// Eski profillardagi persona qiymati qabul qilinadi (API buzilmasin), lekin javobga ta'sir qilmaydi.
+export const ECO_PERSONA = "moslashuvchan";
+const CHARACTER_PROMPT = readPrompt("character.md");
 const NAME_MAX = 40;
 
 const str = (v) => (typeof v === "string" ? v : "");
@@ -64,7 +67,7 @@ function memoryPromptFor(memories) {
 /** Tizim prompti: asosiy + xarakter + uzunlik + ism + til + xotira. Xotira oxirida — kamdan-kam o'zgaradi (kesh). */
 export function systemPromptFor(lang = "uz", { length = "odatiy", persona = null, name = null, memories = null } = {}) {
   const parts = [SYSTEM_PROMPT];
-  if (PERSONA_PROMPTS[persona]) parts.push(PERSONA_PROMPTS[persona]);
+  parts.push(CHARACTER_PROMPT); // persona e'tiborga olinmaydi — xarakter bitta
   if (length === "qisqa") parts.push(SHORT_PROMPT);
   if (length === "batafsil") parts.push(DETAILED_PROMPT);
   const cleanedName = cleanName(name);
@@ -85,6 +88,15 @@ const webSearchTool = (haiku) => ({
 });
 const MAX_PAUSE_CONTINUES = 3; // qidiruv uzoq cho'zilsa server "pause_turn" qaytaradi — shuncha marta davom ettiramiz
 const MAX_TOOL_ROUNDS = 8; // kompyuter asboblari (ekran, fayl, buyruq): bitta javobda shuncha qadamgacha
+// "Hozir tekshiraman / ochaman / ko'raman" deb asbob chaqirmasdan to'xtash — va'da. Bunday javob bir marta majburlab davom ettiriladi.
+const APOS = "['’‘ʻʼ`]?";
+export const PROMISE_RE = new RegExp(
+  `(hozir|darhol|endi|avval|keyin|bir daqiqa|сейчас|сразу)[^.!?\n]{0,80}`
+  + `(qilaman|ko${APOS}raman|tekshiraman|ochaman|yopaman|qo${APOS}yaman|o${APOS}rnataman|yuboraman|qidiraman|bajaraman|ko${APOS}rib chiqaman|aniqlayman|topaman|yoqaman|проверю|открою|посмотрю|сделаю|найду)`,
+  "i",
+);
+const NARRATION_HOLD = 160; // asbobdan oldingi sharh shu uzunlikkacha ushlab turiladi
+const PROMISE_NUDGE = "(Tizim: sen bajaraman deding, lekin hech qanday asbob chaqirmading. Hozir shu javobda asbob bilan haqiqatan bajar, natijani ko'r va qisqa ayt. Bajarib bo'lmasa — nega ekanini ayt va journal gap bilan yoz.)";
 const NOW_NOTE_MAX = 900; // vaqt + qurilma izohi (oxirgi xabarga)
 const THINK_MAX_TOKENS = 2000; // proaktiv fikr (ekranga o'zi qarash, kunlik xulosa) — qisqa
 
@@ -127,6 +139,29 @@ const hasDocument = (messages) =>
 export const normalizeCameraImage = (image) => normalizeImage(image, "image");
 
 // Ovozli xabar: Jigar tushungan savolni [SAVOL] da to'g'ri yozib qaytaradi (chatda xom matn o'rniga).
+// Murojaat: egasi "sen" yoki "Siz" deb gapirayotganini aniqlab, oxirgi xabarga qisqa izoh qo'shamiz —
+// model asosiy promptdagi "Siz" misollariga qaytib ketmasin (prompts/character.md: murojaat egaga qarab).
+const W = "(?<![\\p{L}'ʻ’])"; // so'z boshi (Unicode, apostrofli o'zbek so'zlari ham)
+const SEN_RE = new RegExp(`${W}(sen|senga|seni|sening|sendan|сен|сенга|ты|тебе|тебя)(?![\\p{L}])|\\p{L}{2,}(san|sanmi|ding|dingmi)(?![\\p{L}])`, "iu");
+const SIZ_RE = new RegExp(`${W}(siz|sizga|sizni|sizning|sizdan|сиз|сизга|вы|вам|вас)(?![\\p{L}])|\\p{L}{2,}(dingiz|ingiz|sizmi)(?![\\p{L}])`, "iu");
+const ADDRESS_LOOKBACK = 3;
+export const ADDRESS_NOTES = {
+  sen: '(Murojaat: egasi "sen" deb gapiryapti — sen ham "sen" de, "Siz"ga o\'tma.)',
+  siz: '(Murojaat: egasi "Siz" deb gapiryapti — "Siz" de.)',
+};
+
+/** Egasining oxirgi xabarlariga qarab murojaat izohi ("sen" / "Siz"); belgi bo'lmasa — "". */
+export function addressNote(history) {
+  const recent = (Array.isArray(history) ? history : []).filter((m) => m?.role === "user").slice(-ADDRESS_LOOKBACK).reverse();
+  for (const m of recent) {
+    const text = String(m.content ?? "");
+    const sen = SEN_RE.test(text);
+    const siz = SIZ_RE.test(text);
+    if (sen !== siz) return ADDRESS_NOTES[sen ? "sen" : "siz"];
+  }
+  return "";
+}
+
 export const VOICE_NOTE = "(Ovozli xabar: javob boshida [SAVOL] bo'limini yoz.)";
 // Tarixda qoladi: keyingi javoblarda Jigar rasm ko'rsatilganini biladi (rasmning o'zi qayta yuborilmaydi).
 export const CAMERA_NOTE = "(Foydalanuvchi kamerada narsa ko'rsatdi — rasm shu xabarga ilova qilingan.)";
@@ -306,26 +341,55 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ge
       messages,
     };
     const useFallbacks = config.fallbacks && !haiku;
-    let message = await requestClaude(params, useFallbacks, onDelta);
-    let text = extractText(message);
+    // Asbobdan oldingi sharh ("avval tekshiraman...") ovozga va javobga tushmasin: har qadam boshidagi qisqa matn
+    // ushlab turiladi — qadam asbob chaqiruvi bilan tugasa, tashlanadi; uzun yoki yakuniy matn — odatdagidek oqadi.
+    const ask = async (request) => {
+      if (!toolbox || !onDelta) {
+        const message = await requestClaude(request, useFallbacks, onDelta);
+        return { message, said: message.stop_reason === "tool_use" && toolbox ? "" : extractText(message) };
+      }
+      let pending = "";
+      let flowing = false;
+      const message = await requestClaude(request, useFallbacks, (delta) => {
+        if (flowing) return onDelta(delta);
+        pending += delta;
+        if (pending.length > NARRATION_HOLD) {
+          flowing = true;
+          onDelta(pending);
+        }
+      });
+      if (!flowing && message.stop_reason === "tool_use") return { message, said: "" };
+      if (!flowing && pending) onDelta(pending);
+      return { message, said: extractText(message) };
+    };
+    let { message, said: text } = await ask(params);
     let conversation = params.messages;
     let pauses = 0;
+    let usedTools = false;
+    let nudged = false;
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       const paused = message.stop_reason === "pause_turn" && pauses < MAX_PAUSE_CONTINUES;
       const wantsTools = message.stop_reason === "tool_use" && toolbox;
-      if (!paused && !wantsTools) break;
+      // Va'da berib to'xtadi (asbob chaqirilmagan) — bir marta "hozir bajar" deb davom ettiramiz.
+      const promised = !paused && !wantsTools && toolbox && !usedTools && !nudged
+        && message.stop_reason === "end_turn" && PROMISE_RE.test(text);
+      if (!paused && !wantsTools && !promised) break;
       if (paused) pauses++;
+      if (wantsTools) usedTools = true;
+      if (promised) nudged = true;
       const toolResults = wantsTools ? await runTools(message, toolbox) : null;
       conversation = [
         ...conversation,
         { role: "assistant", content: message.content },
         ...(toolResults ? [{ role: "user", content: toolResults }] : []),
+        ...(promised ? [{ role: "user", content: PROMISE_NUDGE }] : []),
       ];
       // Asbobdan oldingi va keyingi matn orasida bo'sh qator — oqim va yakuniy matn bir xil bo'lsin.
-      const gap = wantsTools && text ? "\n\n" : "";
+      const gap = (wantsTools || promised) && text ? "\n\n" : "";
       if (gap) onDelta?.(gap);
-      message = await requestClaude({ ...params, messages: conversation }, useFallbacks, onDelta);
-      const more = extractText(message);
+      const next = await ask({ ...params, messages: conversation });
+      message = next.message;
+      const more = next.said;
       text = more ? `${text}${gap}${more}` : text;
     }
     const refused = message.stop_reason === "refusal";
@@ -367,7 +431,9 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ge
         const withVoice = voice === true && m.content ? `${heardText}\n\n${VOICE_NOTE}` : heardText;
         // Hozirgi vaqt (eslatma va "bugun/ertaga" uchun) — faqat oxirgi xabarga, kesh buzilmaydi.
         const timed = nowNote ? `${withVoice}\n\n(${clip(str(nowNote), NOW_NOTE_MAX)})` : withVoice;
-        return camera ? withCameraNote(timed) : timed;
+        const address = addressNote(history);
+        const addressed = address ? `${timed}\n\n${address}` : timed;
+        return camera ? withCameraNote(addressed) : addressed;
       };
       const normHistory = normalizeHistory(history).map((m, i) => (i === lastIndex ? { ...m, content: lastContent(m) } : m));
       const userContent = normHistory[normHistory.length - 1].content;

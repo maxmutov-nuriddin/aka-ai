@@ -8,7 +8,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
-import { createJigar, normalizeLang, normalizePersona, ValidationError } from "./core/jigar.js";
+import { createJigar, normalizeLang, ValidationError, ECO_PERSONA } from "./core/jigar.js";
 import { TtsNotConfiguredError } from "./core/errors.js";
 import { createTts } from "./voice/azure.js";
 import { createElevenLabs } from "./voice/elevenlabs.js";
@@ -148,6 +148,16 @@ function desktopVersion() {
   }
 }
 
+const DEFAULT_COOLDOWN_MS = 60 * 60_000;
+/** Limit xatosi (429) bo'lsa — qachongacha kutish (ms, "retry in 5h4m25s" dan; topilmasa — 1 soat), aks holda null. */
+export function rateLimitUntil(message, now = Date.now()) {
+  const text = String(message ?? "");
+  if (!/\b429\b|rate limit|quota/i.test(text)) return null;
+  const m = /retry in (?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/i.exec(text);
+  const ms = m && (m[1] || m[2] || m[3]) ? ((+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0)) * 1000 : DEFAULT_COOLDOWN_MS;
+  return now + ms;
+}
+
 /** Standart baza fayli: data/eco.db (ECO_DB_FILE bilan o'zgartiriladi). Global bazasidan alohida. */
 export function defaultDbFile(env) {
   return env.ECO_DB_FILE?.trim() || path.join(root, "data", "eco.db");
@@ -173,18 +183,30 @@ export function createApp({
   };
   const voice = { get tts() { return currentTts(); }, stt: stt ?? defaults.stt };
 
-  /** Ovoz (+ bo'lsa so'z vaqtlari). Tanlangan xizmat xato bersa — keyingi sozlangan xizmat. */
+  // Limiti tugagan ovoz xizmati (429) — tiklanguncha chetlab o'tiladi: har javobda bekorga urinmaslik (kechikish va log shovqini).
+  const ttsCooldown = new Map(); // xizmat -> qachongacha (ms)
+  const coolingDown = (s) => (ttsCooldown.get(s) ?? 0) > Date.now();
+
+  /** Ovoz (+ bo'lsa so'z vaqtlari). Tanlangan xizmat xato bersa yoki limiti tugagan bo'lsa — keyingi sozlangan xizmat. */
   async function speakWith(service, text, options) {
     const run = (s) => (s.synthesizeTimed
       ? s.synthesizeTimed(text, options)
       : s.synthesize(text, options).then((audio) => ({ audio, wordStarts: null })))
       .then((r) => ({ ...r, contentType: s.contentType ?? "audio/mpeg" }));
+    const backupFor = (s) => Object.values(providers).find((p) => p?.configured && p !== s && !coolingDown(p));
+    if (coolingDown(service) && backupFor(service)) return run(backupFor(service));
     try {
       return await run(service);
     } catch (err) {
-      const backup = Object.values(providers).find((p) => p?.configured && p !== service);
+      const backup = backupFor(service);
       if (err instanceof ValidationError || !backup) throw err;
-      console.warn(`[/api/tts] tanlangan xizmat ishlamadi — zaxiraga o'tildi: ${err.message}`);
+      const until = rateLimitUntil(err.message);
+      if (until) {
+        ttsCooldown.set(service, until);
+        console.warn(`[/api/tts] ovoz xizmati limiti tugadi — ${new Date(until).toLocaleString()} gacha zaxira xizmat ishlatiladi.`);
+      } else {
+        console.warn(`[/api/tts] tanlangan xizmat ishlamadi — zaxiraga o'tildi: ${err.message.slice(0, 200)}`);
+      }
       return run(backup);
     }
   }
@@ -253,12 +275,11 @@ export function createApp({
 
   // Ochiq (ma'lumotsiz): telefon va desktop ilovalari server manzilini tekshiradi — boshqa manbadan ham.
   app.get("/api/health", (_req, res) => res.set("Access-Control-Allow-Origin", "*").json({ ok: true }));
-  // Ilovalarni yuklab olish sahifasi (.dmg, .exe, .apk; iOS — PWA yo'riqnomasi). Kirish shart emas.
+  // Ilovalarni yuklab olish (.dmg, .exe, .apk; iOS — PWA): ro'yxat va fayllar; ko'rinishi — Sozlamalar → "Jigar ilovalari".
   app.use(createDownloadsRouter({
     dir: env.ECO_DOWNLOADS_DIR?.trim() || path.join(root, "downloads"),
     version: desktopVersion(),
     limiter: rateLimiter({ windowMs, max: Number(env.ECO_DOWNLOAD_RATE_MAX) || 30 }),
-    pagePath: path.join(webDir, "download", "index.html"),
   }));
 
   // Sozlamalar (egasi): miya, ovoz xizmati, chuqurlik + qaysilari sozlangan (kaliti bor).
@@ -300,7 +321,8 @@ export function createApp({
 
   app.post("/api/tts", requireUser, ttsLimiter, async (req, res) => {
     try {
-      const options = { lang: normalizeLang(req.body?.lang), persona: normalizePersona(req.body?.persona), level: ADULT_LEVEL };
+      // Xarakter bitta — ovoz ohangi ham bitta (moslashuvchan: har gap o'z hissi bilan).
+      const options = { lang: normalizeLang(req.body?.lang), persona: ECO_PERSONA, level: ADULT_LEVEL };
       const { audio, wordStarts, contentType } = await speakWith(voice.tts, req.body?.text, options);
       if (wordStarts?.length) res.set("X-Word-Starts", wordStarts.map((t) => t.toFixed(2)).join(","));
       res.set("Content-Type", contentType);

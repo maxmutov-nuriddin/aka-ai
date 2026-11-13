@@ -79,3 +79,11 @@ test("qurilma chegarasi: server cheksiz yuborsa ham 'full'dan oshmaydi; noto'g'r
   assert.equal(effectiveLevel("root", "full"), "safe");
   assert.equal(effectiveLevel(undefined, "yomon"), "safe");
 });
+
+test("rateLimitUntil: 429 da kutish vaqti 'retry in' dan; topilmasa — 1 soat; boshqa xato — null", async () => {
+  const { rateLimitUntil } = await import("../../server/app.js");
+  assert.equal(rateLimitUntil("Gemini TTS 429: Please retry in 5h4m25s or upgrade", 0), (5 * 3600 + 4 * 60 + 25) * 1000);
+  assert.equal(rateLimitUntil("Rate limit exceeded, retry in 30s", 0), 30_000);
+  assert.equal(rateLimitUntil("429 Too Many Requests", 0), 3600_000);
+  assert.equal(rateLimitUntil("ECONNRESET", 0), null);
+});

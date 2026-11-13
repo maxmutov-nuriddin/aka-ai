@@ -30,7 +30,7 @@ test("/api/downloads: mavjud fayl — hajm, SHA-256, url; yo'g'i — ready: fals
     assert.equal(mac.url, "/downloads/Jigar-mac.dmg");
     assert.equal(data.files.find((f) => f.platform === "windows").ready, false);
     assert.match(data.version, /^\d+\.\d+\.\d+$/);
-    if (data.lanUrl) assert.match(data.qr, /^<svg/);
+    if (data.phoneUrl) assert.match(data.qr, /^<svg/);
   });
 });
 
@@ -48,13 +48,19 @@ test("/downloads/:file: fayl yuklanadi (attachment); boshqa nom, traversal, yo'q
   });
 });
 
-test("/download sahifasi kirishsiz ochiladi", async () => {
+test("/download — alohida sahifa yo'q: Sozlamalar → Jigar ilovalari bo'limiga yo'naltiradi", async () => {
   await withDownloads({}, async (s) => {
-    const res = await s.raw("/download");
-    assert.equal(res.status, 200);
-    assert.match(await res.text(), /Jigar ilovalari/);
-    assert.equal((await s.raw("/download/download.js")).status, 200);
+    const res = await s.raw("/download", { redirect: "manual" });
+    assert.equal(res.status, 302);
+    assert.equal(res.headers.get("location"), "/app/?settings=apps");
   });
+});
+
+test("phoneUrlFor: serverda — domen (https), uyda — Wi-Fi IP; IP yo'q — null", async () => {
+  const { phoneUrlFor } = await import("../../server/downloads/routes.js");
+  assert.equal(phoneUrlFor({ protocol: "https", host: "jigar.example.uz" }, "10.0.0.5"), "https://jigar.example.uz/app/?settings=apps");
+  assert.equal(phoneUrlFor({ protocol: "http", host: "localhost:3100" }, "192.168.0.59"), "http://192.168.0.59:3100/app/?settings=apps");
+  assert.equal(phoneUrlFor({ protocol: "http", host: "127.0.0.1:3100" }, null), null);
 });
 
 test("Windows: .exe bo'lmasa — .zip (o'rnatishsiz) beriladi", async () => {

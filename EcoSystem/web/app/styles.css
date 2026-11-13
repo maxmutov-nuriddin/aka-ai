@@ -575,25 +575,74 @@ body.settings-open { overflow: hidden; }
 .settings-head .settings-title { margin: 0; font: 800 22px/1.2 var(--font-display); }
 .settings-back { display: inline-flex; align-items: center; gap: 4px; height: 36px; padding: 0 12px 0 8px; border-radius: 999px; }
 .settings-head .eco-status { margin-left: auto; color: var(--accent); font-size: 13px; }
-/* Ustunlar (masonry): balandligi har xil kartochkalar orasida bo'sh joy qolmaydi */
-.settings-grid { columns: 3 320px; column-gap: 16px; }
-.settings-grid .settings-card { break-inside: avoid; margin-bottom: 16px; }
+/* Chapda bo'limlar ro'yxati, o'ngda bitta bo'lim (settings-nav.js) — macOS "System Settings" kabi */
+.settings-body { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; align-items: start; }
+.settings-nav {
+  position: sticky; top: 76px; display: flex; flex-direction: column; gap: 2px; padding: 8px;
+  border-radius: var(--radius-lg); background: color-mix(in srgb, var(--surface) 70%, transparent); border: 1px solid var(--line);
+}
+.settings-nav button {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border: 0; border-radius: 10px;
+  background: none; color: var(--muted); font: 700 14px/1.2 var(--font-body, inherit); text-align: left; cursor: pointer;
+}
+.settings-nav button .ic { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.settings-nav button:hover { background: var(--glass); color: var(--text); }
+.settings-nav button[aria-current="page"] { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--text); }
+.settings-nav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.settings-grid { min-width: 0; max-width: 720px; }
 .settings-grid > .eco-settings { display: contents; }
+.settings-grid .settings-card[data-nav]:not(.is-active) { display: none; }
 .settings-card {
-  display: flex; flex-direction: column; gap: 14px; padding: 18px; border-radius: var(--radius-lg);
+  display: flex; flex-direction: column; gap: 14px; padding: 22px 24px; border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--line);
 }
-.settings-card > h3 { margin: 0; font: 800 15px/1.2 var(--font-display); color: var(--text); }
+.settings-card > h3 { margin: 0 0 4px; font: 800 20px/1.2 var(--font-display); color: var(--text); }
+/* Har sozlama — qator: chapda nomi, o'ngda tanlov (keng ekranda); qatorlar orasida ingichka chiziq */
+.settings-card .eco-field, .settings-card > .setting {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 300px); align-items: center; gap: 8px 20px;
+  padding-top: 14px; border-top: 1px solid var(--line);
+}
+.settings-card > h3 + .eco-field, .settings-card > h3 + .setting, .settings-card > h3 + .eco-device + .eco-field { border-top: 0; padding-top: 0; }
+.settings-card .eco-field > :not(.setting-label), .settings-card > .setting > :not(.setting-label) { justify-self: stretch; }
+.settings-card > .switch-row { grid-template-columns: minmax(0, 1fr) auto; }
+.settings-card .eco-field:has(> button, > ul, > code, > input[type=password]) { grid-template-columns: 1fr; }
 .settings-card > * { flex-shrink: 0; }
 .settings-card .eco-field select, .settings-card .eco-field input { width: 100%; box-sizing: border-box; }
-.apps-list { display: flex; flex-direction: column; gap: 8px; }
-.app-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border-radius: 12px; background: var(--glass); }
-.app-name { font-weight: 700; font-size: 14px; white-space: nowrap; }
-.app-get { padding: 6px 12px; border-radius: 999px; font-size: 13px; text-decoration: none; color: var(--text); border: 1px solid var(--line); }
-.app-missing { color: var(--muted); font-size: 12px; text-align: right; }
-.apps-open { text-align: center; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); color: var(--text); text-decoration: none; font-weight: 700; font-size: 13px; }
+/* Jigar ilovalari — yuklab olish markazi (settings-apps.js) */
+.apps-list { display: flex; flex-direction: column; gap: 10px; }
+.app-version { color: var(--muted); font-size: 12px; }
+.app-row { display: grid; gap: 8px; padding: 12px 14px; border-radius: 14px; background: var(--glass); border: 1px solid transparent; }
+.app-row.mine { border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
+.app-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.app-title { display: grid; gap: 2px; min-width: 0; }
+.app-name { font-weight: 800; font-size: 15px; }
+.app-note { color: var(--muted); font-size: 12px; }
+.app-get { padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: 700; text-decoration: none; color: var(--accent-ink, #fff); background: var(--accent); white-space: nowrap; }
+.app-missing { color: var(--muted); font-size: 12px; }
+.app-sha { color: var(--muted); font-size: 11px; word-break: break-all; }
+.app-help { font-size: 13px; color: var(--muted); line-height: 1.5; }
+.app-help summary { cursor: pointer; color: var(--text); font-weight: 600; }
+.app-help ol { margin: 6px 0 0; padding-left: 18px; }
+.app-qr { display: flex; gap: 14px; align-items: center; padding: 12px; border-radius: 14px; background: var(--glass); }
+.app-qr img { width: 112px; height: 112px; flex: none; padding: 6px; border-radius: 10px; background: #fff; }
+.app-qr p { margin: 0; font-size: 13px; line-height: 1.5; }
+.app-qr code { word-break: break-all; color: var(--muted); }
 .top-actions #memoryBtn { order: 4; }
 @media (max-width: 720px) {
-  .settings-grid { columns: 1; }
+  .settings-body { grid-template-columns: 1fr; gap: 12px; }
+  .settings-nav {
+    position: sticky; top: 64px; z-index: 1; flex-direction: row; overflow-x: auto; scrollbar-width: none;
+    padding: 6px; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(14px);
+  }
+  .settings-nav::-webkit-scrollbar { display: none; }
+  .settings-nav button { width: auto; flex: none; padding: 8px 12px; white-space: nowrap; }
+  .settings-card .eco-field, .settings-card > .setting { grid-template-columns: 1fr; }
+  .settings-card > .switch-row { grid-template-columns: minmax(0, 1fr) auto; }
   .settings-head .eco-status { flex-basis: 100%; margin-left: 0; }
+}
+
+/* Desktop: oyna yashirin (fonda) — interfeys chizilmaydi, GPU va protsessor tejaladi.
+   Jigar baribir eshitadi, javob beradi va gapiradi (ovoz elementlari DOM'dan tashqarida ishlaydi). */
+html.in-background .app {
+  display: none !important;
 }

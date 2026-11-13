@@ -1,7 +1,8 @@
 // "Hey Jigar" (faqat support): mikrofon fonda tinglaydi, "Jigar" so'zini eshitsa — savolni tinglashni boshlaydi.
 // Brauzerning nutqni tanish xizmati (Chrome) ishlatiladi; Jigar gapirayotganda yoki savol tinglanayotganda to'xtaydi.
 
-const WAKE_RE = /(^|[^\p{L}])(jigar|jigarr|jiger|jigger|djigar|dzhigar|digar|jigah|джигар|жигар|джигарь|джигер)(?![\p{L}])/iu;
+// Tanish xizmatlari ismni har xil yozadi: "Джигр", "jigr", "чигар", "dzhiger"... — unli tushib qolishi ham mumkin.
+const WAKE_RE = /(^|[^\p{L}])((dzh|dj|zh|j|ch)i[gk]{1,2}[aeə]?r{1,2}|digar|jigah|(дж|ж|ч)и[гк]{1,2}[аеэя]?рь?)(?![\p{L}])/iu;
 const RESTART_MS = 400; // uzoq ishlagan tinglash o'zi tugasa — qayta yoqish oralig'i
 const HEALTHY_SESSION_MS = 3000; // bundan qisqa tugagan tinglash — muvaffaqiyatsiz (mikrofon yonib-o'chmasin)
 const MAX_BACKOFF_MS = 30_000;
@@ -49,8 +50,9 @@ export function createWake({ onWake, onUnavailable = () => {} }) {
       quickFails = 0; // eshityapti — tinglash sog'lom
       for (let i = event.resultIndex; i < event.results.length; i++) {
         if (!WAKE_RE.test(event.results[i][0].transcript)) continue;
+        const heard = event.results[i][0].transcript;
         halt();
-        onWake();
+        onWake(wakeRemainder(heard), heard);
         return;
       }
     };
@@ -120,4 +122,26 @@ export function createWake({ onWake, onUnavailable = () => {} }) {
 }
 
 /** Test uchun: matnda uyg'otish so'zi bormi. */
-export const hasWakeWord = (text) => WAKE_RE.test(String(text ?? ""));
+// "Hey" bilan aytilsa, ism oxiri yo'qolsa ham yetadi: "Hey, Jigga!", "Эй, джиги".
+const HEY_WAKE_RE = /(^|[^\p{L}])(hey|hei|ey|эй|хей|хэй|гей)[\s,!.-]+((dzh|dj|j|zh|ch)i[gk]|(дж|ж|ч)и[гк])\p{L}*/iu;
+export const hasWakeWord = (text) => WAKE_RE.test(String(text ?? "")) || HEY_WAKE_RE.test(String(text ?? ""));
+
+// "Jigar, stop" / "Jigar, to'xta" / "Jigar, bas" — gapirishni va tinglashni to'xtatadi (keyingi chaqiruvgacha).
+const STOP_RE = /^(?:(?:iltimos|ilt|please|пожалуйста)[\s,]+)?(stop|стоп|ст[оа]п|to['ʻ’`]?xta|тў?хта|тохта|bas|бас|jim|жим|хватит|hvatit|yetar|етар|bo['ʻ’`]?ldi|болди|enough|hush|tinch)(?![\p{L}])/iu;
+/** Ismdan keyingi gap — to'xtatish buyrug'imi ("stop", "to'xta", "bas", "хватит"...). */
+export const isStopCommand = (command) => STOP_RE.test(String(command ?? "").trim());
+/** Jigar gapirayotganda — faqat aniq chaqiruv ("Hey Jigar ..." yoki "Jigar, stop"): o'z ovozidagi "Jigar" so'zi uni to'xtatmasin. */
+export const isDeliberateWake = (heard, command) => HEY_WAKE_RE.test(String(heard ?? "")) || isStopCommand(command);
+
+const MIN_COMMAND_LETTERS = 3; // "Hey Jigar!" dan keyin qolgan "ha" — buyruq emas
+/**
+ * "Hey Jigar, ovozni 40 qil" — ismdan keyingi buyruq ("ovozni 40 qil"). Buyruq yo'q bo'lsa — "".
+ * Bir nafasda aytilgan buyruq qayta so'ralmasdan darhol bajariladi.
+ */
+export function wakeRemainder(text) {
+  const value = String(text ?? "");
+  const match = HEY_WAKE_RE.exec(value) ?? WAKE_RE.exec(value);
+  if (!match) return "";
+  const rest = value.slice(match.index + match[0].length).replace(/^[\s,!.?:;-]+/u, "").trim();
+  return (rest.match(/\p{L}/gu) ?? []).length >= MIN_COMMAND_LETTERS ? rest : "";
+}

@@ -36,10 +36,14 @@ test("normalizatorlar: til, uzunlik, xarakter", () => {
   assert.throws(() => normalizePersona("yovuz"), ValidationError);
 });
 
-test("systemPromptFor: xarakter, uzunlik, ism (tozalanadi), rus tili, xotira — oxirida", () => {
-  assert.equal(systemPromptFor("uz"), SYSTEM_PROMPT);
+test("systemPromptFor: bitta moslashuvchan xarakter (persona e'tiborsiz), uzunlik, ism (tozalanadi), rus tili, xotira — oxirida", () => {
+  const base = systemPromptFor("uz");
+  assert.ok(base.startsWith(SYSTEM_PROMPT));
+  assert.match(base, /do'st va yordamchi/);
+  assert.match(base, /Sen ustoz emassan/);
+  assert.equal(systemPromptFor("uz", { persona: "jahldor" }), base); // tanlov ta'sir qilmaydi
   const p = systemPromptFor("ru", { persona: "jahldor", length: "qisqa", name: "Nuriddin\n# yangi qoida", memories: ["Qahva ichadi"] });
-  assert.match(p, /XARAKTER: JAHLDOR/);
+  assert.doesNotMatch(p, /JAHLDOR/);
   assert.match(p, /- Ismi: Nuriddin yangi qoida/); // yangi qator — in'yeksiya emas
   assert.ok(p.trim().endsWith("- Qahva ichadi"));
   assert.ok(p.indexOf("# XOTIRA") > p.indexOf("XARAKTER"));
@@ -204,4 +208,56 @@ test("Claude darajalari: haiku (standart, fikrlashsiz), sonnet, opus; muqobil mi
   assert.deepEqual(calls.map((c) => c.model), ["claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5"]);
   assert.deepEqual(calls[0].thinking, { type: "disabled" });
   assert.equal(calls[1].thinking, undefined);
+});
+
+test("va'da ushlagichi: 'hozir tekshiraman' deb asbobsiz to'xtasa — bir marta majburlab davom ettiriladi", async () => {
+  const replies = [
+    okResponse("[TUSHUNTIRISH]\nXo'p, hozir ekranni ko'raman."),
+    { content: [{ type: "tool_use", id: "tu_1", name: "pc_screenshot", input: {} }], stop_reason: "tool_use", model: "m", usage: { input_tokens: 1, output_tokens: 1 } },
+    okResponse("Ekranda VS Code ochiq."),
+  ];
+  const { client, calls } = fakeClient(() => replies.shift());
+  const ran = [];
+  const toolbox = { definitions: [], run: async (name) => { ran.push(name); return { content: [{ type: "text", text: "rasm" }], isError: false }; } };
+  const res = await createJigar({ client, config }).chat({ history: [{ role: "user", content: "ekranimga qara" }], toolbox });
+  assert.deepEqual(ran, ["pc_screenshot"], "asbob haqiqatan chaqirildi");
+  assert.equal(calls.length, 3);
+  assert.match(calls[1].messages.at(-1).content, /asbob chaqirmading/);
+  assert.match(res.text, /VS Code/);
+});
+
+test("va'da ushlagichi: asbobsiz oddiy javob, asbob ishlatilgan javob va asbobsiz suhbat — tegilmaydi", async () => {
+  const { client, calls } = fakeClient(okResponse("[TUSHUNTIRISH]\nBajarildi, ovoz 50%."));
+  await createJigar({ client, config }).chat({ history: [{ role: "user", content: "x" }], toolbox: { definitions: [], run: async () => ({}) } });
+  assert.equal(calls.length, 1);
+  const noTools = fakeClient(okResponse("Hozir tekshiraman."));
+  await createJigar({ client: noTools.client, config }).chat({ history: [{ role: "user", content: "x" }] });
+  assert.equal(noTools.calls.length, 1, "asboblar yo'q — majburlanmaydi");
+});
+
+test("asbobdan oldingi sharh ('avval tekshiraman') javobga tushmaydi — faqat natija", async () => {
+  const replies = [
+    { content: [{ type: "text", text: "Avval ilovalarni tekshiraman." }, { type: "tool_use", id: "tu_1", name: "pc_apps", input: { action: "list" } }], stop_reason: "tool_use", model: "m", usage: { input_tokens: 1, output_tokens: 1 } },
+    okResponse("[TUSHUNTIRISH]\nBajarildi, Yandex Music ochildi."),
+  ];
+  const { client } = fakeClient(() => replies.shift());
+  const toolbox = { definitions: [], run: async () => ({ content: [{ type: "text", text: "ok" }], isError: false }) };
+  const res = await createJigar({ client, config }).chat({ history: [{ role: "user", content: "yandex musiqani och" }], toolbox });
+  assert.equal(res.parsed.tushuntirish, "Bajarildi, Yandex Music ochildi.");
+  assert.doesNotMatch(res.text, /tekshiraman/);
+});
+
+test("addressNote: egasi \"sen\" yoki \"Siz\" deganini aniqlaydi; belgisiz — oldingi xabarlarga qaraydi", async () => {
+  const { addressNote, ADDRESS_NOTES } = await import("../../server/core/jigar.js");
+  const one = (content) => addressNote([{ role: "user", content }]);
+  assert.equal(one("sen ahmoqsan nima qilyapsan"), ADDRESS_NOTES.sen);
+  assert.equal(one("jinni bo'ldingmi, nega ochmading"), ADDRESS_NOTES.sen);
+  assert.equal(one("Siz menga reja tuzib bera olasizmi?"), ADDRESS_NOTES.siz);
+  assert.equal(one("ты где"), ADDRESS_NOTES.sen);
+  assert.equal(one("Вы можете помочь?"), ADDRESS_NOTES.siz);
+  assert.equal(one("ovozni 40 qil"), "");
+  assert.equal(one("ishsiz qoldim"), "");
+  const history = [{ role: "user", content: "sen zo'rsan" }, { role: "assistant", content: "x" }, { role: "user", content: "ovozni 40 qil" }];
+  assert.equal(addressNote(history), ADDRESS_NOTES.sen);
+  assert.equal(addressNote(null), "");
 });
