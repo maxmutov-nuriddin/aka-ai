@@ -17,6 +17,43 @@ const MIN_RECORDING_MS = 400; // bundan qisqasi — tasodifiy bosish
 const MAX_RECORDING_MS = 60_000;
 // Brauzer tanishi: gap o'rtasidagi qisqa pauzada uzilmaydi, shuncha jimlikdan keyin yuboradi.
 const SILENCE_AFTER_SPEECH_MS = 1000;
+// Qo'lsiz tinglash ("Hey Jigar"dan keyin, server tanishi): gap tugagach o'zi to'xtaydi — tugma bosish shart emas.
+const AUTO_STOP = { threshold: 0.018, silenceMs: 1100, noSpeechMs: 7000, frameMs: 50 };
+
+/**
+ * Yozuv paytida ovoz darajasini kuzatadi: gapirilgach silenceMs jimlik — onSilence; umuman gapirilmasa (noSpeechMs) — onNoSpeech.
+ * Qaytaradi: kuzatuvni to'xtatuvchi funksiya.
+ */
+function watchSilence(stream, { onSilence, onNoSpeech }) {
+  const ctx = new AudioContext();
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 1024;
+  ctx.createMediaStreamSource(stream).connect(analyser);
+  const samples = new Float32Array(analyser.fftSize);
+  const startedAt = performance.now();
+  let spoke = false;
+  let quietSince = null;
+  const timer = setInterval(() => {
+    analyser.getFloatTimeDomainData(samples);
+    const level = Math.sqrt(samples.reduce((sum, v) => sum + v * v, 0) / samples.length);
+    const now = performance.now();
+    if (level >= AUTO_STOP.threshold) {
+      spoke = true;
+      quietSince = null;
+      return;
+    }
+    if (!spoke) {
+      if (now - startedAt >= AUTO_STOP.noSpeechMs) onNoSpeech();
+      return;
+    }
+    quietSince ??= now;
+    if (now - quietSince >= AUTO_STOP.silenceMs) onSilence();
+  }, AUTO_STOP.frameMs);
+  return () => {
+    clearInterval(timer);
+    ctx.close().catch(() => {});
+  };
+}
 const WAIT_FOR_SPEECH_MS = 8000;
 // Brauzer ovozi (zaxira) uchun xarakter ohangi. ElevenLabs'dagi ohang serverda (voiceSettingsFor).
 const BROWSER_TONE = {
@@ -204,13 +241,14 @@ export function createVoice({
     if (alt.split(/\s+/).filter(Boolean).length >= MIN_ALT_ONLY_WORDS) return onFinal(alt, "");
   }
 
-  function listen() {
+  /** auto: true — qo'lsiz ("Hey Jigar"): server tanishida gap tugagach yozuv o'zi to'xtaydi. */
+  function listen({ auto = false } = {}) {
     listenToken += 1;
     warmUpAudio(); // foydalanuvchi bosgan paytda — keyin Jigar ovozini o'lchash uchun
     stopSpeaking();
     stopListening({ send: false });
     // Til o'rganishda nutq ikki tilda — brauzer tanishi bitta tilda ishlaydi, shuning uchun server (Scribe) tinglaydi.
-    if ((serverStt || (style.pronunciation && sttAvailable)) && canRecord) return startRecording();
+    if ((serverStt || (style.pronunciation && sttAvailable)) && canRecord) return startRecording(auto);
     if (Recognition) return startRecognition();
   }
 
@@ -228,7 +266,7 @@ export function createVoice({
     onState("idle");
   }
 
-  async function startRecording() {
+  async function startRecording(auto = false) {
     const session = { cancelled: false };
     recording = session;
     onState("listening");
@@ -245,6 +283,12 @@ export function createVoice({
       Object.assign(session, { recorder, stream, startedAt: Date.now() });
       session.timer = setTimeout(() => finishRecording(true), MAX_RECORDING_MS);
       recorder.start();
+      if (auto) {
+        session.stopMonitor = watchSilence(stream, {
+          onSilence: () => recording === session && finishRecording(true),
+          onNoSpeech: () => recording === session && finishRecording(false),
+        });
+      }
     } catch (err) {
       recording = null;
       onState("idle");
@@ -262,6 +306,7 @@ export function createVoice({
     if (!session) return;
     recording = null;
     clearTimeout(session.timer);
+    session.stopMonitor?.();
     const tooShort = Date.now() - (session.startedAt ?? Date.now()) < MIN_RECORDING_MS;
     session.cancelled = !send || tooShort;
     if (session.recorder?.state === "recording") session.recorder.stop();

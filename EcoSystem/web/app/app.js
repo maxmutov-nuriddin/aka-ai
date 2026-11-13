@@ -98,7 +98,7 @@ const wakeHandlers = {
       return;
     }
     if (command) return handleSpoken(command);
-    voice.listen();
+    voice.listen({ auto: true }); // gap tugagach o'zi to'xtaydi va darhol javob beradi
   },
   // Fonda tinglash ishlamadi (masalan, desktop ilovada Google nutq xizmati yo'q) — o'chiramiz, mikrofon yonib-o'chmasin.
   // Desktop'da bu holat saqlanmaydi: vaqtinchalik xato (ruxsat, server) "Hey Jigar"ni butunlay o'chirib qo'ymasin —
@@ -514,7 +514,7 @@ function setBusy(busy) {
   if (!busy && state.afterBusy) {
     const next = state.afterBusy;
     state.afterBusy = null;
-    queueMicrotask(() => (next === LISTEN_NEXT ? voice.listen() : handleSpoken(next)));
+    queueMicrotask(() => (next === LISTEN_NEXT ? voice.listen({ auto: true }) : handleSpoken(next)));
   }
   window.jigarDesktop?.status(busy ? "thinking" : voiceState); // tray: javob tayyorlanmoqda
   el.send.disabled = busy || state.finished;
@@ -857,7 +857,7 @@ const voice = createVoice({
         if (!granted) return showError(detail ? `${t("err.micDeniedDesktop")} [${detail}]` : t("err.micDeniedDesktop"));
         showError("");
         resumeWakeAfterGrant();
-        voice.listen();
+        voice.listen({ auto: true });
       }, () => showError(t("err.micDeniedDesktop")));
       return;
     }
