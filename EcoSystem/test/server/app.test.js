@@ -112,17 +112,18 @@ test("/api/settings: miya, ovoz, chuqurlik — saqlanadi va chatga o'tadi; noto'
   const seen = [];
   const gemini = tts("G");
   const eleven = tts("E");
-  const s = await startServer({ jigar: spyJigar(seen), ttsProviders: { gemini, elevenlabs: eleven }, stt, env: { ECO_LLM: "claude", ECO_TTS: "gemini" } });
+  const s = await startServer({ jigar: spyJigar(seen), ttsProviders: { gemini, elevenlabs: eleven }, stt, env: { ECO_TTS: "gemini" } });
   try {
     const put = (body) => s.raw("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const first = await (await s.raw("/api/settings")).json();
-    assert.equal(first.llm, "claude");
+    assert.equal(first.llm, "haiku", "standart — Haiku");
+    assert.deepEqual(first.choices.llm.slice(0, 3), ["haiku", "sonnet", "opus"]);
     assert.equal(first.ready.tts.fishaudio, false); // kaliti yo'q
-    const next = await (await put({ llm: "haiku", tts: "elevenlabs", effort: "high" })).json();
-    assert.deepEqual([next.llm, next.tts, next.effort], ["haiku", "elevenlabs", "high"]);
+    const next = await (await put({ llm: "sonnet", tts: "elevenlabs", effort: "high" })).json();
+    assert.deepEqual([next.llm, next.tts, next.effort], ["sonnet", "elevenlabs", "high"]);
     assert.equal((await put({ llm: "gpt-9" })).status, 400);
     await s.post("/api/chat", { history: [{ role: "user", content: "x" }] });
-    assert.equal(seen[0].llm, "haiku");
+    assert.equal(seen[0].llm, "sonnet");
     assert.equal(seen[0].effort, "high");
     const audio = await s.post("/api/tts", { text: "Salom" });
     assert.equal(Buffer.from(await audio.arrayBuffer()).toString(), "E"); // tanlangan ovoz — ElevenLabs

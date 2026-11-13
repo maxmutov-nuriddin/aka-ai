@@ -550,3 +550,11 @@ code { font: 0.92em ui-monospace, monospace; background: rgba(255, 255, 255, 0.0
 .nudge { border-left: 3px solid var(--accent); }
 .nudge h3 { font-size: 13px; }
 .eco-device { color: var(--muted); font-size: 12px; }
+.eco-download { display: block; text-align: center; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); color: var(--text); text-decoration: none; font-weight: 700; font-size: 13px; }
+.eco-agent { display: flex; flex-direction: column; gap: 12px; }
+.eco-tokens { margin: 0; padding-left: 18px; font-size: 12px; color: var(--muted); }
+.eco-tokens .link { background: none; border: 0; color: var(--danger, #ff5d6c); cursor: pointer; font-size: 12px; padding: 0; }
+.eco-token-new { display: block; padding: 8px; border-radius: 8px; background: var(--glass); word-break: break-all; font-size: 12px; user-select: all; }
+.eco-stop { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--danger, #ff5d6c); background: color-mix(in srgb, var(--danger, #ff5d6c) 18%, transparent); color: var(--text); font-weight: 800; }
+.nudge-alert { border-left-color: var(--danger, #ff5d6c); }
+.nudge-countdown { border-left-color: #f5a524; }

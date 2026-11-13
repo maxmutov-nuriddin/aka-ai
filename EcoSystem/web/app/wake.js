@@ -1,13 +1,15 @@
 // "Hey Jigar" (faqat support): mikrofon fonda tinglaydi, "Jigar" so'zini eshitsa — savolni tinglashni boshlaydi.
 // Brauzerning nutqni tanish xizmati (Chrome) ishlatiladi; Jigar gapirayotganda yoki savol tinglanayotganda to'xtaydi.
 
-const WAKE_RE = /(^|[^\p{L}])(jigar|jigarr|jiger|djigar|digar|джигар|жигар|джигарь)(?![\p{L}])/iu;
+const WAKE_RE = /(^|[^\p{L}])(jigar|jigarr|jiger|jigger|djigar|dzhigar|digar|jigah|джигар|жигар|джигарь|джигер)(?![\p{L}])/iu;
 const RESTART_MS = 400; // uzoq ishlagan tinglash o'zi tugasa — qayta yoqish oralig'i
 const HEALTHY_SESSION_MS = 3000; // bundan qisqa tugagan tinglash — muvaffaqiyatsiz (mikrofon yonib-o'chmasin)
 const MAX_BACKOFF_MS = 30_000;
-const MAX_QUICK_FAILS = 5; // ketma-ket shuncha tez uzilish — bu qurilmada ishlamaydi, to'xtatamiz
-// Tuzalmaydigan xatolar: ruxsat yo'q, til yoki xizmat yo'q (Electron'da Google nutq xizmati yo'q — "network").
-const FATAL_ERRORS = new Set(["not-allowed", "service-not-allowed", "language-not-supported", "network", "audio-capture"]);
+// Tuzalmaydigan xatolar: ruxsat yoki til yo'q. "network" — faqat desktop ilovada (Electron'da Google nutq xizmati
+// umuman yo'q); brauzerda u vaqtinchalik — tashlab ketmaymiz, kutib qayta urinamiz (aks holda "eshitmay qoladi").
+const FATAL_ERRORS = new Set(["not-allowed", "service-not-allowed", "language-not-supported"]);
+const IS_DESKTOP_APP = /\bElectron\/|JigarDesktop\//.test(globalThis.navigator?.userAgent ?? "");
+const isFatal = (error) => FATAL_ERRORS.has(error) || (IS_DESKTOP_APP && error === "network");
 const LOCALES = { uz: "uz-UZ", ru: "ru-RU" };
 
 /** Ketma-ket tez uzilishlardan keyingi kutish: 1 s, 2 s, 4 s ... 30 s gacha. */
@@ -44,6 +46,7 @@ export function createWake({ onWake, onUnavailable = () => {} }) {
     const startedAt = Date.now();
     let fatal = null;
     r.onresult = (event) => {
+      quickFails = 0; // eshityapti — tinglash sog'lom
       for (let i = event.resultIndex; i < event.results.length; i++) {
         if (!WAKE_RE.test(event.results[i][0].transcript)) continue;
         halt();
@@ -52,15 +55,14 @@ export function createWake({ onWake, onUnavailable = () => {} }) {
       }
     };
     r.onerror = (event) => {
-      if (FATAL_ERRORS.has(event.error)) fatal = event.error;
+      if (isFatal(event.error)) fatal = event.error;
     };
     r.onend = () => {
       if (recognition === r) recognition = null;
       if (!wanted || paused) return;
       if (fatal) return giveUp(fatal);
       quickFails = Date.now() - startedAt < HEALTHY_SESSION_MS ? quickFails + 1 : 0;
-      if (quickFails >= MAX_QUICK_FAILS) return giveUp("unstable");
-      timer = setTimeout(begin, backoffDelay(quickFails));
+      timer = setTimeout(begin, backoffDelay(quickFails)); // tez uzilsa — kutish oshadi (≤ 30 s), lekin to'xtamaydi
     };
     recognition = r;
     try {
@@ -79,6 +81,13 @@ export function createWake({ onWake, onUnavailable = () => {} }) {
       /* allaqachon to'xtagan */
     }
   }
+
+  // Sahifaga qaytilganda (fon tabdan) — kutmasdan qayta tinglash.
+  globalThis.document?.addEventListener?.("visibilitychange", () => {
+    if (document.visibilityState !== "visible" || !wanted || paused || recognition) return;
+    quickFails = 0;
+    begin();
+  });
 
   return {
     supported: Boolean(Recognition),
@@ -104,6 +113,7 @@ export function createWake({ onWake, onUnavailable = () => {} }) {
     },
     resume() {
       paused = false;
+      quickFails = 0;
       begin();
     },
   };

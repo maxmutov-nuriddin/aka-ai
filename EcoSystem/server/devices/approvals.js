@@ -3,13 +3,16 @@
 import { randomUUID } from "node:crypto";
 
 export const APPROVAL_TIMEOUT_MS = 120_000; // javob bo'lmasa — rad etilgan hisoblanadi
+export const DEFERRED_TTL_MS = 30 * 60_000; // kechiktirilgan tasdiq (Siri, fon vazifasi) — shuncha vaqt kutadi
 
 /**
  * @param {{ timeoutMs?: number }} [options]
  */
-export function createApprovals({ timeoutMs = APPROVAL_TIMEOUT_MS } = {}) {
+export function createApprovals({ timeoutMs = APPROVAL_TIMEOUT_MS, deferredTtlMs = DEFERRED_TTL_MS, now = Date.now } = {}) {
   /** id -> { userId, resolve, timer } */
   const waiting = new Map();
+  /** Kechiktirilgan: id -> { userId, run, expiresAt } — so'rov tugagan, "Ha" bosilsa amal shu yerda bajariladi. */
+  const deferred = new Map();
 
   return {
     /**
@@ -29,8 +32,26 @@ export function createApprovals({ timeoutMs = APPROVAL_TIMEOUT_MS } = {}) {
       return { id, decision };
     },
 
+    /**
+     * Kechiktirilgan tasdiq: chaqiruvchi kutmaydi (Siri, fon vazifasi). "Ha" bosilganda run() bajariladi.
+     * @param {() => Promise<void>} run
+     * @returns {string} id (ilovadagi tasdiq kartasi uchun)
+     */
+    defer(userId, run) {
+      const id = randomUUID();
+      for (const [key, entry] of deferred) if (entry.expiresAt < now()) deferred.delete(key);
+      deferred.set(id, { userId, run, expiresAt: now() + deferredTtlMs });
+      return id;
+    },
+
     /** Egasining javobi. Boshqa foydalanuvchining yoki muddati o'tgan so'rov — false. */
     answer(userId, id, approve) {
+      const later = deferred.get(String(id));
+      if (later && later.userId === userId && later.expiresAt >= now()) {
+        deferred.delete(String(id));
+        if (approve === true) later.run().catch(() => {}); // natija nudge va jurnal orqali egasiga yetadi
+        return true;
+      }
       const entry = waiting.get(String(id));
       if (!entry || entry.userId !== userId) return false;
       waiting.delete(String(id));

@@ -1,15 +1,26 @@
 // EcoSystem sozlamalari (Sozlamalar oynasida): miya, ovoz xizmati, javob chuqurligi, Jigar xarakteri,
 // faol rejim (ekranga o'zi qaraydi), kunlik xulosa va kompyuter holati.
 import { deviceStatusText } from "./pc-actions.js";
+import { agentSection } from "./eco-agent.js";
 // Server: GET/PUT /api/settings (server/settings.js), xarakter — PUT /api/auth/profile.
 
 const PROFILE_KEY = "jigar.profile";
 const LABELS = {
-  llm: { claude: "Claude Opus", haiku: "Claude Haiku (arzon)", gemini: "Gemini", openai: "OpenAI" },
+  llm: {
+    haiku: "Claude Haiku — standart (tez, arzon)", sonnet: "Claude Sonnet — kuchliroq",
+    opus: "Claude Opus — eng kuchli (hozircha ishlatilmaydi)", gemini: "Gemini", openai: "OpenAI",
+  },
   tts: { gemini: "Gemini", elevenlabs: "ElevenLabs", fishaudio: "Fish Audio", openai: "OpenAI" },
   effort: { low: "Tez", medium: "O'rtacha", high: "Chuqur" },
   proactive: { on: "Yoqiq", off: "O'chiq" },
   briefs: { on: "Yoqiq", off: "O'chiq" },
+  monitor: { on: "Yoqiq", off: "O'chiq" },
+  access: {
+    safe: "Xavfsiz — uy papkasi, har ishga «Ha»",
+    wide: "Keng — butun disk",
+    full: "To'liq — «Ha» faqat xavfli ishlarga",
+    unlimited: "Cheksiz — 1 soat (parol bilan)",
+  },
   length: { qisqa: "Qisqa", odatiy: "O'rtacha", batafsil: "Batafsil" },
   persona: {
     "": "Standart", neytral: "Neytral", mehribon: "Mehribon", kinoyali: "Kinoyali",
@@ -19,6 +30,7 @@ const LABELS = {
 const TITLES = {
   llm: "Miya", tts: "Ovoz", effort: "Javob chuqurligi", length: "Javob uzunligi", persona: "Xarakter",
   proactive: "Faol rejim (ekranga o'zi qarab maslahat beradi)", briefs: "Ertalabki reja va kechki xulosa",
+  monitor: "Kuzatish: batareya, disk, protsessor", access: "Ruxsat darajasi (Jigar kompyuterda nimalar qila oladi)",
 };
 
 /** Saqlangan profil (til, uzunlik, xarakter) — bitta maydon o'zgarganda qolganlari saqlanib qolsin. */
@@ -74,12 +86,15 @@ export async function mountEcoSettings(container, { apiBase, authHeaders, person
       opt.selected = option === (value ?? "");
       select.append(opt);
     }
+    let previous = select.value;
     select.addEventListener("change", async () => {
       select.disabled = true;
       try {
         await onChange(select.value);
+        previous = select.value;
         status.textContent = "Saqlandi ✓";
       } catch (err) {
+        select.value = previous; // saqlanmadi — eski tanlov qaytadi
         status.textContent = err.message;
       } finally {
         select.disabled = false;
@@ -91,6 +106,16 @@ export async function mountEcoSettings(container, { apiBase, authHeaders, person
 
   const saveSetting = (key) => async (value) => {
     state = await request("/api/settings", "PUT", { [key]: value });
+  };
+  /** Ruxsat darajasi: cheksiz — parol bilan (server tekshiradi), 1 soatdan keyin o'zi "to'liq"ga qaytadi. */
+  const saveAccess = async (value) => {
+    const body = { access: value };
+    if (value === "unlimited") {
+      const password = window.prompt("Cheksiz rejim (1 soat): Jigar hech narsa so'ramasdan ishlaydi. Parolingizni kiriting:");
+      if (!password) throw new Error("Bekor qilindi.");
+      body.password = password;
+    }
+    state = await request("/api/settings", "PUT", body);
   };
   const saveProfileField = (key) => async (value) => {
     const { user } = await request("/api/auth/profile", "PUT", { profile: { ...savedProfile(), [key]: value || null } });
@@ -132,8 +157,17 @@ export async function mountEcoSettings(container, { apiBase, authHeaders, person
   device.className = "eco-device";
   deviceStatusText({ apiBase, authHeaders, t }).then((text) => { device.textContent = text; });
 
+  // Ilovalarni yuklab olish sahifasi (macOS, Windows, Android, iPhone) — yangi oynada.
+  const downloads = document.createElement("a");
+  downloads.className = "ghost eco-download";
+  downloads.href = `${apiBase()}/download`;
+  downloads.target = "_blank";
+  downloads.rel = "noopener";
+  downloads.textContent = "📥 Ilovalarni yuklab olish";
+
   container.replaceChildren(
     device,
+    downloads,
     field("llm", state.llm, state.choices.llm, state.ready.llm, saveSetting("llm")),
     field("tts", state.tts, state.choices.tts, state.ready.tts, saveSetting("tts")),
     field("effort", state.effort, state.choices.effort, null, saveSetting("effort")),
@@ -141,6 +175,9 @@ export async function mountEcoSettings(container, { apiBase, authHeaders, person
     field("persona", persona ?? "", Object.keys(LABELS.persona), null, saveProfileField("persona")),
     field("proactive", state.proactive, ["on", "off"], null, saveSetting("proactive")),
     field("briefs", state.briefs, ["on", "off"], null, saveSetting("briefs")),
+    field("monitor", state.monitor, ["on", "off"], null, saveSetting("monitor")),
+    field("access", state.access, state.choices.access ?? Object.keys(LABELS.access), null, saveAccess),
+    agentSection({ apiBase, authHeaders, status }),
     passwordField(),
     status,
   );

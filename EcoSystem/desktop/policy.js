@@ -36,28 +36,37 @@ function expand(input, home) {
   return path.isAbsolute(input) ? input : path.join(home, input);
 }
 
+// Ruxsat darajalari (server/agent/access.js): safe — uy papkasi; wide — butun disk (maxfiylardan tashqari);
+// full / unlimited — cheklovsiz (egasi tanlagan; qaytarib bo'lmaydigan ishlar — server "Ha" so'raydi).
+const OPEN_LEVELS = new Set(["full", "unlimited"]);
+
 /**
- * Yo'lni tekshiradi: uy papkasi ichida va maxfiy emas.
+ * Yo'lni tekshiradi: darajaga qarab — uy papkasi ichida va maxfiy emas.
  * @returns {{ ok: true, path: string } | { ok: false, error: string }}
  */
-function resolveSafePath(input, home = os.homedir()) {
+function resolveSafePath(input, home = os.homedir(), level = "safe") {
   const raw = typeof input === "string" ? input.trim() : "";
   if (!raw) return { ok: false, error: "Yo'l berilmagan." };
   if (raw.length > PATH_MAX || raw.includes("\0")) return { ok: false, error: "Yo'l noto'g'ri." };
   const full = path.resolve(expand(raw, home));
+  if (OPEN_LEVELS.has(level)) return { ok: true, path: full };
   const rel = path.relative(home, full);
-  if (rel.startsWith("..") || path.isAbsolute(rel)) return { ok: false, error: "Faqat uy papkasi ichidagi fayllar ochiq." };
-  const parts = rel.split(path.sep).filter(Boolean);
+  const outside = rel.startsWith("..") || path.isAbsolute(rel);
+  if (outside && level !== "wide") return { ok: false, error: "Faqat uy papkasi ichidagi fayllar ochiq (Sozlamalarda ruxsat darajasini oshirish mumkin)." };
+  const parts = (outside ? full : rel).split(path.sep).filter(Boolean);
   if (parts.some((p) => BLOCKED_DIRS.has(p))) return { ok: false, error: "Bu maxfiy papka — Jigar unga kirmaydi." };
   if (parts.length && BLOCKED_FILE_RE.test(parts[parts.length - 1])) return { ok: false, error: "Bu maxfiy fayl (kalit, parol yoki .env) — Jigar uni ochmaydi." };
   return { ok: true, path: full };
 }
 
-/** Buyruqni tekshiradi. Qaytaradi: xato matni yoki null (ruxsat). */
-function checkCommand(command) {
+/** Buyruqni tekshiradi (darajaga qarab). Qaytaradi: xato matni yoki null (ruxsat). */
+function checkCommand(command, level = "safe") {
   const cmd = typeof command === "string" ? command.trim() : "";
   if (!cmd) return "Buyruq bo'sh.";
   if (cmd.length > COMMAND_MAX) return "Buyruq juda uzun.";
+  // sudo parol so'raydi va fonda osilib qoladi — har darajada.
+  if (/\bsudo\b/i.test(cmd)) return "sudo fonda ishlamaydi (parol so'raydi) — egasidan o'zi bajarishini so'ra.";
+  if (OPEN_LEVELS.has(level)) return null;
   if (BLOCKED_COMMANDS.some((re) => re.test(cmd))) return "Bu buyruq xavfli (administrator huquqi yoki tizimni buzishi mumkin) — Jigar uni bajarmaydi.";
   return null;
 }
@@ -66,14 +75,14 @@ function checkCommand(command) {
  * pc_open nishoni: veb manzil, ilova nomi yoki fayl/papka yo'li.
  * @returns {{ kind: "url" | "app" | "path", value: string } | { error: string }}
  */
-function classifyOpenTarget(target, home = os.homedir()) {
+function classifyOpenTarget(target, home = os.homedir(), level = "safe") {
   const value = typeof target === "string" ? target.trim() : "";
   if (!value) return { error: "Nima ochilishi berilmagan." };
   if (/^(https?:\/\/|mailto:)/i.test(value)) return { kind: "url", value };
   if (/^[a-z][a-z0-9+.-]*:/i.test(value) && !/^[a-z]:[\\/]/i.test(value)) return { error: "Faqat http(s) manzillar ochiladi." };
   const looksLikePath = /^[~/\\.]/.test(value) || /^[a-z]:[\\/]/i.test(value) || value.includes("/") || value.includes("\\");
   if (looksLikePath) {
-    const safe = resolveSafePath(value, home);
+    const safe = resolveSafePath(value, home, level);
     if (!safe.ok) return { error: safe.error };
     if (EXECUTABLE_RE.test(safe.path)) return { error: "Dastur yoki skript faylini ochish — faqat buyruq orqali (ruxsat bilan)." };
     return { kind: "path", value: safe.path };
@@ -82,4 +91,7 @@ function classifyOpenTarget(target, home = os.homedir()) {
   return { error: "Ilova nomi noto'g'ri." };
 }
 
-module.exports = { resolveSafePath, checkCommand, classifyOpenTarget };
+/** Ilova nomi AppleScript/PowerShell ichiga qo'yiladi — faqat xavfsiz belgilar (qo'shtirnoq, \\, ; yo'q). */
+const isSafeAppName = (name) => typeof name === "string" && APP_NAME_RE.test(name.trim());
+
+module.exports = { resolveSafePath, checkCommand, classifyOpenTarget, isSafeAppName };

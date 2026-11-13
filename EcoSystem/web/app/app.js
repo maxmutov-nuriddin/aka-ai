@@ -7,6 +7,11 @@ import { createSpeechFeed } from "./speech-feed.js";
 import { readPageFile, PageFileError } from "./page-file.js";
 import { createAssistant, fileButton, formatDue, renderAssistantPanel } from "./assistant.js";
 import { createWake } from "./wake.js";
+import { createServerWake } from "./wake-server.js";
+import { startPhoneAgent } from "./phone-agent.js";
+
+// Desktop ilova (Electron): brauzer nutq xizmati (Google) yo'q — tinglash server orqali (ElevenLabs Scribe).
+const IS_DESKTOP_APP = /JigarDesktop\//.test(navigator.userAgent);
 import { mountEcoSettings } from "./eco-settings.js";
 import { confirmCard, createNudgeWatcher, nudgeCard } from "./pc-actions.js";
 import { createPhoneScreen } from "./phone-screen.js";
@@ -67,7 +72,7 @@ const avatar = createAvatar($("avatar"));
 const caption = createCaption($("caption"));
 const camera = createCamera({ video: el.lensVideo }); // Jigarning "ko'zi" — pastda: tugmalar
 // "Hey Jigar" (support): "Jigar" so'zi eshitilsa — savolni tinglash boshlanadi. Yoqish — sozlamalarda.
-const wake = createWake({
+const wakeHandlers = {
   onWake() {
     if (state.busy || state.finished || !voice.supported.listen) return;
     state.lastInput = "voice";
@@ -80,7 +85,10 @@ const wake = createWake({
     $("wakeToggle").checked = false;
     showError(t("asst.wakeOff"));
   },
-});
+};
+const wake = IS_DESKTOP_APP
+  ? createServerWake({ ...wakeHandlers, apiBase: () => host.apiBase, authHeaders: () => authHeaders() })
+  : createWake(wakeHandlers);
 let pageFile = null; // veb-rejim, yuklangan darslik: { kind, name, dataUrl } — pastda: "Darslik fayli"
 
 let state = freshState();
@@ -1057,6 +1065,7 @@ function renderSupport(user) {
   if (isSupport) {
     assistant.start(); // eslatmalar vaqtida keladi
     nudgeWatcher.start(); // Jigar o'zi aytgan gaplar (ekranga qarab maslahat, kunlik xulosa)
+    startPhoneAgent({ apiBase: () => host.apiBase, authHeaders }); // Android ilovada — telefon Jigar'ga ulanadi
     $("wakeToggle").checked = Boolean(prefs.wake) && wake.supported;
     $("wakeToggle").disabled = !wake.supported;
     wake.setEnabled(prefs.wake, prefs.lang);
@@ -1212,7 +1221,8 @@ async function loadVoiceConfig() {
     if (!res.ok) return;
     const config = await res.json();
     // Brauzer tanishi bo'lsa — u (aniqroq); server tanishi faqat brauzerda yo'q bo'lsa yoki AKA_STT=elevenlabs.
-    voice.useServerStt(config.stt && (config.preferServerStt || !voice.hasBrowserRecognition), config.stt);
+    // Desktop ilovada brauzer tanishi bor ko'rinadi, lekin ishlamaydi (Google xizmati yo'q) — doim server.
+    voice.useServerStt(config.stt && (IS_DESKTOP_APP || config.preferServerStt || !voice.hasBrowserRecognition), config.stt);
     // Chrome tinglaganda Scribe ham eshitadi — Jigar ikkala variantdan to'g'ri savolni tiklaydi.
     voice.useDoubleCheck(config.doubleCheck && !voice.pushToTalk);
   } catch {
@@ -1268,7 +1278,7 @@ const nudgeWatcher = createNudgeWatcher({
   apiBase: () => host.apiBase,
   authHeaders,
   onNudge(nudge) {
-    el.chat.appendChild(nudgeCard(nudge, t));
+    el.chat.appendChild(nudgeCard(nudge, t, postApi));
     scrollDown();
     if (document.hidden && "Notification" in window && Notification.permission === "granted") {
       try {

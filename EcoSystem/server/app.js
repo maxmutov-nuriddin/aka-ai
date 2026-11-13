@@ -21,13 +21,21 @@ import { openDatabase } from "./db/database.js";
 import { createAuthStore, OWNER_EMAIL } from "./auth/store.js";
 import { createAssistantStore } from "./assistant/store.js";
 import { createEcoSettings, LLM_CHOICES, TTS_CHOICES, EFFORT_CHOICES } from "./settings.js";
+import { ACCESS_LEVELS } from "./agent/access.js";
 import { createAssistantRouter, tashkentNowNote } from "./assistant/routes.js";
 import { createDeviceHub } from "./devices/hub.js";
 import { createApprovals } from "./devices/approvals.js";
-import { createPcToolbox } from "./devices/tools.js";
+import { createToolbox } from "./agent/toolbox.js";
+import { createJournal } from "./agent/journal.js";
+import { createWatchStore } from "./agent/watches.js";
+import { createProjects, createScenarios, createApiTokens } from "./agent/records.js";
+import { createAgentScheduler } from "./agent/scheduler.js";
+import { createAgentRouter } from "./agent/routes.js";
 import { createDeviceRouter } from "./devices/routes.js";
 import { createNudgeStore } from "./proactive/store.js";
 import { createProactive } from "./proactive/scheduler.js";
+import { createDownloadsRouter } from "./downloads/routes.js";
+import { readFileSync } from "node:fs";
 import { authenticate, requireUser, requireUserPage } from "./auth/session.js";
 import { createAuthRouter } from "./auth/routes.js";
 import { cors } from "./http/cors.js";
@@ -42,14 +50,22 @@ const RECENT_NUDGE_MS = 60 * 60_000; // Jigar o'zi aytgan gaplar shuncha vaqt su
 const RECENT_NUDGE_COUNT = 2;
 const NUDGE_NOTE_CHARS = 150;
 const MOBILE_UA_RE = /Android|iPhone|iPad|Mobile/i;
+const DESKTOP_UA_RE = /JigarDesktop\/([A-Za-z0-9_-]{4,64})/; // desktop ilova oynasi o'z qurilma id'sini qo'shadi
+
+/** Chat qaysi desktop qurilmadan yozilgan (User-Agent'dagi belgi) yoki null. */
+export const desktopDeviceId = (userAgent) => DESKTOP_UA_RE.exec(String(userAgent ?? ""))?.[1] ?? null;
 
 /**
- * Oxirgi xabarga izoh: vaqt, kompyuter holati, qayerdan yozilgani, Jigar yaqinda o'zi aytgan gaplar.
- * @param {{ device: {name: string, platform: string} | null, mobile: boolean, recentNudges: string[] }} parts
+ * Oxirgi xabarga izoh: vaqt, ulangan qurilmalar, qayerdan yozilgani, Jigar yaqinda o'zi aytgan gaplar.
+ * @param {{ devices: {name: string, platform: string}[], current?: {name: string} | null, mobile: boolean,
+ *           recentNudges: string[] }} parts
  */
-export function contextNote({ device, mobile, recentNudges }, now = new Date()) {
+export function contextNote({ devices = [], current = null, mobile, recentNudges }, now = new Date()) {
   const lines = [tashkentNowNote(now)];
-  lines.push(device ? `Kompyuter ulangan: ${device.name} (${device.platform}), pc_* asboblari bor` : "Kompyuter ulanmagan");
+  lines.push(devices.length
+    ? `Ulangan qurilmalar: ${devices.map((d) => `${d.name} (${d.platform})`).join(", ")}; pc_* asboblari bor`
+    : "Kompyuter ulanmagan");
+  if (current) lines.push(`Xabar shu qurilmadan yozildi: ${current.name}`);
   if (mobile) lines.push("Xabar telefondan yozildi");
   for (const text of recentNudges) lines.push(`Sen o'zing yaqinda aytgan eding: "${text.slice(0, NUDGE_NOTE_CHARS)}"`);
   return lines.join(". ");
@@ -122,6 +138,15 @@ export function isLocalRequest(req) {
   return LOOPBACK.has(req.socket?.remoteAddress) && !req.get("x-forwarded-for") && LOCAL_HOST_RE.test(req.get("host") || "");
 }
 
+/** Desktop ilova versiyasi (yuklab olish sahifasida ko'rsatiladi). */
+function desktopVersion() {
+  try {
+    return JSON.parse(readFileSync(path.join(root, "desktop", "package.json"), "utf8")).version ?? "";
+  } catch {
+    return "";
+  }
+}
+
 /** Standart baza fayli: data/eco.db (ECO_DB_FILE bilan o'zgartiriladi). Global bazasidan alohida. */
 export function defaultDbFile(env) {
   return env.ECO_DB_FILE?.trim() || path.join(root, "data", "eco.db");
@@ -133,7 +158,7 @@ export function defaultDbFile(env) {
  */
 export function createApp({
   env = process.env, geminiLlm = createGeminiLlm({ env }), openaiLlm = createOpenAiLlm({ env }),
-  jigar = createJigar({ gemini: geminiLlm, openai: openaiLlm }), tts, stt, ttsProviders, db,
+  jigar = createJigar({ gemini: geminiLlm, openai: openaiLlm }), tts, stt, ttsProviders, db, journalDir = null,
 } = {}) {
   const defaults = (tts || ttsProviders) && stt ? null : createVoiceServices(env);
   const providers = ttsProviders ?? (tts ? { gemini: tts } : defaults.providers);
@@ -170,6 +195,14 @@ export function createApp({
   const approvals = createApprovals();
   const nudges = createNudgeStore(database);
   const proactive = createProactive({ jigar, hub, nudges, assistant, settings, store });
+  // Jarvis (ECOTIZIM-REJA.md): jurnal (~/Jigar/*.md), kuzatuvlar, loyihalar, ssenariylar, Siri kalitlari.
+  const services = {
+    journal: createJournal(database, { dir: journalDir }), watches: createWatchStore(database), projects: createProjects(database),
+    scenarios: createScenarios(database), tokens: createApiTokens(database), nudges, settings, approvals,
+  };
+  /** Fon so'rovlari (Siri, ssenariy) uchun asboblar: "Ha" — ilovadagi karta orqali (kechiktirilgan). */
+  const makeToolbox = (userId, extra = {}) => createToolbox({ hub, userId, access: settings.all().access, services, ...extra });
+  const agent = createAgentScheduler({ hub, jigar, nudges, settings, store, makeToolbox, ...services });
   // Shu kompyuterda parolsiz (ECO_LOCAL_NOAUTH=1). Internet rejimida (production yoki proksi orqasida) — hech qachon.
   const localNoAuth = env.ECO_LOCAL_NOAUTH === "1" && env.NODE_ENV !== "production" && !env.TRUST_PROXY;
 
@@ -208,24 +241,45 @@ export function createApp({
     }),
   );
   app.use("/api/assistant", createAssistantRouter({ assistant }));
-  app.use("/api", createDeviceRouter({ hub, approvals, nudges }));
+  app.use("/api", createDeviceRouter({ hub, approvals, nudges, tokens: services.tokens }));
+  app.use("/api", createAgentRouter({
+    jigar, makeToolbox, ...services, limiter,
+    memories: (userId) => assistant.listMemories(userId).map((m) => m.text),
+    nowNote: (toolbox) => contextNote({ devices: toolbox.devices, mobile: false, recentNudges: [] }),
+  }));
 
-  app.get("/api/health", (_req, res) => res.json({ ok: true }));
+  // Ochiq (ma'lumotsiz): telefon va desktop ilovalari server manzilini tekshiradi — boshqa manbadan ham.
+  app.get("/api/health", (_req, res) => res.set("Access-Control-Allow-Origin", "*").json({ ok: true }));
+  // Ilovalarni yuklab olish sahifasi (.dmg, .exe, .apk; iOS — PWA yo'riqnomasi). Kirish shart emas.
+  app.use(createDownloadsRouter({
+    dir: env.ECO_DOWNLOADS_DIR?.trim() || path.join(root, "downloads"),
+    version: desktopVersion(),
+    limiter: rateLimiter({ windowMs, max: Number(env.ECO_DOWNLOAD_RATE_MAX) || 30 }),
+    pagePath: path.join(webDir, "download", "index.html"),
+  }));
 
   // Sozlamalar (egasi): miya, ovoz xizmati, chuqurlik + qaysilari sozlangan (kaliti bor).
   const llmReady = {
-    claude: Boolean(env.ANTHROPIC_API_KEY?.trim()), haiku: Boolean(env.ANTHROPIC_API_KEY?.trim()),
+    haiku: Boolean(env.ANTHROPIC_API_KEY?.trim()), sonnet: Boolean(env.ANTHROPIC_API_KEY?.trim()),
+    opus: Boolean(env.ANTHROPIC_API_KEY?.trim()),
     gemini: Boolean(geminiLlm?.configured), openai: Boolean(openaiLlm?.configured),
   };
   const settingsView = () => ({
     ...settings.all(),
-    choices: { llm: LLM_CHOICES, tts: TTS_CHOICES, effort: EFFORT_CHOICES },
+    choices: { llm: LLM_CHOICES, tts: TTS_CHOICES, effort: EFFORT_CHOICES, access: ACCESS_LEVELS },
+    journalDir,
     ready: { llm: llmReady, tts: Object.fromEntries(TTS_CHOICES.map((k) => [k, Boolean(providers[k]?.configured)])) },
   });
   app.get("/api/settings", requireUser, (_req, res) => res.json(settingsView()));
-  app.put("/api/settings", requireUser, (req, res) => {
+  app.put("/api/settings", requireUser, async (req, res) => {
     try {
-      settings.update(req.body);
+      // Cheksiz ruxsat (1 soat) — faqat parol bilan.
+      if (req.body?.access === "unlimited" && !(await store.verifyCredentials(OWNER_EMAIL, req.body?.password))) {
+        return res.status(403).json({ error: "Parol noto'g'ri — cheksiz rejim yoqilmadi." });
+      }
+      const { password: _password, ...patch } = req.body ?? {};
+      settings.update(patch);
+      if (patch.access) services.journal.add(req.user.id, "action", `Ruxsat darajasi: ${patch.access}`, {});
       res.json(settingsView());
     } catch (err) {
       const [status, message] = apiErrorResponse(err);
@@ -280,17 +334,19 @@ export function createApp({
   function toolboxFor(req, res, stream) {
     const asked = [];
     res.on("close", () => asked.forEach((id) => approvals.cancel(id)));
-    return createPcToolbox({
-      hub,
-      userId: req.user.id,
-      onStatus: (text) => stream?.write({ type: "status", text }),
-      async confirm(action) {
-        if (!stream) return false;
+    // Oqimli chat — "Ha/Yo'q" kartasi shu javob ichida; oqimsiz — kechiktirilgan (ilovadagi nudge kartasi).
+    const ask = stream
+      ? async (action) => {
         const { id, decision } = approvals.request(req.user.id);
         asked.push(id);
         stream.write({ type: "confirm", id, ...action });
         return decision;
-      },
+      }
+      : null;
+    return makeToolbox(req.user.id, {
+      currentDeviceId: desktopDeviceId(req.get("User-Agent")),
+      onStatus: (text) => stream?.write({ type: "status", text }),
+      ask,
     });
   }
 
@@ -306,7 +362,10 @@ export function createApp({
         page, history, selection, heardAlt, lang, length, persona, image, voice: fromVoice,
         userName: req.user?.name, llm: settings.all().llm, effort: settings.all().effort,
         memories: assistant.listMemories(req.user.id).map((m) => m.text),
-        nowNote: contextNote({ device: toolbox?.device ?? null, mobile: MOBILE_UA_RE.test(req.get("User-Agent") || ""), recentNudges }),
+        nowNote: contextNote({
+          devices: toolbox?.devices ?? [], current: toolbox?.current ?? null,
+          mobile: MOBILE_UA_RE.test(req.get("User-Agent") || ""), recentNudges,
+        }),
         toolbox,
         onDelta: stream ? (text) => stream.write({ type: "delta", text }) : null,
       });
@@ -342,5 +401,5 @@ export function createApp({
     res.status(500).json({ error: "Kutilmagan xato yuz berdi." });
   });
 
-  return Object.assign(app, { store, hub, proactive });
+  return Object.assign(app, { store, hub, proactive, agent });
 }

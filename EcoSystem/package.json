@@ -10,11 +10,16 @@
   "scripts": {
     "start": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning server/index.js",
     "dev": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning --watch server/index.js",
-    "test": "node --disable-warning=ExperimentalWarning --test \"test/**/*.test.js\""
+    "test": "node --disable-warning=ExperimentalWarning --test \"test/**/*.test.js\"",
+    "build:mac": "npm --prefix desktop run dist:mac && mkdir -p downloads && cp desktop/dist/Jigar-mac.dmg downloads/",
+    "build:win": "npm --prefix desktop run dist:win && mkdir -p downloads && cp desktop/dist/Jigar-win.exe downloads/",
+    "build:android": "cd mobile && npx cap sync android && cd android && ./gradlew assembleDebug && mkdir -p ../../downloads && cp app/build/outputs/apk/debug/app-debug.apk ../../downloads/Jigar-android.apk",
+    "build:win-zip": "npm --prefix desktop run dist:win-zip && mkdir -p downloads && cp desktop/dist/Jigar-win.zip downloads/"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
     "express": "^5.1.0",
-    "mermaid": "^12.3.0"
+    "mermaid": "^12.3.0",
+    "qrcode": "^1.5.4"
   }
 }

@@ -24,7 +24,7 @@ test("backoffDelay: 0.4 s, keyin 1, 2, 4 ... 30 s gacha", () => {
   assert.ok(hasWakeWord("hey jigar"));
 });
 
-test("tuzalmaydigan xato (network — Electron) — qayta yoqilmaydi, onUnavailable bir marta", (t) => {
+test("brauzerda network — vaqtinchalik: to'xtamaydi, kutib qayta urinadi; ruxsat yo'q — to'xtaydi", (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const sessions = fakeRecognition();
   const reasons = [];
@@ -32,12 +32,15 @@ test("tuzalmaydigan xato (network — Electron) — qayta yoqilmaydi, onUnavaila
   wake.setEnabled(true);
   sessions[0].fail("network");
   t.mock.timers.tick(60_000);
-  assert.equal(sessions.length, 1, "mikrofon qayta yoqilmadi");
-  assert.deepEqual(reasons, ["network"]);
+  assert.equal(sessions.length, 2, "qayta yoqildi");
+  assert.equal(wake.enabled, true);
+  sessions[1].fail("not-allowed");
+  t.mock.timers.tick(60_000);
+  assert.deepEqual(reasons, ["not-allowed"]);
   assert.equal(wake.enabled, false);
 });
 
-test("tez uzilishlar — kutish oshadi, 5 tadan keyin to'xtaydi", (t) => {
+test("tez uzilishlar — kutish oshadi (≤ 30 s), lekin tinglash hech qachon o'zi o'chmaydi; eshitsa hisob nolga", (t) => {
   t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
   const sessions = fakeRecognition();
   const reasons = [];
@@ -48,12 +51,17 @@ test("tez uzilishlar — kutish oshadi, 5 tadan keyin to'xtaydi", (t) => {
   assert.equal(sessions.length, 1, "1 s dan oldin qayta yoqilmaydi");
   t.mock.timers.tick(1);
   assert.equal(sessions.length, 2);
-  for (let i = 1; i < 5; i++) {
+  for (let i = 0; i < 10; i++) {
     sessions.at(-1).fail("no-speech");
     t.mock.timers.tick(30_000);
   }
-  assert.deepEqual(reasons, ["unstable"]);
-  assert.equal(sessions.length, 5);
+  assert.equal(sessions.length, 12, "10 ta tez uzilishdan keyin ham tinglayapti");
+  assert.deepEqual(reasons, []);
+  let woke = 0;
+  const wake2 = createWake({ onWake: () => woke++ });
+  wake2.setEnabled(true);
+  sessions.at(-1).onresult({ resultIndex: 0, results: [[{ transcript: "hey jigar" }]] });
+  assert.equal(woke, 1);
 });
 
 test("uzoq ishlagan tinglash tugasa — tez (0.4 s) qayta yoqiladi, hisob nolga tushadi", (t) => {

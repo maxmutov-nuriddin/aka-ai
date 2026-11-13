@@ -2,7 +2,14 @@
 
 Maqsad: `npm start` bilan EcoSystem ochilganda veb-sahifada "Yuklab olish" bo'limi bo'lsin. Undan macOS (.dmg), Windows (.exe), Android (.apk) va iOS ilovalari olinadi.
 
-Holat: reja yozildi, kod hali yozilmagan (2026-11-13).
+Holat (2026-11-13):
+- ✅ Server: `/api/downloads`, `/downloads/:file`, `/download` sahifasi (QR, OS aniqlash, yo'riqnomalar), testlar.
+- ✅ Sozlamalarda "📥 Ilovalarni yuklab olish" havolasi; PWA manifest (iPhone uchun).
+- ✅ macOS: `npm run build:mac` → `downloads/Jigar-mac.dmg` (universal, imzosiz) — yig'ildi.
+- ✅ Windows: `npm run build:win-zip` → `downloads/Jigar-win.zip` (o'rnatishsiz Jigar.exe, belgisiz). Belgili `.exe` o'rnatuvchi — GitHub Actions (`eco-v*` tegi), artifact'ni `downloads/Jigar-win.exe` ga qo'yish.
+- ⏳ Android: kod tayyor; Android SDK kerak, keyin `npm run build:android` (debug APK, imzosiz).
+- ✅ Desktop/mobil: birinchi ochilishda server manzili so'raladi (desktop — oyna va tray menyusi; telefon — ichki sahifa).
+- ⏳ iOS: TestFlight (Apple Developer akkaunti bo'lsa).
 
 ## 1. Fayllar qayerda turadi
 - Yig'ilgan (build) fayllar uchun papka: `EcoSystem/downloads/`. Git'ga kirmaydi (`.gitignore`).

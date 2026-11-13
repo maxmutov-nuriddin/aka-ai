@@ -80,12 +80,44 @@ export function createNudgeWatcher({ apiBase, authHeaders, onNudge }) {
   };
 }
 
-/** Nudge kartasi: sarlavha (turi bo'yicha) va matn. */
-export function nudgeCard(nudge, t) {
+const NUDGE_ICONS = { morning: "🌅", evening: "🌙", approval: "🔐", countdown: "⏳", alert: "⚠️", result: "✅" };
+
+/** Nudge tugmasi: bosilgach — server, tugmalar o'rniga natija. */
+function nudgeButtons(buttons, post) {
+  const row = el("div", "pc-confirm-actions");
+  const result = el("small", "pc-confirm-status");
+  for (const { label, path, body, done, primary } of buttons) {
+    const b = el("button", primary ? "primary" : "ghost", label);
+    b.type = "button";
+    b.addEventListener("click", async () => {
+      row.querySelectorAll("button").forEach((x) => { x.disabled = true; });
+      const res = await post(path, body).catch(() => null);
+      result.textContent = res?.ok ? done : "Muddati o'tgan yoki allaqachon bajarilgan.";
+      row.replaceChildren(result);
+    });
+    row.append(b);
+  }
+  return row;
+}
+
+/**
+ * Nudge kartasi: sarlavha (turi bo'yicha), matn; ruxsat so'rovi — Ha/Yo'q, ogohlantirish — Bekor qilish.
+ * @param {(path: string, body: object) => Promise<Response>} [post]
+ */
+export function nudgeCard(nudge, t, post) {
   const card = el("article", `msg jigar card nudge nudge-${nudge.kind}`);
-  const icon = nudge.kind === "morning" ? "🌅" : nudge.kind === "evening" ? "🌙" : "💡";
-  card.append(el("h3", null, `${icon} ${t(`nudge.${nudge.kind}`)}`));
+  card.append(el("h3", null, `${NUDGE_ICONS[nudge.kind] ?? "💡"} ${t(`nudge.${nudge.kind}`)}`));
   card.append(el("p", null, nudge.text));
+  if (post && nudge.ref && nudge.kind === "approval") {
+    const path = `/api/actions/${encodeURIComponent(nudge.ref)}`;
+    card.append(nudgeButtons([
+      { label: t("pc.yes"), path, body: { approve: true }, done: t("pc.approved"), primary: true },
+      { label: t("pc.no"), path, body: { approve: false }, done: t("pc.denied") },
+    ], post));
+  }
+  if (post && nudge.ref && nudge.kind === "countdown") {
+    card.append(nudgeButtons([{ label: "Bekor qilish", path: `/api/watches/${encodeURIComponent(nudge.ref)}/cancel`, body: {}, done: "Bekor qilindi ✓", primary: true }], post));
+  }
   return card;
 }
 
@@ -93,8 +125,8 @@ export function nudgeCard(nudge, t) {
 export async function deviceStatusText({ apiBase, authHeaders, t }) {
   try {
     const res = await fetch(`${apiBase()}/api/devices`, { headers: authHeaders() });
-    const { pc } = await res.json();
-    return pc?.online ? `🖥 ${t("pc.online")}: ${pc.name}` : `🖥 ${t("pc.offline")}`;
+    const { devices = [] } = await res.json();
+    return devices.length ? `🖥 ${t("pc.online")}: ${devices.map((d) => d.name).join(", ")}` : `🖥 ${t("pc.offline")}`;
   } catch {
     return "";
   }

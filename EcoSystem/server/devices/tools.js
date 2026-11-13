@@ -1,12 +1,161 @@
-// Jigarning "qo'llari" — kompyuterdagi asboblar (Claude tool use). Bajaruvchi — desktop ilova (desktop/tools.js).
-// Ko'rish (ekran, fayl o'qish, ochish) — so'ramasdan; buyruq bajarish va fayl yozish — egasining "Ha"si bilan.
-import { DeviceOfflineError } from "./hub.js";
+// Jigarning "qo'llari" — qurilmalardagi asboblar (Claude tool use). Bajaruvchi — desktop ilova (desktop/tools.js).
+// Ko'rish, ochish, ovoz, ilovalar, YouTube — so'ramasdan; buyruq, fayl yozish, hamma ilovalarni yopish — "Ha" bilan.
+// Har asbobda ixtiyoriy `device` — qaysi qurilmada (aytilmasa: chat yozilgan kompyuter yoki yagona ulangani).
+// Bajaruvchi va ruxsat — server/agent/toolbox.js.
 
 const TEXT_RESULT_MAX = 20_000; // asbob natijasi (matn) modelga shuncha belgigacha
 const SUMMARY_MAX = 300;
 
-/** Claude'ga beriladigan asboblar ro'yxati (faqat kompyuter ulangan bo'lsa). */
-export const PC_TOOLS = [
+const DEVICE_PROP = {
+  device: { type: "string", description: "Qaysi qurilmada (nomi, masalan 'MacBook'). Aytilmagan bo'lsa — yozma." },
+};
+const enumOf = (values, description) => ({ type: "string", enum: values, description });
+
+/** Yangi asboblar: ovoz va media, ilovalar, YouTube (Jigar pleeri), tizim. */
+const CONTROL_TOOLS = [
+  {
+    name: "pc_media",
+    description: "Kompyuter ovozi va media: ovozni foizga qo'yish yoki ±10%, o'chirish/yoqish; musiqa (Spotify, Music yoki Jigar YouTube pleeri) — play/pause, keyingi, oldingi; status — hozirgi ovoz.",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: enumOf(["volume_set", "volume_up", "volume_down", "mute", "unmute", "play_pause", "next", "previous", "status"], "Amal"),
+        level: { type: "integer", minimum: 0, maximum: 100, description: "volume_set uchun: 0-100" },
+      },
+      required: ["action"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "pc_apps",
+    description: "Ilovalar: list — ochiq ilovalar; open, focus (oldinga chiqarish), hide (yashirish), quit (yopish) — `app` nomi bilan; hide_all — hammasini yashirish (ish stoli); quit_all — hammasini yopish (egasidan ruxsat so'raladi).",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: enumOf(["list", "open", "focus", "hide", "quit", "hide_all", "quit_all"], "Amal"),
+        app: { type: "string", description: "Ilova nomi (list'dagi kabi), masalan 'Telegram', 'Google Chrome'" },
+      },
+      required: ["action"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "pc_youtube",
+    description: "YouTube — Jigarning o'z pleer oynasida (ovozi tizimdan alohida boshqariladi). search — 5 ta natija; play — `url` yoki `query` (birinchi natija), `seconds` — boshlanish vaqti; pause, resume; seek — aniq vaqtga (`seconds`); forward/back — `seconds` ga (standart 10); volume — YouTube ovozi `level` (0-100); mute, unmute; fullscreen; close; status — nom, vaqt, ovoz.",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: enumOf(["search", "play", "pause", "resume", "seek", "forward", "back", "volume", "mute", "unmute", "fullscreen", "close", "status"], "Amal"),
+        query: { type: "string", description: "Qidiruv so'zi (search, play)" },
+        url: { type: "string", description: "YouTube havolasi yoki video id (play)" },
+        seconds: { type: "integer", minimum: 0, description: "Soniyalarda: 1:30 = 90" },
+        level: { type: "integer", minimum: 0, maximum: 100, description: "volume uchun: 0-100" },
+      },
+      required: ["action"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "home_tv",
+    description: "Uydagi televizor (shu kompyuter bilan bir Wi-Fi'da): discover — tarmoqdan topish; youtube — TV'ning YouTube ilovasida video (`query` yoki `url`, `seconds` — boshlanish); volume (`level` 0-100), volume_up, volume_down, mute, unmute; status. `tv` — TV nomi yoki IP (bitta bo'lsa yozma).",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: enumOf(["discover", "youtube", "volume", "volume_up", "volume_down", "mute", "unmute", "status"], "Amal"),
+        tv: { type: "string", description: "TV nomi yoki IP" },
+        query: { type: "string", description: "YouTube qidiruv so'zi" },
+        url: { type: "string", description: "YouTube havolasi yoki video id" },
+        seconds: { type: "integer", minimum: 0, description: "Boshlanish vaqti, soniyada" },
+        level: { type: "integer", minimum: 0, maximum: 100, description: "Ovoz 0-100" },
+      },
+      required: ["action"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "pc_system",
+    description: "Tizim: lock — ekranni qulflash; sleep_display — ekranni o'chirish; battery — batareya; info — tizim, xotira, ishlash vaqti.",
+    input_schema: {
+      type: "object",
+      properties: { action: enumOf(["lock", "sleep_display", "battery", "info"], "Amal") },
+      required: ["action"],
+      additionalProperties: false,
+    },
+  },
+];
+
+/** Kuchli asboblar: quvvat, dasturlash (VS Code, Claude Code), xabarlar. */
+const POWER_TOOLS = [
+  {
+    name: "pc_power",
+    description: "Kompyuter quvvati: lock (qulflash), sleep (uxlatish), shutdown (o'chirish), restart (qayta yoqish). shutdown/restart — egasidan ruxsat bilan.",
+    input_schema: {
+      type: "object",
+      properties: { action: enumOf(["lock", "sleep", "shutdown", "restart"], "Amal") },
+      required: ["action"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "pc_dev",
+    description: "Dasturlash: open — loyihani VS Code'da ochish; claude — loyiha papkasida Claude Code'ga prompt berish (fonda ishlaydi, natija logga yoziladi; visible=true — Terminal oynasida ko'rinadi); status — oxirgi Claude Code ishining holati va natijasi (log oxiri). `project` — saqlangan loyiha nomi yoki `path` — papka.",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: enumOf(["open", "claude", "status"], "Amal"),
+        project: { type: "string", description: "Saqlangan loyiha nomi (projects asbobi)" },
+        path: { type: "string", description: "Papka yo'li (loyiha saqlanmagan bo'lsa)" },
+        prompt: { type: "string", description: "Claude Code uchun topshiriq (claude)" },
+        visible: { type: "boolean", description: "Terminal oynasida ko'rinsin (claude)" },
+        run: { type: "string", description: "status uchun: ish id'si (bo'lmasa — oxirgisi)" },
+      },
+      required: ["action"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "pc_message",
+    description: "Xabarlar (Mac — Messages ilovasi orqali iMessage/SMS): contacts — kontaktlardan ism bo'yicha telefon raqamini topish; send — xabar yuborish (`to` — raqam yoki email, `text`). Har yuborish egasining ruxsati bilan.",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: enumOf(["contacts", "send"], "Amal"),
+        query: { type: "string", description: "Kontakt ismi (contacts)" },
+        to: { type: "string", description: "Telefon raqami (+998...) yoki iMessage email (send)" },
+        text: { type: "string", description: "Xabar matni (send)" },
+      },
+      required: ["action"],
+      additionalProperties: false,
+    },
+  },
+];
+
+/** Telefon (Android agent) — telefon ulangan bo'lsa ishlaydi. */
+const PHONE_TOOLS = [
+  {
+    name: "phone",
+    description: "Telefon (Android): volume_set (level), volume_up, volume_down, mute, unmute; play_pause, next, previous (musiqa); apps — ilovalar ro'yxati; open_app (app — nomi, masalan 'Telegram'); youtube (query yoki url, seconds); open_url (url); sms (to, text — ruxsat bilan); call (to — terish oynasini ochadi); contacts (query); battery; flashlight_on, flashlight_off; find — telefonni topish (20 s baland ovoz).",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: enumOf(["volume_set", "volume_up", "volume_down", "mute", "unmute", "play_pause", "next", "previous", "apps", "open_app",
+          "youtube", "open_url", "sms", "call", "contacts", "battery", "flashlight_on", "flashlight_off", "find"], "Amal"),
+        level: { type: "integer", minimum: 0, maximum: 100 },
+        app: { type: "string" }, query: { type: "string" }, url: { type: "string" }, seconds: { type: "integer", minimum: 0 },
+        to: { type: "string", description: "Telefon raqami (+998...)" }, text: { type: "string" },
+      },
+      required: ["action"],
+      additionalProperties: false,
+    },
+  },
+];
+
+const BASE_TOOLS = [
+  {
+    name: "pc_screen_text",
+    description: "Ekrandagi matnni o'qish (oldingi ilova va oynadagi yozuvlar, tugmalar, maydonlar) — suratsiz va tez. 'Ekranimda nima bor', 'xatoni o'qi' — avval shu; rasm, grafik yoki dizayn kerak bo'lsa — pc_screenshot.",
+    input_schema: { type: "object", properties: {}, additionalProperties: false },
+  },
   {
     name: "pc_screenshot",
     description: "Egasining kompyuter ekranini ko'radi (hozirgi holat surati). Ekranda nima borligini bilish, xatoni ko'rish yoki maslahat berish uchun.",
@@ -76,23 +225,41 @@ export const PC_TOOLS = [
   },
 ];
 
-const TOOL_NAMES = new Set(PC_TOOLS.map((t) => t.name));
-/** Egasining "Ha"sisiz bajarilmaydigan asboblar. */
-export const CONFIRM_TOOLS = new Set(["pc_run_command", "pc_write_file"]);
+/** Claude'ga beriladigan asboblar (qurilma ulangan bo'lsa); har biriga ixtiyoriy `device`. */
+export const PC_TOOLS = [...BASE_TOOLS, ...CONTROL_TOOLS, ...POWER_TOOLS, ...PHONE_TOOLS].map((tool) => ({
+  ...tool,
+  input_schema: { ...tool.input_schema, properties: { ...tool.input_schema.properties, ...DEVICE_PROP } },
+}));
+
+export const PC_TOOL_NAMES = new Set(PC_TOOLS.map((t) => t.name));
+// Qachon "Ha" so'ralishi — ruxsat darajasiga bog'liq: server/agent/access.js (needsConfirm).
 
 /** Ilovada ko'rinadigan holat matni (typing pufakchasida). */
 export const TOOL_STATUS = {
   pc_screenshot: "🖥 Ekranga qarayapman",
+  pc_screen_text: "📖 Ekrandagi matnni o'qiyapman",
   pc_windows: "🪟 Oynalarni ko'ryapman",
   pc_list_dir: "📁 Papkani ko'ryapman",
   pc_read_file: "📄 Faylni o'qiyapman",
   pc_open: "🚀 Ochyapman",
   pc_run_command: "⌨️ Buyruqni bajaryapman",
   pc_write_file: "💾 Faylga yozyapman",
+  pc_media: "🔊 Ovoz va musiqa",
+  pc_apps: "🪟 Ilovalar",
+  pc_youtube: "▶️ YouTube",
+  pc_system: "⚙️ Tizim",
+  home_tv: "📺 Televizor",
+  pc_power: "🔌 Quvvat",
+  pc_dev: "💻 Loyiha",
+  pc_message: "✉️ Xabar",
+  phone: "📱 Telefon",
 };
 
+/** Asbob qaysi turdagi qurilmada bajariladi. */
+export const toolKind = (name) => (name === "phone" ? "phone" : "pc");
+
 const clip = (s, n) => (s.length > n ? `${s.slice(0, n)}\n…(qisqartirildi)` : s);
-const text = (value) => ({ type: "text", text: clip(String(value ?? ""), TEXT_RESULT_MAX) });
+export const text = (value) => ({ type: "text", text: clip(String(value ?? ""), TEXT_RESULT_MAX) });
 
 /** Tasdiq oynasi uchun qisqa tavsif: nima bajariladi. */
 export function describeAction(name, input) {
@@ -102,6 +269,10 @@ export function describeAction(name, input) {
     const size = String(input?.content ?? "").length;
     return { reason, detail: `${String(input?.path ?? "").slice(0, 500)} (${size} belgi)` };
   }
+  if (name === "pc_apps") return { reason: reason || "Barcha ochiq ilovalar yopiladi (saqlanmagan ish bo'lsa, ilova o'zi so'raydi).", detail: "quit_all" };
+  if (name === "pc_power") return { reason: reason || "Kompyuter quvvati", detail: String(input?.action ?? "") };
+  if (name === "pc_dev") return { reason: reason || `Claude Code: ${String(input?.project ?? input?.path ?? "")}`, detail: String(input?.prompt ?? "").slice(0, 2000) };
+  if (name === "pc_message" || name === "phone") return { reason: reason || `SMS: ${String(input?.to ?? "")}`, detail: String(input?.text ?? "").slice(0, 1000) };
   return { reason, detail: "" };
 }
 
@@ -115,35 +286,4 @@ export function toToolContent(result) {
   if (result?.text != null) blocks.push(text(result.text));
   if (!blocks.length) blocks.push(text("Bajarildi."));
   return { content: blocks, isError: false };
-}
-
-/**
- * Bitta chat uchun asbob bajaruvchisi. Kompyuter ulanmagan bo'lsa — null (asboblar berilmaydi).
- * @param {{ hub: ReturnType<import("./hub.js").createDeviceHub>, userId: number,
- *           confirm: (action: {tool: string, reason: string, detail: string}) => Promise<boolean>,
- *           onStatus?: (text: string) => void }} deps
- */
-export function createPcToolbox({ hub, userId, confirm, onStatus = () => {} }) {
-  const status = hub.status(userId);
-  if (!status.online) return null;
-  return {
-    device: status,
-    definitions: PC_TOOLS,
-    /** @returns {Promise<{ content: object[], isError: boolean }>} */
-    async run(name, input) {
-      if (!TOOL_NAMES.has(name)) return { content: [text(`Noma'lum asbob: ${name}`)], isError: true };
-      let approved = false;
-      if (CONFIRM_TOOLS.has(name)) {
-        approved = await confirm({ tool: name, ...describeAction(name, input) });
-        if (!approved) return { content: [text("Egasi ruxsat bermadi — bajarilmadi. Boshqa yo'l taklif qil yoki so'ra.")], isError: true };
-      }
-      onStatus(TOOL_STATUS[name]);
-      try {
-        return toToolContent(await hub.call(userId, { tool: name, input: input ?? {}, approved }));
-      } catch (err) {
-        const message = err instanceof DeviceOfflineError ? err.message : `Bajarib bo'lmadi: ${err.message}`;
-        return { content: [text(message)], isError: true };
-      }
-    },
-  };
 }

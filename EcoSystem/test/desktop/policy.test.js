@@ -41,3 +41,33 @@ test("classifyOpenTarget: URL, ilova, yo'l; xavfli sxema va skript — rad", () 
     assert.ok(classifyOpenTarget(bad, HOME).error, bad);
   }
 });
+
+test("ruxsat darajalari: wide — butun disk (maxfiylarsiz), full — cheklovsiz; buyruqlar darajaga qarab", () => {
+  assert.equal(resolveSafePath("/etc/hosts", HOME, "safe").ok, false);
+  assert.equal(resolveSafePath("/Applications/Project/x/IDEA.md", HOME, "wide").ok, true);
+  assert.equal(resolveSafePath("/Users/egasi/.ssh/id_rsa", HOME, "wide").ok, false, "wide — maxfiy hali yopiq");
+  assert.equal(resolveSafePath("/srv/app/.env", HOME, "wide").ok, false);
+  assert.equal(resolveSafePath("/Users/egasi/.ssh/config", HOME, "full").ok, true);
+  assert.notEqual(checkCommand("shutdown -h now", "safe"), null);
+  assert.equal(checkCommand("rm -rf ~/eski", "full"), null, "full — server 'Ha' so'raydi, desktop to'xtatmaydi");
+  assert.match(checkCommand("sudo ls", "unlimited"), /sudo/, "sudo — har darajada (parol so'raydi)");
+  assert.deepEqual(classifyOpenTarget("/Applications/Project/a.pdf", HOME, "wide"), { kind: "path", value: "/Applications/Project/a.pdf" });
+});
+
+test("server manzili: faqat http(s), yo'l va login olib tashlanadi", async () => {
+  const { createRequire } = await import("node:module");
+  const require = createRequire(import.meta.url);
+  const Module = require("node:module");
+  const original = Module._load;
+  Module._load = function (request, ...rest) {
+    return request === "electron" ? { app: {}, BrowserWindow: class {}, ipcMain: {} } : original.call(this, request, ...rest);
+  };
+  try {
+    const { normalizeServerUrl } = require("../../desktop/server-url.js");
+    assert.equal(normalizeServerUrl(" http://192.168.1.101:3100/app/ "), "http://192.168.1.101:3100");
+    assert.equal(normalizeServerUrl("https://jigar.uz"), "https://jigar.uz");
+    for (const bad of ["ftp://x", "javascript:alert(1)", "192.168.1.5", "", "http://user:pass@x.uz"]) assert.equal(normalizeServerUrl(bad), null, bad);
+  } finally {
+    Module._load = original;
+  }
+});

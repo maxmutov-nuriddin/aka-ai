@@ -1,7 +1,8 @@
 // Jigar EcoSystem serverini ishga tushirish: npm start (yoki npm run dev). Global serveridan alohida (port 3100).
 import { createApp, defaultDbFile } from "./app.js";
 import { openDatabase } from "./db/database.js";
-import { networkInterfaces } from "node:os";
+import { homedir, networkInterfaces } from "node:os";
+import path from "node:path";
 
 const SESSION_CLEANUP_MS = 6 * 60 * 60_000;
 const env = process.env;
@@ -14,13 +15,17 @@ if (!env.ELEVENLABS_API_KEY && !(env.AZURE_SPEECH_KEY && env.AZURE_SPEECH_REGION
 }
 
 const dbFile = defaultDbFile(env);
-const app = createApp({ env, db: openDatabase(dbFile) });
+// Jurnal md fayllari (QILOLMAGAN-ISHLAR.md, XATOLAR.md, HARAKATLAR.md): ECO_JOURNAL_DIR yoki ~/Jigar.
+const journalDir = env.ECO_JOURNAL_DIR?.trim() || path.join(homedir(), "Jigar");
+const app = createApp({ env, db: openDatabase(dbFile), journalDir });
 
 // Muddati o'tgan sessiyalarni vaqti-vaqti bilan tozalash.
 app.store.deleteExpiredSessions();
 setInterval(() => app.store.deleteExpiredSessions(), SESSION_CLEANUP_MS).unref();
 // Jigarning o'z tashabbusi: ekranga qarab maslahat, ertalabki va kechki xulosa (Sozlamalarda o'chiriladi).
 app.proactive.start();
+// Kuzatuvlar ("tugasa o'chir"), monitoring (batareya, disk), vaqtli ssenariylar.
+app.agent.start();
 
 const port = Number(env.PORT) || 3100; // Global — 3000, EcoSystem — 3100 (aralashmasin)
 // HOST=0.0.0.0 (standart) — bir Wi-Fi'dagi boshqa qurilmalar ham kira oladi. Faqat shu kompyuter: HOST=127.0.0.1

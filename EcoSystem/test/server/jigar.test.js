@@ -191,3 +191,17 @@ test("think: proaktiv fikr — Haiku, fikrlashsiz, rad etilsa bo'sh", async () =
   const refused = fakeClient({ ...okResponse("yo'q"), stop_reason: "refusal" });
   assert.equal(await createJigar({ client: refused.client, config }).think({ system: "s", content: "c" }), "");
 });
+
+test("Claude darajalari: haiku (standart, fikrlashsiz), sonnet, opus; muqobil miya o'rniga — haiku", async () => {
+  const { client, calls } = fakeClient(okResponse("[TUSHUNTIRISH]\nok"));
+  const models = { ...config, haikuModel: "claude-haiku-5-5", sonnetModel: "claude-sonnet-5-5" };
+  const jigar = createJigar({ client, config: models });
+  const ask = (llm) => jigar.chat({ history: [{ role: "user", content: "x" }], llm });
+  await ask("haiku");
+  await ask("sonnet");
+  await ask("opus");
+  await ask("gemini"); // sozlanmagan muqobil — eng arzon Claude
+  assert.deepEqual(calls.map((c) => c.model), ["claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5"]);
+  assert.deepEqual(calls[0].thinking, { type: "disabled" });
+  assert.equal(calls[1].thinking, undefined);
+});

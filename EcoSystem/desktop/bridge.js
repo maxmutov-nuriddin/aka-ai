@@ -16,12 +16,14 @@ async function cookieHeader(baseUrl) {
 }
 
 /**
- * @param {{ baseUrl: string, runTool: (command: object) => Promise<object>, log?: (msg: string) => void }} options
+ * @param {{ baseUrl: string, deviceId: string, runTool: (command: object) => Promise<object>, log?: (msg: string) => void }} options
  * @returns {{ stop: () => void }}
  */
-function startBridge({ baseUrl, runTool, log = console.warn }) {
+function startBridge({ baseUrl, deviceId, runTool, log = console.warn }) {
   let stopped = false;
-  const info = { name: os.hostname().replace(/\.local$/, ""), platform: process.platform };
+  // ECO_DEVICE_NAME — o'z nomingiz ("Ofis", "Uy"); bo'lmasa kompyuter nomi.
+  const name = process.env.ECO_DEVICE_NAME?.trim() || os.hostname().replace(/\.local$/, "");
+  const info = { id: deviceId, name, platform: process.platform, kind: "pc" };
 
   async function post(pathname, body, timeoutMs) {
     const cookie = await cookieHeader(baseUrl);

@@ -2,8 +2,7 @@
   "appId": "uz.jigar.eco",
   "appName": "Jigar",
   "webDir": "www",
-  "server": {
-    "url": "https://jigar.example.uz/app/",
-    "cleartext": false
+  "android": {
+    "allowMixedContent": true
   }
 }

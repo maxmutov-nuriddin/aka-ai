@@ -84,8 +84,8 @@ export function createProactive({ jigar, hub, nudges, assistant, settings, store
     if (!text && saved) nudges.markSeen(owner.id, saved.id);
   }
 
-  async function watch(owner) {
-    const shot = await hub.call(owner.id, { tool: "pc_screenshot" });
+  async function watch(owner, device) {
+    const shot = await hub.call(owner.id, device.id, { tool: "pc_screenshot" });
     if (typeof shot?.image !== "string") return; // ruxsat yo'q yoki xato
     const content = [
       { type: "image", source: { type: "base64", media_type: "image/jpeg", data: shot.image } },
@@ -107,9 +107,10 @@ export function createProactive({ jigar, hub, nudges, assistant, settings, store
       if (kind) await brief(owner, kind);
       const watchDue = now() - lastWatch >= WATCH_EVERY_MS;
       const cooled = now() - (nudges.lastAt(owner.id, "watch") ?? 0) >= WATCH_COOLDOWN_MS;
-      if (proactive === "on" && watchDue && cooled && !isQuiet(now()) && hub.status(owner.id).online) {
+      const pc = hub.list(owner.id).find((d) => d.kind === "pc"); // birinchi ulangan kompyuter
+      if (proactive === "on" && watchDue && cooled && !isQuiet(now()) && pc) {
         lastWatch = now();
-        await watch(owner);
+        await watch(owner, pc);
       }
     } catch (err) {
       log(`[proactive] ${err.message}`);

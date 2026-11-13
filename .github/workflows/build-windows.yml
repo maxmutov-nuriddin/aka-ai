@@ -1,0 +1,36 @@
+# Jigar EcoSystem — Windows o'rnatuvchisi (Jigar-win.exe). macOS'da NSIS ishlamaydi (Intel binari), shuning uchun — Windows runner.
+# Ishga tushirish: GitHub → Actions → "Build Windows app" → Run workflow. Natija: Artifacts → Jigar-win.exe
+# Keyin uni EcoSystem/downloads/ ga qo'ying — yuklab olish sahifasida chiqadi (YUKLAB-OLISH-REJA.md).
+name: Build Windows app
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["eco-v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: EcoSystem/desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: EcoSystem/desktop/package-lock.json
+      - run: npm ci
+      - name: Build NSIS installer (x64 + arm64, imzosiz)
+        run: npx electron-builder --win nsis --x64 --arm64 --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Jigar-win.exe
+          path: EcoSystem/desktop/dist/Jigar-win.exe
+          if-no-files-found: error

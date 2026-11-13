@@ -1,7 +1,62 @@
 <!doctype html>
 <html lang="uz">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Jigar</title>
-<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0b0e22;color:#e8e9ff;font:16px system-ui;text-align:center;padding:24px}</style>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Jigar</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; box-sizing: border-box;
+      background: #0b0e22; color: #e8eaf6; font: 16px/1.5 system-ui, sans-serif; }
+    form { width: min(380px, 100%); display: grid; gap: 12px; }
+    h1 { margin: 0; font-size: 24px; }
+    p { margin: 0; color: #a3a8c8; font-size: 14px; }
+    input { padding: 13px; border-radius: 12px; border: 1px solid #2c3157; background: #141838; color: inherit; font: inherit; }
+    button { padding: 13px; border: 0; border-radius: 12px; background: #7c6cff; color: #fff; font-weight: 700; font-size: 16px; }
+    .error { color: #ff7a85; min-height: 1.5em; font-size: 14px; }
+    code { color: #c9c3ff; }
+  </style>
 </head>
-<body><p>Jigar serveriga ulanib bo'lmadi.<br>Internetni tekshiring yoki <code>capacitor.config.json</code> dagi server manzilini to'g'rilang.</p></body>
+<body>
+  <!-- Telefon ilovasi: server manzili (birinchi ochilishda yoki server ochilmasa). Android — JigarAgent plagini saqlaydi. -->
+  <form id="form">
+    <h1>Jigar</h1>
+    <p>Jigar serverining manzili. Uy Wi-Fi'da: <code>http://192.168.1.101:3100</code>. Uydan tashqarida: HTTPS manzil (Tailscale yoki Cloudflare).</p>
+    <input id="url" type="url" required placeholder="http://192.168.1.101:3100" inputmode="url" autocomplete="url">
+    <button>Ulanish</button>
+    <div class="error" id="error" role="alert"></div>
+  </form>
+  <script>
+    const agent = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.JigarAgent;
+    const $ = (id) => document.getElementById(id);
+    const normalize = (value) => {
+      try {
+        const url = new URL(value.trim());
+        return /^https?:$/.test(url.protocol) ? url.origin : null;
+      } catch (e) {
+        return null;
+      }
+    };
+    (async () => {
+      const saved = agent ? (await agent.getServer()).url : localStorage.getItem("jigar.server");
+      if (saved) {
+        $("url").value = saved;
+        $("error").textContent = "Serverga ulanib bo'lmadi — internetni va manzilni tekshiring.";
+      }
+    })();
+    $("form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const url = normalize($("url").value);
+      if (!url) return void ($("error").textContent = "Manzil http:// yoki https:// bilan boshlansin.");
+      try {
+        const res = await fetch(url + "/api/health");
+        if (!res.ok) throw new Error();
+      } catch (e) {
+        return void ($("error").textContent = "Server javob bermadi. Manzil to'g'rimi, server yoqilganmi?");
+      }
+      if (agent) return agent.setServer({ url }); // Android: saqlaydi va ilovani shu manzilda qayta ochadi
+      localStorage.setItem("jigar.server", url); // iPhone: oddiy o'tish
+      location.href = url + "/app/";
+    });
+  </script>
+</body>
 </html>

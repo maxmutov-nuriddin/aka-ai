@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'">
+  <title>Jigar — server</title>
+  <style>
+    body { margin: 0; padding: 28px; font: 14px/1.5 system-ui, sans-serif; background: #0b0e22; color: #e8eaf6; }
+    h1 { margin: 0 0 6px; font-size: 20px; }
+    p { margin: 0 0 16px; color: #a3a8c8; }
+    input { width: 100%; box-sizing: border-box; padding: 11px 12px; border-radius: 10px; border: 1px solid #2c3157; background: #141838; color: inherit; font: inherit; }
+    button { margin-top: 12px; width: 100%; padding: 12px; border: 0; border-radius: 10px; background: #7c6cff; color: #fff; font-weight: 700; font-size: 15px; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: wait; }
+    .error { color: #ff7a85; min-height: 1.5em; margin-top: 10px; }
+    code { color: #c9c3ff; }
+  </style>
+</head>
+<body>
+  <h1>Jigar serveri</h1>
+  <p>Jigar qaysi serverda ishlaydi? Masalan: <code>http://192.168.1.101:3100</code> (uydagi kompyuter) yoki <code>https://jigar.sizning-domen.uz</code>.</p>
+  <form id="form">
+    <input id="url" type="url" required placeholder="http://192.168.1.101:3100" autofocus>
+    <button id="save">Ulanish</button>
+    <div class="error" id="error" role="alert"></div>
+  </form>
+  <script>
+    const current = new URLSearchParams(location.search).get("current");
+    if (current) document.getElementById("url").value = current;
+    document.getElementById("form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const button = document.getElementById("save");
+      button.disabled = true;
+      document.getElementById("error").textContent = "";
+      const result = await window.jigarSetup.save(document.getElementById("url").value);
+      if (!result.ok) document.getElementById("error").textContent = result.error;
+      button.disabled = false;
+    });
+  </script>
+</body>
+</html>

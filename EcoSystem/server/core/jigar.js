@@ -85,7 +85,7 @@ const webSearchTool = (haiku) => ({
 });
 const MAX_PAUSE_CONTINUES = 3; // qidiruv uzoq cho'zilsa server "pause_turn" qaytaradi — shuncha marta davom ettiramiz
 const MAX_TOOL_ROUNDS = 8; // kompyuter asboblari (ekran, fayl, buyruq): bitta javobda shuncha qadamgacha
-const NOW_NOTE_MAX = 400; // vaqt + qurilma izohi (oxirgi xabarga)
+const NOW_NOTE_MAX = 900; // vaqt + qurilma izohi (oxirgi xabarga)
 const THINK_MAX_TOKENS = 2000; // proaktiv fikr (ekranga o'zi qarash, kunlik xulosa) — qisqa
 
 export const LIMITS = {
@@ -133,10 +133,15 @@ export const CAMERA_NOTE = "(Foydalanuvchi kamerada narsa ko'rsatdi — rasm shu
 const withCameraNote = (text) => `${CAMERA_NOTE}\n${text}`;
 const imageBlock = (image) => ({ type: "image", source: { type: "base64", media_type: image.mediaType, data: image.data } });
 
+// Claude darajalari: haiku — standart (tez, arzon); sonnet — kuchliroq; opus — eng kuchli (hozircha ishlatilmaydi).
+// "claude" — eski sozlama nomi (opus). Muqobil miya (Gemini, OpenAI) javob bera olmasa — eng arzon Claude (haiku).
+const CLAUDE_TIERS = { haiku: "haiku", sonnet: "sonnet", opus: "opus", claude: "opus" };
+
 export function getConfig(env = process.env) {
   return {
-    model: env.AKA_MODEL || "claude-opus-5-5",
-    haikuModel: env.AKA_HAIKU_MODEL || "claude-haiku-5-5", // ECO_LLM=haiku — arzon Claude
+    model: env.AKA_OPUS_MODEL || "claude-opus-5-5", // opus
+    sonnetModel: env.AKA_SONNET_MODEL || "claude-sonnet-5-5",
+    haikuModel: env.AKA_HAIKU_MODEL || "claude-haiku-5-5",
     effort: env.AKA_EFFORT || "medium",
     maxTokens: Number(env.AKA_MAX_TOKENS) || 16000,
     fallbacks: env.AKA_FALLBACKS !== "off", // server tomonidagi zaxira model (refusal bo'lsa), faqat Claude API
@@ -281,22 +286,23 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ge
    */
   async function call(messages, lang, style, llm = "claude", onDelta = null, toolbox = null) {
     const system = systemPromptFor(lang, style);
-    if (alternatives[llm]?.configured && !hasDocument(messages) && !toolbox) {
+    if (alternatives[llm]?.configured && !hasDocument(messages) && !toolbox?.required) {
       const viaAlternative = await callAlternative(llm, messages, system);
       if (viaAlternative) {
         onDelta?.(viaAlternative.text); // muqobil miya oqimsiz — javob bir bo'lakda
         return viaAlternative;
       }
     }
-    const haiku = llm === "haiku";
+    const tier = CLAUDE_TIERS[llm] ?? "haiku";
+    const haiku = tier === "haiku";
     const params = {
-      model: haiku ? config.haikuModel : config.model,
+      model: { haiku: config.haikuModel, sonnet: config.sonnetModel, opus: config.model }[tier],
       max_tokens: config.maxTokens,
       system,
       cache_control: { type: "ephemeral" }, // tizim prompti + sahifa keshlanadi
       output_config: { effort: style.effort || config.effort }, // egasi sozlamalarda tanlaydi
       ...(haiku ? { thinking: { type: "disabled" } } : {}),
-      tools: [webSearchTool(haiku), ...(toolbox?.definitions ?? [])], // internet qidiruvi + kompyuter (ulangan bo'lsa)
+      tools: [webSearchTool(haiku), ...(toolbox?.definitions ?? [])], // internet + server asboblari + qurilmalar (ulangan bo'lsa)
       messages,
     };
     const useFallbacks = config.fallbacks && !haiku;

@@ -1,6 +1,8 @@
 // Jigar o'zi birinchi aytgan gaplar ("nudge"): ekranga qarab maslahat (watch), ertalabki (morning) va kechki (evening) xulosa.
 // Ilova har yarim daqiqada ko'rilmaganlarini so'raydi (GET /api/nudges), ko'rsatadi va "ko'rildi" deb belgilaydi.
-export const NUDGE_KINDS = ["watch", "morning", "evening"];
+// watch — ekranga qarab maslahat; morning/evening — xulosa; approval — ruxsat so'rovi (ref: tasdiq id);
+// countdown — xavfli amal oldidan ogohlantirish (ref: kuzatuv id, bekor qilinadi); alert — monitoring; result — fon ishi natijasi.
+export const NUDGE_KINDS = ["watch", "morning", "evening", "approval", "countdown", "alert", "result"];
 export const NUDGE_CHARS = 1500;
 const UNSEEN_LIMIT = 20;
 const KEEP_LAST = 200; // eski gaplar o'chiriladi
@@ -14,23 +16,23 @@ export const sqlTime = (ms) => new Date(ms).toISOString().replace("T", " ").slic
  */
 export function createNudgeStore(db, { now = Date.now } = {}) {
   const q = {
-    add: db.prepare("INSERT INTO nudges (user_id, kind, text, created_at) VALUES (?, ?, ?, ?)"),
+    add: db.prepare("INSERT INTO nudges (user_id, kind, text, created_at, ref) VALUES (?, ?, ?, ?, ?)"),
     trim: db.prepare("DELETE FROM nudges WHERE user_id = ? AND id NOT IN (SELECT id FROM nudges WHERE user_id = ? ORDER BY id DESC LIMIT ?)"),
-    unseen: db.prepare("SELECT id, kind, text, created_at AS createdAt FROM nudges WHERE user_id = ? AND seen = 0 ORDER BY id LIMIT ?"),
+    unseen: db.prepare("SELECT id, kind, text, ref, created_at AS createdAt FROM nudges WHERE user_id = ? AND seen = 0 ORDER BY id LIMIT ?"),
     seen: db.prepare("UPDATE nudges SET seen = 1 WHERE user_id = ? AND id = ?"),
     since: db.prepare("SELECT id, kind, text, created_at AS createdAt FROM nudges WHERE user_id = ? AND created_at >= ? ORDER BY id"),
     lastOfKind: db.prepare("SELECT created_at AS createdAt FROM nudges WHERE user_id = ? AND kind = ? ORDER BY id DESC LIMIT 1"),
   };
 
   return {
-    /** Yangi gap. Bo'sh matn yoki noma'lum tur — null. */
-    add(userId, kind, text) {
+    /** Yangi gap. Bo'sh matn yoki noma'lum tur — null. ref — tasdiq yoki kuzatuv id'si (tugmalar uchun). */
+    add(userId, kind, text, ref = null) {
       const clean = String(text ?? "").trim().slice(0, NUDGE_CHARS);
       if (!clean || !NUDGE_KINDS.includes(kind)) return null;
       const createdAt = sqlTime(now());
-      const { lastInsertRowid } = q.add.run(userId, kind, clean, createdAt);
+      const { lastInsertRowid } = q.add.run(userId, kind, clean, createdAt, ref == null ? null : String(ref));
       q.trim.run(userId, userId, KEEP_LAST);
-      return { id: Number(lastInsertRowid), kind, text: clean, createdAt };
+      return { id: Number(lastInsertRowid), kind, text: clean, ref: ref == null ? null : String(ref), createdAt };
     },
     unseen: (userId) => q.unseen.all(userId, UNSEEN_LIMIT),
     markSeen: (userId, id) => q.seen.run(userId, Number(id)).changes > 0,

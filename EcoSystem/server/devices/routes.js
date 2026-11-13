@@ -1,7 +1,7 @@
 // Qurilma yo'llari (faqat kirganlar):
-//   POST /api/devices/poll    — desktop ilova: buyruq kutadi ({ name, platform } bilan)
+//   POST /api/devices/poll    — qurilma: buyruq kutadi ({ id, name, platform, kind } bilan)
 //   POST /api/devices/result  — desktop ilova: buyruq natijasi ({ id, result })
-//   GET  /api/devices         — ilova: kompyuter ulanganmi
+//   GET  /api/devices         — ilova: ulangan qurilmalar ro'yxati
 //   POST /api/actions/:id     — ilova: xavfli amalga ruxsat ({ approve: true|false })
 //   GET  /api/nudges          — ilova: Jigar o'zi aytgan, hali ko'rilmagan gaplar
 //   POST /api/nudges/:id/seen — ilova: ko'rildi
@@ -22,15 +22,24 @@ export function normalizeResult(raw) {
 /**
  * @param {{ hub: object, approvals: object, nudges: object }} deps
  */
-export function createDeviceRouter({ hub, approvals, nudges }) {
+export function createDeviceRouter({ hub, approvals, nudges, tokens = null }) {
   const router = express.Router();
   // Faqat shu yo'llar uchun (router /api ga ulangan — boshqa yo'llarga tegmasin).
   const signedIn = (req, res, next) =>
     req.user ? next() : res.status(401).json({ error: "Kirilmagan.", code: "auth_required" });
+  // Telefon agenti (Android, fonda) — sessiya cookie'si yo'q: shaxsiy kalit (jgr_...) bilan, faqat poll va natija.
+  router.use(["/devices/poll", "/devices/result"], (req, _res, next) => {
+    if (!req.user && tokens) {
+      const userId = tokens.userIdFor(/^Bearer\s+(\S+)$/i.exec(req.get("Authorization") || "")?.[1]);
+      if (userId) req.user = { id: userId };
+    }
+    next();
+  });
   router.use(["/devices", "/actions", "/nudges"], signedIn);
 
   router.post("/devices/poll", async (req, res) => {
-    const command = await hub.poll(req.user.id, { name: req.body?.name, platform: req.body?.platform });
+    const { id, name, platform, kind } = req.body ?? {};
+    const command = await hub.poll(req.user.id, { id, name, platform, kind });
     // Ulanish uzilgan bo'lsa — buyruq yo'qolmasin: navbatga qaytariladi, keyingi poll oladi.
     if (command && (res.destroyed || req.socket?.destroyed)) return hub.requeue(req.user.id, command);
     if (!res.destroyed) res.json({ command });
@@ -39,7 +48,7 @@ export function createDeviceRouter({ hub, approvals, nudges }) {
     const ok = hub.resolve(req.user.id, String(req.body?.id ?? ""), normalizeResult(req.body?.result));
     res.status(ok ? 200 : 404).json({ ok });
   });
-  router.get("/devices", (req, res) => res.json({ pc: hub.status(req.user.id) }));
+  router.get("/devices", (req, res) => res.json({ devices: hub.list(req.user.id) }));
 
   router.post("/actions/:id", (req, res) => {
     const ok = approvals.answer(req.user.id, req.params.id, req.body?.approve === true);

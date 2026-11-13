@@ -87,6 +87,60 @@ const MIGRATIONS = [
      created_at TEXT    NOT NULL
    );
    CREATE INDEX nudges_by_user ON nudges(user_id, seen, id);`,
+  // Jarvis (ECOTIZIM-REJA.md): jurnal (qilolmagan ishlar, xatolar, harakatlar), kuzatuvlar ("tugasa o'chir"),
+  // loyihalar (VS Code / Claude Code), ssenariylar, Siri kalitlari; nudge'ga havola (tasdiq yoki bekor qilish).
+  `CREATE TABLE journal (
+     id         INTEGER PRIMARY KEY AUTOINCREMENT,
+     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     kind       TEXT    NOT NULL,
+     title      TEXT    NOT NULL,
+     detail     TEXT    NOT NULL DEFAULT '',
+     status     TEXT    NOT NULL DEFAULT 'open',
+     device     TEXT,
+     created_at TEXT    NOT NULL
+   );
+   CREATE INDEX journal_by_user ON journal(user_id, kind, status, id);
+   CREATE TABLE watches (
+     id          INTEGER PRIMARY KEY AUTOINCREMENT,
+     user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     device_id   TEXT    NOT NULL,
+     device_name TEXT    NOT NULL DEFAULT '',
+     condition   TEXT    NOT NULL,
+     action      TEXT    NOT NULL,
+     note        TEXT    NOT NULL DEFAULT '',
+     approved    INTEGER NOT NULL DEFAULT 0,
+     state       TEXT    NOT NULL DEFAULT '{}',
+     status      TEXT    NOT NULL DEFAULT 'active',
+     fire_at     TEXT,
+     expires_at  TEXT    NOT NULL,
+     created_at  TEXT    NOT NULL
+   );
+   CREATE INDEX watches_active ON watches(status, user_id);
+   CREATE TABLE projects (
+     id      INTEGER PRIMARY KEY AUTOINCREMENT,
+     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     name    TEXT    NOT NULL,
+     path    TEXT    NOT NULL,
+     UNIQUE (user_id, name)
+   );
+   CREATE TABLE scenarios (
+     id       INTEGER PRIMARY KEY AUTOINCREMENT,
+     user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     name     TEXT    NOT NULL,
+     steps    TEXT    NOT NULL,
+     at       TEXT,
+     last_run TEXT,
+     UNIQUE (user_id, name)
+   );
+   CREATE TABLE api_tokens (
+     id         INTEGER PRIMARY KEY AUTOINCREMENT,
+     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     name       TEXT    NOT NULL,
+     token_hash TEXT    NOT NULL UNIQUE,
+     created_at TEXT    NOT NULL,
+     last_used  TEXT
+   );
+   ALTER TABLE nudges ADD COLUMN ref TEXT;`,
 ];
 
 /**

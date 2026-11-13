@@ -6,8 +6,9 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "dist:mac": "electron-builder --mac",
-    "dist:win": "electron-builder --win"
+    "dist:mac": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg --universal",
+    "dist:win": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win nsis --x64 --arm64",
+    "dist:win-zip": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win zip --x64 -c.win.signAndEditExecutable=false -c.win.artifactName='Jigar-win.${ext}'"
   },
   "devDependencies": {
     "electron": "^45.3.1",
@@ -16,8 +17,36 @@
   "build": {
     "appId": "uz.jigar.eco",
     "productName": "Jigar",
-    "files": ["main.js", "bridge.js", "tools.js", "policy.js", "icon.png"],
-    "mac": { "category": "public.app-category.productivity", "target": "dmg" },
-    "win": { "target": "nsis" }
+    "files": [
+      "main.js",
+      "bridge.js",
+      "tools.js",
+      "policy.js",
+      "control.js",
+      "scripts.js",
+      "os-run.js",
+      "youtube.js",
+      "icon.png",
+      "tv.js",
+      "power.js",
+      "dev.js",
+      "messages.js",
+      "screen-text.js",
+      "server-url.js",
+      "setup-preload.js",
+      "setup.html",
+      "youtube-search.js",
+      "home.js"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": "dmg",
+      "artifactName": "Jigar-mac.${ext}",
+      "identity": null
+    },
+    "win": {
+      "target": "nsis",
+      "artifactName": "Jigar-win.${ext}"
+    }
   }
 }

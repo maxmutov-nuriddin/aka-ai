@@ -28,8 +28,8 @@ async function setup(nowMs, { online = true } = {}) {
   const jigar = { async think(req) { thoughts.push(req); return replies.shift() ?? "JIM"; } };
   const shots = [];
   const hub = {
-    status: () => ({ online }),
-    async call(_id, cmd) { shots.push(cmd); return { image: "QUJD" }; },
+    list: () => (online ? [{ id: "pc-0001", name: "Mac", kind: "pc" }] : []),
+    async call(_id, _device, cmd) { shots.push(cmd); return { image: "QUJD" }; },
   };
   const proactive = createProactive({ jigar, hub, nudges, assistant, settings, store, now, log: () => {} });
   return { clock, owner, nudges, settings, thoughts, replies, shots, proactive };
