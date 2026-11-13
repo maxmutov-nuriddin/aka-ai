@@ -542,3 +542,12 @@ test("talaba: kattalarcha ohang qatlami qo'shiladi; maktab o'quvchisiga va bepar
   assert.doesNotMatch(systemPromptFor("oddiy", "uz", {}), /TALABA BILAN GAPLASHISH/);
   assert.doesNotMatch(systemPromptFor("beparvo", "uz", { level: "student" }), /TALABA BILAN GAPLASHISH/);
 });
+
+test("5–7-sinf: bola uchun tushuntirish qatlami; boshqa darajalarda — yo'q", () => {
+  const junior = systemPromptFor("oddiy", "uz", { level: "5-7", length: "qisqa" });
+  assert.match(junior, /5–7-SINF \(11–13 yosh\) UCHUN TUSHUNTIRISH/);
+  assert.ok(junior.lastIndexOf("5–7-SINF") > junior.indexOf("Uzunlik"), "uzunlik qoidalaridan keyin — ustun");
+  for (const level of ["8-9", "10-11", "student", null]) {
+    assert.doesNotMatch(systemPromptFor("oddiy", "uz", { level }), /5–7-SINF \(11–13 yosh\) UCHUN/, String(level));
+  }
+});

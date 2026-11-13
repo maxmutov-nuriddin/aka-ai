@@ -40,6 +40,8 @@ const PERSONA_PROMPTS = Object.fromEntries(PERSONAS.map((p) => [p, readPrompt(`p
 const ROMANTIC_ADULT_PROMPT = readPrompt("persona-romantik-adult.md");
 // Talaba (katta yoshli): bolalarcha uslub o'rniga tengdosh ohangi — xarakter va profildan keyin, ohang bo'yicha ustun.
 const STUDENT_TONE_PROMPT = readPrompt("level-student.md");
+// 5–7-sinf: bola eshitib tushunadigan usul (bitta gap — bitta fikr, ilmoq, qadamlar, tekshiruv savoli).
+const JUNIOR_PROMPT = readPrompt("level-junior.md");
 const NAME_MAX = 40;
 
 /** O'quvchi ismi promptga: faqat harf, bo'shliq, apostrof va chiziqcha (yangi qator — in'yeksiya emas). */
@@ -185,6 +187,7 @@ export function systemPromptFor(
   const profile = profilePromptFor(allGoals, level, name);
   if (profile) parts.push(profile);
   if (ADULT_LEVELS.has(level) && mode !== "beparvo") parts.push(STUDENT_TONE_PROMPT);
+  if (level === "5-7") parts.push(JUNIOR_PROMPT); // uzunlik qoidasidan keyin — tushuntirish usuli bo'yicha ustun
   if (lang === "ru") parts.push(RUSSIAN_PROMPT);
   if (allGoals.includes("language")) parts.push(languageModePrompt(lang)); // ikki tilda gapirish — til qoidasidan keyin, ustun
   if (allGoals.includes("interview")) parts.push(INTERVIEW_MODE_PROMPT); // suhbat mashqi — uzunlik va quiz qoidalaridan ustun
