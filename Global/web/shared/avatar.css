@@ -88,3 +88,76 @@
 @media (prefers-reduced-motion: reduce) {
   .av-float, .av-shadow, .av-tip-halo { animation: none !important; }
 }
+
+/* ===================== Preppy darajasidagi effektlar (avatar.js: FX_BEHIND / FX_FRONT) =====================
+   Har effekt odatda yashirin; kayfiyat (data-emotion) yoki jahl darajasi (data-heat 1..3) yoqadi.
+   Hammasi boshning ichida — bosh qimirlasa, effekt ham birga. */
+.fx { opacity: 0; transition: opacity 260ms var(--ease, ease); pointer-events: none; }
+.fx-aura { fill: url(#avAura); color: var(--aura, transparent); opacity: 0; transition: opacity 400ms ease, color 400ms ease; }
+
+/* --- Olov (jahl): boshning tepasidan chiqadi, lipillaydi; heat oshgani sari kattalashadi --- */
+.flame { fill: url(#avFlame); }
+.flame-core { fill: #ffe066; opacity: 0.85; }
+.fx-fire-scale { transform-box: fill-box; transform-origin: 50% 100%; transform: scale(0.75); transition: transform 380ms var(--ease, ease); }
+.fx-fire .flame, .fx-fire .flame-core { transform-box: fill-box; transform-origin: 50% 100%; animation: fx-flicker 0.42s ease-in-out infinite alternate; }
+.fx-fire .flame-1 { animation-delay: -0.12s; } .fx-fire .flame-2 { animation-delay: -0.25s; animation-duration: 0.36s; }
+.fx-fire .flame-3 { animation-delay: -0.31s; } .fx-fire .flame-4 { animation-delay: -0.07s; animation-duration: 0.48s; }
+.avatar[data-emotion="angry"] .fx-fire, .avatar[data-emotion="furious"] .fx-fire, .avatar[data-heat="2"] .fx-fire, .avatar[data-heat="3"] .fx-fire { opacity: 1; }
+.avatar[data-heat="2"] .fx-fire-scale { transform: scale(1); }
+.avatar[data-heat="3"] .fx-fire-scale, .avatar[data-emotion="furious"] .fx-fire-scale { transform: scale(1.3); }
+
+/* --- Bug' (qattiq jahl yoki rashk): quloqlardan ko'tariladi --- */
+.puff { fill: var(--steam, #ffffff); stroke: color-mix(in srgb, var(--steam, #ffffff) 60%, #9aa3cf); stroke-width: 1.5;
+  filter: drop-shadow(0 0 6px var(--steam, #ffffff)); transform-box: fill-box; transform-origin: center; animation: fx-steam 1.6s ease-out infinite; }
+.puff-1, .puff-3 { animation-delay: -0.8s; }
+.avatar[data-emotion="furious"] .fx-steam, .avatar[data-heat="3"] .fx-steam, .avatar[data-emotion="jealous"] .fx-steam { opacity: 1; }
+.avatar[data-emotion="jealous"] { --steam: #9cf59c; }
+
+/* --- Yulduzlar (g'urur, maqtov) --- */
+.star { fill: #ffd23a; transform-box: fill-box; transform-origin: center; animation: fx-twinkle 1.1s ease-in-out infinite; }
+.star-1 { animation-delay: -0.3s; } .star-2 { animation-delay: -0.6s; } .star-3 { animation-delay: -0.85s; } .star-4 { animation-delay: -0.45s; }
+.avatar[data-emotion="proud"] .fx-stars, .avatar[data-emotion="excited"] .fx-stars { opacity: 1; }
+
+/* --- Ko'z yosh (hazil "yig'i") --- */
+.tear { fill: #7cc7ff; transform-box: fill-box; animation: fx-tear 1.2s ease-in infinite; }
+.tear-2, .tear-3 { animation-delay: -0.6s; }
+.avatar[data-emotion="crying"] .fx-tears { opacity: 1; }
+
+/* --- Zerikish: "z z Z" --- */
+.z { fill: #c9cfee; font: 800 22px/1 system-ui, sans-serif; animation: fx-zzz 2.4s ease-in-out infinite; }
+.z-1 { animation-delay: -0.8s; font-size: 26px; } .z-2 { animation-delay: -1.6s; font-size: 32px; }
+.avatar[data-emotion="bored"] .fx-zzz { opacity: 1; }
+
+/* --- Hayrat: atrofga chiziqlar va "!" --- */
+.fx-shock path { fill: none; stroke: #ffe066; stroke-width: 5; stroke-linecap: round; }
+.shock-mark { fill: #ffe066; font: 900 44px/1 system-ui, sans-serif; }
+.avatar[data-emotion="shocked"] .fx-shock { opacity: 1; animation: fx-pop 0.5s ease-out; }
+
+/* --- Nur (aura) va ko'z rangi kayfiyatga qarab (persona rangi — asosiy, bular vaqtincha ustun) --- */
+.avatar[data-emotion] .fx-aura, .avatar[data-heat] .fx-aura { opacity: 1; }
+.avatar[data-heat="1"] { --aura: #ff6a2a; } .avatar[data-heat="2"] { --aura: #ff4a1a; } .avatar[data-heat="3"] { --aura: #ff1a1a; }
+.avatar[data-emotion="angry"], .avatar[data-emotion="furious"] { --aura: #ff3a1a; }
+.avatar[data-emotion="proud"] { --eye: #ffd23a; --aura: #ffc21a; }
+.avatar[data-emotion="love"] { --eye: #ff6fae; --cheek: rgba(255, 111, 174, 0.7); --aura: #ff5fa2; }
+.avatar[data-emotion="jealous"] { --eye: #7ee081; --aura: #3fd06a; }
+.avatar[data-emotion="shocked"] { --eye: #fff4a8; --aura: #ffe066; }
+.avatar[data-emotion="bored"] { --eye: #9aa3c7; --aura: #8a93b8; }
+.avatar[data-emotion="crying"] { --eye: #7fa8ff; --aura: #4f8cff; }
+.avatar[data-emotion="sad"] { --aura: #4f8cff; }
+.avatar[data-emotion="happy"], .avatar[data-emotion="excited"] { --aura: #2ee6c8; }
+/* "Love" — atrofida yurakchalar (romantik xarakterdagidek) */
+.avatar[data-emotion="love"] .av-hearts { display: block; }
+.avatar[data-emotion="love"] .av-hearts span { animation-duration: 3s; }
+/* Jahl darajasi 3 — doimiy titrash; hayrat — sakrash */
+.avatar[data-heat="3"] .av-float { animation: av-shake 0.16s linear infinite; }
+.avatar[data-emotion="shocked"] .av-float { animation: av-bounce 0.35s ease-out 2; }
+
+@keyframes fx-flicker { from { transform: scaleY(0.88) scaleX(1.04); } to { transform: scaleY(1.12) scaleX(0.94); } }
+@keyframes fx-steam { 0% { transform: translateY(0) scale(0.6); opacity: 1; } 60% { opacity: 0.85; } 100% { transform: translateY(-38px) scale(1.6); opacity: 0; } }
+@keyframes fx-twinkle { 0%, 100% { transform: scale(0.55) rotate(0deg); opacity: 0.5; } 50% { transform: scale(1.15) rotate(20deg); opacity: 1; } }
+@keyframes fx-tear { 0% { transform: translateY(0); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(46px); opacity: 0; } }
+@keyframes fx-zzz { 0% { transform: translate(0, 8px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate(14px, -18px); opacity: 0; } }
+@keyframes fx-pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .fx *, .fx-fire-scale { animation: none !important; transition: none !important; }
+}

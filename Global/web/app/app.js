@@ -1,6 +1,7 @@
 import { iconSvg } from "../shared/icons.js";
 import { parseAkaResponse, variantLetter, stripAudioTags } from "../shared/parse.js";
-import { toSpeechText, toSpokenUzbek, toSpokenRussian, matchQuizAnswer } from "./speech.js";
+import { toSpeechText, toSpokenUzbek, toSpokenRussian, matchQuizAnswer, emotionsIn } from "./speech.js";
+import { createMood } from "./mood.js";
 import { createVoice } from "./voice.js";
 import { createCamera } from "./camera.js";
 import { createSpeechFeed } from "./speech-feed.js";
@@ -60,6 +61,11 @@ const el = {
 };
 
 const avatar = createAvatar($("avatar"));
+// Jigarning his holati suhbat davomida: haqorat va rashkda jahl to'planadi (olov, bug'), kechirimda so'nadi.
+const mood = createMood({
+  onHeat: (heat) => avatar.setHeat(heat),
+  max: () => (prefs.mode === "beparvo" || prefs.persona === "jahldor" ? 2 : 3),
+});
 const caption = createCaption($("caption"));
 const camera = createCamera({ video: el.lensVideo }); // Jigarning "ko'zi" — pastda: tugmalar
 let pageFile = null; // veb-rejim, yuklangan darslik: { kind, name, dataUrl } — pastda: "Darslik fayli"
@@ -552,6 +558,7 @@ async function sendMessage(text, { fromQuiz = false, fromVoice = false, heardAlt
     }
     state.history.push({ role: "assistant", content: data.text });
     const parsed = data.parsed ?? parseAkaResponse(data.text);
+    mood.feed(emotionsIn(data.text));
     // [laughs] kabi ovoz teglari faqat ovozga boradi, ekranda ko'rinmaydi.
     const shown = {
       ...parsed,
@@ -624,6 +631,7 @@ async function endLesson() {
 function resetChat() {
   if (state.busy) return;
   voice.stopAll();
+  mood.reset();
   state = freshState();
   el.chat.replaceChildren(el.empty);
   el.empty.hidden = false;
@@ -924,6 +932,22 @@ el.mic.addEventListener("pointerdown", (e) => {
   pressStart();
 });
 el.mic.addEventListener("pointerup", pressEnd);
+// Jigarning o'zini bosib ham gapirsa bo'ladi (mikrofon kabi: bosib turish yoki bir marta bosish).
+const avatarEl = $("avatar");
+avatarEl.setAttribute("role", "button");
+avatarEl.tabIndex = 0;
+avatarEl.setAttribute("aria-label", t("status.idle"));
+avatarEl.addEventListener("pointerdown", (e) => {
+  if (e.button !== 0 || el.mic.hidden) return;
+  e.preventDefault();
+  avatarEl.setPointerCapture?.(e.pointerId);
+  pressStart();
+});
+avatarEl.addEventListener("pointerup", pressEnd);
+avatarEl.addEventListener("pointercancel", pressEnd);
+avatarEl.addEventListener("keydown", (e) => {
+  if ((e.key === "Enter") && !el.mic.hidden) pressStart();
+});
 el.mic.addEventListener("pointercancel", pressEnd);
 el.mic.addEventListener("click", (e) => {
   if (e.detail === 0) pressStart(); // klaviatura (Enter) — sichqoncha bosishi pointerdown'da

@@ -183,7 +183,7 @@ test("matchQuizAnswer ruscha tartib so'zlarini tushunadi", () => {
 
 test("yuz teglari: har gap o'z tegiga mos yuz oladi, ovoz teglari bilan birga", () => {
   const { marks } = planEmotions("[sad] Urushda ko'p odam halok bo'ldi. [proud] Lekin sen buni to'g'ri topding! [serious] Bu qoida muhim.");
-  assert.deepEqual(marks.map((m) => m.emotion), ["sad", "happy", "neutral"]);
+  assert.deepEqual(marks.map((m) => m.emotion), ["sad", "proud", "neutral"]);
   assert.equal(detectEmotion("[surprised] Voy"), "excited");
   assert.equal(detectEmotion("[warm] Xavotir olma"), "kind");
   assert.equal(detectEmotion("[teasing] Ha, albatta"), "smirk");
@@ -205,7 +205,7 @@ test("inferEmotion: jahldor undovi — g'azab, boshqalarda — hayajon", () => {
 
 test("yuz teglari: har gap o'z tegiga mos yuz oladi; jahldorning xo'rsinishi — jahl", () => {
   const { marks } = planEmotions("[sad] Urushda ko'p odam halok bo'ldi. [proud] Lekin sen buni to'g'ri topding! [serious] Bu qoida muhim.");
-  assert.deepEqual(marks.map((m) => m.emotion), ["sad", "happy", "neutral"]);
+  assert.deepEqual(marks.map((m) => m.emotion), ["sad", "proud", "neutral"]);
   assert.equal(detectEmotion("[surprised] Voy"), "excited");
   assert.equal(detectEmotion("[warm] Xavotir olma"), "kind");
   assert.equal(detectEmotion("[thinking] Keling, ko'raylik"), "curious");

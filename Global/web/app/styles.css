@@ -177,6 +177,9 @@ h1 { font: 800 18px/1.1 var(--font-display); margin: 0; }
 /* Robot bo'sh joyga sig'adi: ekran past bo'lsa kichrayadi, boshi hech qachon kesilmaydi */
 /* Baland ekranda robot kattaroq — pastda bo'sh qorong'i joy qolmaydi */
 .avatar { flex: 0 1 clamp(300px, 50vh, 580px); min-height: 0; aspect-ratio: 300 / 340; }
+/* Jigarni bosib gapirish (mikrofon kabi): ko'rsatkich va fokus halqasi */
+.avatar[role="button"] { cursor: pointer; border-radius: 40%; -webkit-tap-highlight-color: transparent; touch-action: none; }
+.avatar[role="button"]:focus-visible { outline: 3px solid var(--accent); outline-offset: 6px; }
 
 .status-pill {
   margin: 0; padding: 6px 14px; border-radius: 999px;

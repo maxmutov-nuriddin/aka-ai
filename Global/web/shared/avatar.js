@@ -1,7 +1,9 @@
 // Jigar personaji: robot. Yuzi (ko'z, qosh, og'iz) va boshi har kadrda JS bilan chiziladi —
 // kayfiyatlar orasida silliq o'tadi, gapirganda his-tuyg'uga mos imo-ishora qiladi, pirpiraydi, atrofga qaraydi.
 // Holat (idle | listening | thinking | speaking), rejim (oddiy | beparvo)
-// va kayfiyat (happy | excited | curious | whisper | sad | angry | smirk) tashqaridan beriladi.
+// va kayfiyat (happy | excited | curious | whisper | sad | angry | smirk | proud | love | jealous | shocked | bored | crying)
+// tashqaridan beriladi. Effektlar (olov, bug', yulduz, yosh, "zzz", hayrat chiziqlari) — boshning ichida (u bilan qimirlaydi);
+// "jahl darajasi" (heat 0..3) — suhbat davomida to'planadi: olov kattalashadi, bug' chiqadi, titraydi.
 
 const EYE_CENTERS = { left: [118, 108], right: [182, 108] };
 const MOUTH_Y = 147;
@@ -48,6 +50,31 @@ const EMOTIONS = {
     left: { tilt: 1.25, open: 0.66, scale: 1.06 }, right: { tilt: 1.25, open: 0.66, scale: 1.06 },
     face: { brow: -8, browTilt: 1.4, browShow: 1, mouthW: 42, curve: -7, open: 0.8 }, cheeks: 0, gesture: "rage",
   },
+  // Preppy darajasidagi kayfiyatlar (effektlari — avatar.css, .fx-*)
+  proud: { // maqtov, g'urur — oltin yulduzlar
+    left: { h: 30, r: 15, lift: 0.85, scale: 1.08 }, right: { h: 30, r: 15, lift: 0.85, scale: 1.08 },
+    face: { brow: 9, browShow: 1, mouthW: 36, curve: 12, open: 0.2 }, cheeks: 0.9, gesture: "hop",
+  },
+  love: { // erib ketish, minnatdorlik — yurak ko'zlar, pushti nur
+    left: { scale: 1.1 }, right: { scale: 1.1 },
+    face: { brow: 6, browShow: 0.6, mouthW: 26, curve: 10 }, cheeks: 1, gesture: "bounce",
+  },
+  jealous: { // rashk (boshqa AI tilga olinganda) — yon ko'z, burilgan og'iz
+    left: { open: 0.55, tilt: 0.45, dx: -7 }, right: { open: 0.55, tilt: 0.45, dx: -7 },
+    face: { brow: -3, browTilt: 0.7, browShow: 1, mouthW: 20, curve: -4, skew: 5, mouthDx: -4 }, cheeks: 0, gesture: "tilt",
+  },
+  shocked: { // hayrat, "nima-a?!" — katta ko'zlar, dumaloq og'iz
+    left: { scale: 1.32, r: 15 }, right: { scale: 1.32, r: 15 },
+    face: { brow: 13, browShow: 1, mouthW: 14, curve: 0, open: 0.65 }, cheeks: 0, gesture: "lean",
+  },
+  bored: { // zerikish (bir xil xato takrorlansa) — yarim yumuq ko'zlar
+    left: { open: 0.32 }, right: { open: 0.32 },
+    face: { brow: -1, browShow: 0.5, mouthW: 18, curve: -1 }, cheeks: 0.1, gesture: "droop",
+  },
+  crying: { // "yig'laydi" (hazil) — ko'z yosh tomchilari
+    left: { tilt: -1.1, open: 0.6, dy: 5 }, right: { tilt: -1.1, open: 0.6, dy: 5 },
+    face: { brow: 3, browTilt: -1.2, browShow: 1, mouthW: 22, curve: -10, open: 0.3 }, cheeks: 0.2, gesture: "droop",
+  },
   smirk: {
     left: { open: 0.5, tilt: 0.35 }, right: { open: 0.9 },
     face: { brow: 3, browTilt: 0.4, browShow: 1, mouthW: 24, curve: 5, skew: 6, mouthDx: 4 }, cheeks: 0.3, gesture: "tilt",
@@ -66,7 +93,47 @@ const EMOTIONS = {
 // Xarakter (ro'yxatdan o'tishda tanlanadi) -> jim turgandagi ifoda.
 const PERSONA_BASE = { neytral: "neutral", mehribon: "kind", kinoyali: "smirk", jahldor: "angry", romantik: "romantic", moslashuvchan: "kind" };
 // Romantikning yurak ko'zlari bu kayfiyatlarda oddiy ko'zga qaytadi (yurak bilan jahl yoki g'am chiqmaydi).
-const NO_HEART_EMOTIONS = new Set(["angry", "furious", "sad"]);
+const NO_HEART_EMOTIONS = new Set(["angry", "furious", "sad", "crying", "jealous", "shocked", "bored"]);
+export const HEAT_MAX = 3;
+
+/** Olov tili (asosi y=0, tepasi y=-h). */
+const flame = (x, w, h) => `M${x - w} 0C${x - w * 1.25} ${-h * 0.42} ${x - w * 0.35} ${-h * 0.62} ${x} ${-h}`
+  + `C${x + w * 0.3} ${-h * 0.58} ${x + w * 1.25} ${-h * 0.42} ${x + w} 0Z`;
+const FLAMES = [[-62, 15, 34], [-34, 17, 52], [0, 20, 66], [34, 17, 50], [62, 15, 32]];
+/** To'rt nurli yulduzcha (g'urur). */
+const sparkle = (x, y, r) => `M${x} ${y - r}Q${x + r * 0.18} ${y - r * 0.18} ${x + r} ${y}Q${x + r * 0.18} ${y + r * 0.18} ${x} ${y + r}`
+  + `Q${x - r * 0.18} ${y + r * 0.18} ${x - r} ${y}Q${x - r * 0.18} ${y - r * 0.18} ${x} ${y - r}Z`;
+const tear = (x, y) => `M${x} ${y}C${x - 6} ${y + 9} ${x - 7} ${y + 15} ${x} ${y + 17}C${x + 7} ${y + 15} ${x + 6} ${y + 9} ${x} ${y}Z`;
+
+// Effektlar (boshning ichida — u bilan qimirlaydi). Ko'rinishi — avatar.css (data-emotion, data-heat).
+const FX_BEHIND = `
+      <g class="fx fx-fire" transform="translate(150 58)">
+        <g class="fx-fire-scale">
+          ${FLAMES.map(([x, w, h], i) => `<path class="flame flame-${i}" d="${flame(x, w, h)}" />`).join("")}
+          ${FLAMES.map(([x, w, h], i) => `<path class="flame-core flame-${i}" d="${flame(x, w * 0.55, h * 0.6)}" />`).join("")}
+        </g>
+      </g>`;
+const FX_FRONT = `
+      <g class="fx fx-steam">
+        <circle class="puff puff-0" cx="30" cy="82" r="11" /><circle class="puff puff-1" cx="40" cy="76" r="8" />
+        <circle class="puff puff-2" cx="270" cy="82" r="11" /><circle class="puff puff-3" cx="260" cy="76" r="8" />
+      </g>
+      <g class="fx fx-stars">
+        <path class="star star-0" d="${sparkle(34, 44, 13)}" /><path class="star star-1" d="${sparkle(268, 54, 10)}" />
+        <path class="star star-2" d="${sparkle(22, 176, 9)}" /><path class="star star-3" d="${sparkle(280, 170, 12)}" />
+        <path class="star star-4" d="${sparkle(214, 22, 8)}" />
+      </g>
+      <g class="fx fx-tears">
+        <path class="tear tear-0" d="${tear(104, 126)}" /><path class="tear tear-1" d="${tear(196, 126)}" />
+        <path class="tear tear-2" d="${tear(110, 126)}" /><path class="tear tear-3" d="${tear(190, 126)}" />
+      </g>
+      <g class="fx fx-zzz">
+        <text class="z z-0" x="226" y="52">z</text><text class="z z-1" x="244" y="36">z</text><text class="z z-2" x="262" y="18">Z</text>
+      </g>
+      <g class="fx fx-shock">
+        <path d="M30 40 L12 26 M24 70 L4 66 M270 40 L288 26 M276 70 L296 66 M150 6 L150 -12 M110 12 L102 -4 M190 12 L198 -4" />
+        <text class="shock-mark" x="236" y="30">!</text>
+      </g>`;
 const SILENT_LEVEL = 0.04; // shundan past ovoz — pauza (og'iz yopiladi)
 const HEART_SIZE = 13;
 
@@ -150,6 +217,12 @@ function gestureFor(name, t, level) {
 const ROBOT_SVG = `
 <svg class="av" viewBox="0 0 300 340" aria-hidden="true" focusable="false">
   <defs>
+    <linearGradient id="avFlame" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#ff2a1a" /><stop offset="0.55" stop-color="#ff7a1a" /><stop offset="1" stop-color="#ffd23a" />
+    </linearGradient>
+    <radialGradient id="avAura" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="currentColor" stop-opacity="0.55" /><stop offset="1" stop-color="currentColor" stop-opacity="0" />
+    </radialGradient>
     <radialGradient id="avShell" cx="0.32" cy="0.22" r="0.95">
       <stop offset="0" stop-color="#ffffff" />
       <stop offset="0.5" stop-color="#e6e9f7" />
@@ -176,6 +249,7 @@ const ROBOT_SVG = `
       <feMerge><feMergeNode in="b" /><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
     </filter>
   </defs>
+  <circle class="fx-aura" cx="150" cy="150" r="148" />
   <ellipse class="av-shadow" cx="150" cy="328" rx="74" ry="9" />
   <g class="av-float">
     <g data-part="armL">
@@ -193,7 +267,7 @@ const ROBOT_SVG = `
     <path class="av-seam" d="M100 240 L200 240" />
     <circle class="av-core-ring" cx="150" cy="266" r="16" />
     <circle class="av-core" data-part="core" cx="150" cy="266" r="7" filter="url(#avGlow)" />
-    <g data-part="head">
+    <g data-part="head">${FX_BEHIND}
       <line class="av-antenna" x1="150" y1="44" x2="150" y2="20" />
       <circle class="av-tip-halo" cx="150" cy="15" r="12" />
       <circle class="av-tip" cx="150" cy="15" r="7" filter="url(#avGlow)" />
@@ -216,7 +290,7 @@ const ROBOT_SVG = `
       </g>
       <ellipse class="av-cheek" data-part="cheekL" cx="88" cy="142" rx="11" ry="6" />
       <ellipse class="av-cheek" data-part="cheekR" cx="212" cy="142" rx="11" ry="6" />
-      <path class="av-glare" d="M82 72 Q100 64 130 64 L122 80 Q98 80 86 94 Z" />
+      <path class="av-glare" d="M82 72 Q100 64 130 64 L122 80 Q98 80 86 94 Z" />${FX_FRONT}
     </g>
   </g>
 </svg>`;
@@ -280,6 +354,7 @@ export function createAvatar(root) {
       // Pauzada (ovoz yo'q) og'iz deyarli yopiladi — gap bilan birga ochilib-yopiladi, ochiq qotib qolmaydi.
       const voiced = cur.level > SILENT_LEVEL ? 0.12 : 0;
       t.open = t.open * 0.35 + voiced + cur.level * (preset === EMOTIONS.furious ? 1.45 : preset === EMOTIONS.angry ? 1.25 : 1);
+      if (preset === EMOTIONS.shocked) t.open = Math.max(t.open, 0.5);
       t.brow += cur.level * 6 + cur.beat * 7; // urg'uda qosh sakraydi
       t.browShow = Math.max(t.browShow, 0.55);
     } else {
@@ -353,6 +428,18 @@ export function createAvatar(root) {
         return [-78 + Math.sin(t / 50) * 22, 78 - Math.sin(t / 55) * 22];
       case "smirk": // bir qo'l belda, ikkinchisi "ha-ha" deb silkitadi
         return [-24 + Math.sin(t / 300) * 10, -28];
+      case "proud": // ikki qo'l tepada — g'alaba
+        return [-130 + Math.sin(t / 260) * 8, 130 - Math.sin(t / 260) * 8];
+      case "love": // qo'llar ko'krakda, chayqaladi
+        return [28 + Math.sin(t / 400) * 6, -28 - Math.sin(t / 400) * 6];
+      case "jealous": // qo'llar qovushgan (belda), teskari burilgan
+        return [-22, 22];
+      case "shocked": // qo'llar yuzga — "voy!"
+        return [-150 + Math.sin(t / 90) * 4, 150 - Math.sin(t / 90) * 4];
+      case "bored": // osilgan, sekin
+        return [16 + Math.sin(t / 1600) * 2, -16];
+      case "crying": // ko'zini artadi
+        return [-150 + Math.sin(t / 180) * 12, 14];
       default:
         break;
     }
@@ -411,7 +498,7 @@ export function createAvatar(root) {
     const faceTarget = targetFace(preset, speaking);
     for (const key of Object.keys(faceTarget)) cur.face[key] = lerp(cur.face[key], faceTarget[key], key === "open" ? 0.45 : SMOOTH);
 
-    const hearts = ui.persona === "romantik" && !NO_HEART_EMOTIONS.has(ui.emotion);
+    const hearts = ui.emotion === "love" || (ui.persona === "romantik" && !NO_HEART_EMOTIONS.has(ui.emotion));
     nodes.eyeL.setAttribute("d", hearts ? heartPath(EYE_CENTERS.left, cur.left) : eyePath(EYE_CENTERS.left, cur.left, "left"));
     nodes.eyeR.setAttribute("d", hearts ? heartPath(EYE_CENTERS.right, cur.right) : eyePath(EYE_CENTERS.right, cur.right, "right"));
     nodes.browL.setAttribute("d", browPath(EYE_CENTERS.left, cur.face, cur.left, "left"));
@@ -453,6 +540,13 @@ export function createAvatar(root) {
     else delete root.dataset.persona;
   }
 
+  /** Jahl darajasi (0..3): suhbat davomida to'planadi — olov kattaligi, bug', titrash (avatar.css: data-heat). */
+  function setHeat(value) {
+    const heat = Math.max(0, Math.min(HEAT_MAX, Math.round(Number(value) || 0)));
+    if (heat) root.dataset.heat = String(heat);
+    else delete root.dataset.heat;
+  }
+
   function setEmotion(emotion) {
     ui.emotion = emotion && EMOTIONS[emotion] ? emotion : null;
     if (ui.emotion) root.dataset.emotion = ui.emotion;
@@ -468,5 +562,5 @@ export function createAvatar(root) {
     gaze.next = 0;
   }
 
-  return { setState, setMode, setPersona, setLevel, setEmotion, lookAt };
+  return { setState, setMode, setPersona, setLevel, setEmotion, setHeat, lookAt };
 }

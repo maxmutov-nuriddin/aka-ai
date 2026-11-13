@@ -149,7 +149,12 @@ const EMOTION_BY_TAG = {
   sarcastic: "smirk",
   // Yuz teglari: ovozga ta'sir qilmaydi (ovoz xizmatlari ularni olib tashlaydi), faqat robot yuzini o'zgartiradi.
   smiles: "happy",
-  proud: "happy",
+  proud: "proud",
+  love: "love",
+  jealous: "jealous",
+  shocked: "shocked",
+  bored: "bored",
+  crying: "crying",
   surprised: "excited",
   thinking: "curious",
   serious: "neutral",
@@ -161,13 +166,18 @@ const EMOTION_BY_TAG = {
 /**
  * Bo'lakdagi birinchi tanish ovoz tegidan personaj kayfiyatini topadi.
  * @param {string} text
- * @returns {string | null} happy | excited | curious | whisper | sad | angry | smirk
+ * @returns {string | null} happy | excited | curious | whisper | sad | angry | smirk | proud | love | jealous | shocked | bored | crying
  */
 export function detectEmotion(text) {
   for (const [, tag] of String(text ?? "").matchAll(/\[([a-z]+)[a-z ,'-]*\]/g)) {
     if (EMOTION_BY_TAG[tag]) return EMOTION_BY_TAG[tag];
   }
   return null;
+}
+
+/** Javobdagi barcha teglar kayfiyati (tartib bilan) — jahl darajasini hisoblash uchun (mood.js). */
+export function emotionsIn(text) {
+  return [...String(text ?? "").matchAll(/\[([a-z]+)[a-z ,'-]*\]/g)].map(([, tag]) => EMOTION_BY_TAG[tag]).filter(Boolean);
 }
 
 // Teg bo'lmasa, kayfiyat gapning o'zidan taxmin qilinadi — faqat ma'nosi aniq so'zlar bilan. Ikki ma'noli so'zlar
