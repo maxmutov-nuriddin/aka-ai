@@ -248,10 +248,12 @@ export function createVoice({
     } catch (err) {
       recording = null;
       onState("idle");
+      // Texnik sabab (err.name: err.message) ham beriladi — masalan, "Permission denied by system" = Windows/macOS to'sgan.
+      const detail = err?.name ? `${err.name}: ${err.message ?? ""}`.trim() : "";
       if (err?.name === "NotAllowedError" || err?.name === "SecurityError") {
-        return onError("denied", "err.micDenied");
+        return onError("denied", "err.micDenied", detail);
       }
-      onError("other", "err.micFailed");
+      onError("other", "err.micFailed", detail);
     }
   }
 

@@ -831,7 +831,12 @@ const voice = createVoice({
   onLevel: (level) => avatar.setLevel(level),
   onCaption: (c) => caption.follow(c),
   onEmotion: (emotion) => avatar.setEmotion(emotion),
-  onError(kind, message) {
+  onError(kind, message, detail = "") {
+    // Desktop ilovada manzil satri/qulf belgisi yo'q: to'g'ri yo'riqnoma + texnik sabab (nima to'sganini ko'rsatadi).
+    if (IS_DESKTOP_APP && (kind === "denied" || (kind === "other" && detail))) {
+      const hint = kind === "denied" ? t("err.micDeniedDesktop") : t(message);
+      return showError(detail ? `${hint} [${detail}]` : hint);
+    }
     if (kind !== "denied") return showError(t(message));
     if (host.requestMicPermission) {
       showError(t("err.micNeedPermission"));
