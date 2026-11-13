@@ -107,10 +107,11 @@ export function createServerWake({ onWake, onUnavailable = () => {}, apiBase, au
     }
   }
 
-  function giveUp(reason) {
+  /** detail — texnik sabab ("NotAllowedError: Permission denied by system" kabi): ekranda va jurnalda ko'rinadi. */
+  function giveUp(reason, detail = "") {
     wanted = false;
     halt();
-    onUnavailable(reason);
+    onUnavailable(reason, detail);
   }
 
   async function begin() {
@@ -118,8 +119,8 @@ export function createServerWake({ onWake, onUnavailable = () => {}, apiBase, au
     let stream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
-    } catch {
-      return giveUp("not-allowed");
+    } catch (err) {
+      return giveUp("not-allowed", `${err?.name ?? "Error"}: ${err?.message ?? ""}`.trim());
     }
     if (!wanted || paused || live) return stream.getTracks().forEach((t) => t.stop());
     const ctx = new AudioContext({ sampleRate: SAMPLE_RATE });

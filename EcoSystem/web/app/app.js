@@ -8,6 +8,7 @@ import { readPageFile, PageFileError } from "./page-file.js";
 import { createAssistant, fileButton, formatDue, renderAssistantPanel } from "./assistant.js";
 import { createWake, isStopCommand, isDeliberateWake } from "./wake.js";
 import { createServerWake } from "./wake-server.js";
+import { reportClientIssue } from "./diag.js";
 import { startPhoneAgent } from "./phone-agent.js";
 import { renderApps } from "./settings-apps.js";
 
@@ -102,10 +103,12 @@ const wakeHandlers = {
   // Fonda tinglash ishlamadi (masalan, desktop ilovada Google nutq xizmati yo'q) — o'chiramiz, mikrofon yonib-o'chmasin.
   // Desktop'da bu holat saqlanmaydi: vaqtinchalik xato (ruxsat, server) "Hey Jigar"ni butunlay o'chirib qo'ymasin —
   // keyingi ochilishda yana eshitadi. O'chirish — faqat egasi o'zi tugmani o'chirsa (wakeOff).
-  onUnavailable() {
+  onUnavailable(reason = "", detail = "") {
     if (!IS_DESKTOP_APP) updatePrefs({ wake: false });
     $("wakeToggle").checked = false;
-    showError(t("asst.wakeOff"));
+    // Texnik sabab — ekranda va serverdagi XATOLAR.md jurnalida (egasi nusxalab yubormasa ham ko'rinadi).
+    if (detail) reportClientIssue({ apiBase: () => host.apiBase, authHeaders }, { where: "Hey Jigar", name: detail.split(":")[0], message: detail });
+    showError(detail ? `${t("asst.wakeOff")} [${detail}]` : t("asst.wakeOff"));
   },
 };
 const wake = IS_DESKTOP_APP
@@ -833,6 +836,7 @@ const voice = createVoice({
   onEmotion: (emotion) => avatar.setEmotion(emotion),
   onError(kind, message, detail = "") {
     // Desktop ilovada manzil satri/qulf belgisi yo'q: to'g'ri yo'riqnoma + texnik sabab (nima to'sganini ko'rsatadi).
+    if (detail) reportClientIssue({ apiBase: () => host.apiBase, authHeaders }, { where: "mikrofon tugmasi", name: detail.split(":")[0], message: detail });
     if (IS_DESKTOP_APP && (kind === "denied" || (kind === "other" && detail))) {
       const hint = kind === "denied" ? t("err.micDeniedDesktop") : t(message);
       return showError(detail ? `${hint} [${detail}]` : hint);

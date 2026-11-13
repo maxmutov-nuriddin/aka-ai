@@ -12,6 +12,7 @@ const VOICE_HISTORY_MAX = 10;
 const VOICE_TEXT_MAX = 1000;
 const VOICE_NOTE = "Siri orqali ovozli so'rov: javob 1-2 qisqa gap, faqat gapirish uchun (ro'yxat, kod, chizma yo'q). Asboblar bilan darhol bajar.";
 const KIND_BY_NAME = { gaps: "gap", errors: "error", actions: "action" };
+const CLIENT_FIELD_MAX = 80; // ilova yuborgan qisqa maydonlar (where, name)
 
 /** Siri uchun toza nutq: ovoz/yuz teglari, markdown belgilari olib tashlanadi. */
 export function speechText(text) {
@@ -81,6 +82,21 @@ export function createAgentRouter({ jigar, tokens, journal, watches, settings, m
     res.set("Content-Type", "text/markdown; charset=utf-8");
     res.set("Content-Disposition", `attachment; filename="${JOURNAL_KINDS[kind]}"`);
     res.send(journalMarkdown(kind, journal.list(req.user.id, kind)));
+  });
+
+  // Ilova (masalan, Windows desktop) o'z texnik xatosini yozadi (mikrofon ochilmadi va h.k.) — XATOLAR.md jurnaliga.
+  // Egasi qurilmadan nusxa olib yubormasa ham, sabab serverda ko'rinadi. Faqat kirgan egasi; matnlar qisqartiriladi.
+  router.post("/journal/client", signedIn, limiter, (req, res) => {
+    const body = req.body ?? {};
+    const where = String(body.where ?? "").trim().slice(0, CLIENT_FIELD_MAX);
+    if (!where) return res.status(400).json({ error: "where kerak" });
+    const name = String(body.name ?? "xato").slice(0, CLIENT_FIELD_MAX);
+    journal.add(req.user.id, "error", `Ilova: ${where} — ${name}`, {
+      xabar: String(body.message ?? ""),
+      mikrofonlar: String(body.audioInputs ?? "?"),
+      qurilma: String(body.device ?? ""),
+    });
+    res.json({ ok: true });
   });
 
   router.post("/watches/:id/cancel", signedIn, (req, res) => {

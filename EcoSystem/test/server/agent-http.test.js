@@ -138,3 +138,23 @@ test("xavfsizlik sarlavhalari; production'da HSTS; zaif parol faqat production'd
     prod.close();
   }
 });
+
+test("ilova xatosi (POST /api/journal/client): XATOLAR.md ga yoziladi; 'where'siz — 400; kirmagan — 401", async () => {
+  const s = await startServer({ jigar: voiceJigar(), ttsProviders: {}, stt: { configured: false } });
+  try {
+    const ok = await s.post("/api/journal/client", {
+      where: "Hey Jigar", name: "NotAllowedError", message: "NotAllowedError: Permission denied by system",
+      audioInputs: 2, device: "desktop ilova, Windows NT 10.0",
+    });
+    assert.equal(ok.status, 200);
+    assert.equal((await s.post("/api/journal/client", { name: "x" })).status, 400);
+    const md = await (await s.raw("/api/journal/errors")).text();
+    assert.match(md, /Ilova: Hey Jigar — NotAllowedError/);
+    assert.match(md, /Permission denied by system/);
+    assert.match(md, /Windows NT 10\.0/);
+    const anon = await fetch(`${s.base}/api/journal/client`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ where: "x" }) });
+    assert.equal(anon.status, 401);
+  } finally {
+    s.close();
+  }
+});
