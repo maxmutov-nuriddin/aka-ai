@@ -9,6 +9,7 @@ import { createAssistant, fileButton, formatDue, renderAssistantPanel } from "./
 import { createWake } from "./wake.js";
 import { createServerWake } from "./wake-server.js";
 import { startPhoneAgent } from "./phone-agent.js";
+import { renderApps } from "./settings-apps.js";
 
 // Desktop ilova (Electron): brauzer nutq xizmati (Google) yo'q — tinglash server orqali (ElevenLabs Scribe).
 const IS_DESKTOP_APP = /JigarDesktop\//.test(navigator.userAgent);
@@ -1020,17 +1021,20 @@ el.typeToggle.addEventListener("click", () => {
   updatePrefs({ typing: !prefs.typing });
   if (!el.textRow.hidden) el.input.focus();
 });
-// ---------- Sozlamalar oynasi (⚙): javob uzunligi va sodda tushuntirish ----------
+// ---------- Sozlamalar — alohida sahifa (to'liq ekran): Orqaga yoki Esc bilan yopiladi ----------
 function setSettingsOpen(open) {
   el.settingsPop.hidden = !open;
   el.settingsBtn.setAttribute("aria-expanded", String(open));
+  document.body.classList.toggle("settings-open", open); // orqadagi sahifa aylanmasin
+  if (!open) return el.settingsBtn.focus();
+  el.settingsPop.scrollTop = 0;
+  $("settingsClose").focus();
+  if (!$("appsCard").hidden) renderApps($("appsList"), () => host.apiBase); // ilovalar holati — har ochilganda yangi
 }
 el.settingsBtn.addEventListener("click", () => setSettingsOpen(el.settingsPop.hidden));
-document.addEventListener("pointerdown", (e) => {
-  if (!el.settingsPop.hidden && !e.target.closest(".settings")) setSettingsOpen(false);
-});
+$("settingsClose").addEventListener("click", () => setSettingsOpen(false));
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && !el.settingsPop.hidden) setSettingsOpen(false);
+  if (e.key === "Escape" && !el.settingsPop.hidden && !document.querySelector("dialog[open]")) setSettingsOpen(false);
 });
 for (const btn of el.settingsPop.querySelectorAll("[data-length]")) {
   btn.addEventListener("click", () => updatePrefs({ length: btn.dataset.length }));
@@ -1061,7 +1065,8 @@ $("nameForm").addEventListener("submit", async (event) => {
 // Ilovada support faqat panelga havolani ko'radi.
 function renderSupport(user) {
   const isSupport = Boolean(user); // EcoSystem: kirgan har kim — egasi, yordamchi imkoniyatlari doim ochiq
-  for (const node of el.settingsPop.querySelectorAll(".support-only")) node.hidden = !isSupport;
+  for (const node of document.querySelectorAll(".support-only")) node.hidden = !isSupport; // sozlamalar va navbar (Xotira)
+  $("appsOpen").href = `${host.apiBase}/download`;
   if (isSupport) {
     assistant.start(); // eslatmalar vaqtida keladi
     nudgeWatcher.start(); // Jigar o'zi aytgan gaplar (ekranga qarab maslahat, kunlik xulosa)
@@ -1302,8 +1307,9 @@ function announceAssistant(result) {
   if (result.remembered?.length) addNotice(`🧠 ${t("asst.remembered")}: ${result.remembered.join("; ")}`);
 }
 
-$("assistantOpen").addEventListener("click", () => {
-  setSettingsOpen(false);
+// Xotira va eslatmalar — navbardagi tugma oynani ochadi.
+$("memoryBtn").addEventListener("click", () => {
+  if (!el.settingsPop.hidden) setSettingsOpen(false);
   $("assistantDialog").showModal();
   renderAssistantPanel($("assistantBody"), assistant, { t, lang: prefs.lang });
 });

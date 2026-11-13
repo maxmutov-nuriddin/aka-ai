@@ -1,6 +1,7 @@
 // Sozlamalardagi Jarvis bo'limi: Siri kalitlari, jurnal (qilolmagan ishlar, xatolar, harakatlar), favqulodda TO'XTA.
 // Server: /api/tokens, /api/journal/:kind, /api/stop (server/agent/routes.js). Matnlar — textContent (xavfsiz).
 import { canResetServer, resetServer } from "./phone-agent.js";
+import { askConfirm } from "./confirm-dialog.js";
 
 function el(tag, className, text) {
   const n = document.createElement(tag);
@@ -38,6 +39,12 @@ export function agentSection({ apiBase, authHeaders, status }) {
       const del = el("button", "link", "o'chirish");
       del.type = "button";
       del.addEventListener("click", async () => {
+        const sure = await askConfirm({
+          title: "Siri kaliti o'chirilsinmi?",
+          text: `"${t.name}" kaliti bilan Siri (yoki telefon agenti) endi Jigar'ga ulana olmaydi. Rostdan ham o'chirmoqchimisiz?`,
+          confirm: "O'chirish",
+        });
+        if (!sure) return;
         await request(`/api/tokens/${t.id}`, "DELETE").catch(() => {});
         refreshTokens();
       });
@@ -79,6 +86,12 @@ export function agentSection({ apiBase, authHeaders, status }) {
   const stop = el("button", "danger eco-stop", "⛔ TO'XTA — hammasini bekor qil");
   stop.type = "button";
   stop.addEventListener("click", async () => {
+    const sure = await askConfirm({
+      title: "Hammasi to'xtatilsinmi?",
+      text: "Barcha kuzatuvlar bekor qilinadi va ruxsat darajasi \"Xavfsiz\"ga tushadi. Rostdan ham to'xtatmoqchimisiz?",
+      confirm: "Ha, to'xtat",
+    });
+    if (!sure) return;
     try {
       const { cancelled } = await request("/api/stop", "POST", {});
       status.textContent = `To'xtatildi: ${cancelled} ta kuzatuv bekor, ruxsat — xavfsiz.`;
@@ -91,7 +104,14 @@ export function agentSection({ apiBase, authHeaders, status }) {
   if (canResetServer()) {
     const server = el("button", "ghost", "📱 Server manzilini o'zgartirish");
     server.type = "button";
-    server.addEventListener("click", () => resetServer());
+    server.addEventListener("click", async () => {
+      const sure = await askConfirm({
+        title: "Server manzili o'zgartirilsinmi?",
+        text: "Telefon hozirgi serverdan uziladi va manzilni qayta kiritasiz. Rostdan ham davom etasizmi?",
+        confirm: "O'zgartirish",
+      });
+      if (sure) resetServer();
+    });
     box.append(server);
   }
   refreshTokens();

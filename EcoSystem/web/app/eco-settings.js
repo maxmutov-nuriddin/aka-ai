@@ -66,8 +66,8 @@ export async function mountEcoSettings(container, { apiBase, authHeaders, person
     return;
   }
 
-  const status = document.createElement("small");
-  status.className = "eco-status";
+  // Holat ("Saqlandi ✓") — sahifa sarlavhasida (hamma kartochkalar uchun bitta).
+  const status = document.getElementById("settingsStatus") ?? Object.assign(document.createElement("small"), { className: "eco-status" });
 
   /** Bitta tanlov (select): kaliti yo'q xizmat — tanlab bo'lmaydi. Matnlar — textContent (xavfsiz). */
   function field(key, value, options, ready, onChange) {
@@ -128,7 +128,7 @@ export async function mountEcoSettings(container, { apiBase, authHeaders, person
     form.className = "eco-field";
     const caption = document.createElement("span");
     caption.className = "setting-label";
-    caption.textContent = "Parol (boshqa qurilmalar uchun)";
+    caption.textContent = "Telefon yoki boshqa kompyuterdan kirish uchun";
     const input = document.createElement("input");
     input.type = "password";
     input.minLength = 8;
@@ -157,29 +157,31 @@ export async function mountEcoSettings(container, { apiBase, authHeaders, person
   device.className = "eco-device";
   deviceStatusText({ apiBase, authHeaders, t }).then((text) => { device.textContent = text; });
 
-  // Ilovalarni yuklab olish sahifasi (macOS, Windows, Android, iPhone) — yangi oynada.
-  const downloads = document.createElement("a");
-  downloads.className = "ghost eco-download";
-  downloads.href = `${apiBase()}/download`;
-  downloads.target = "_blank";
-  downloads.rel = "noopener";
-  downloads.textContent = "📥 Ilovalarni yuklab olish";
+  /** Bo'lim kartochkasi: sarlavha va maydonlar. */
+  const card = (title, ...children) => {
+    const section = document.createElement("section");
+    section.className = "settings-card";
+    const heading = document.createElement("h3");
+    heading.textContent = title;
+    section.append(heading, ...children);
+    return section;
+  };
 
   container.replaceChildren(
-    device,
-    downloads,
-    field("llm", state.llm, state.choices.llm, state.ready.llm, saveSetting("llm")),
-    field("tts", state.tts, state.choices.tts, state.ready.tts, saveSetting("tts")),
-    field("effort", state.effort, state.choices.effort, null, saveSetting("effort")),
-    field("length", savedProfile().length ?? "odatiy", Object.keys(LABELS.length), null, saveProfileField("length")),
-    field("persona", persona ?? "", Object.keys(LABELS.persona), null, saveProfileField("persona")),
-    field("proactive", state.proactive, ["on", "off"], null, saveSetting("proactive")),
-    field("briefs", state.briefs, ["on", "off"], null, saveSetting("briefs")),
-    field("monitor", state.monitor, ["on", "off"], null, saveSetting("monitor")),
-    field("access", state.access, state.choices.access ?? Object.keys(LABELS.access), null, saveAccess),
-    agentSection({ apiBase, authHeaders, status }),
-    passwordField(),
-    status,
+    card("Miya va ovoz",
+      device,
+      field("llm", state.llm, state.choices.llm, state.ready.llm, saveSetting("llm")),
+      field("tts", state.tts, state.choices.tts, state.ready.tts, saveSetting("tts")),
+      field("effort", state.effort, state.choices.effort, null, saveSetting("effort")),
+      field("length", savedProfile().length ?? "odatiy", Object.keys(LABELS.length), null, saveProfileField("length")),
+      field("persona", persona ?? "", Object.keys(LABELS.persona), null, saveProfileField("persona"))),
+    card("Jarvis: o'zi kuzatish va ruxsat",
+      field("proactive", state.proactive, ["on", "off"], null, saveSetting("proactive")),
+      field("briefs", state.briefs, ["on", "off"], null, saveSetting("briefs")),
+      field("monitor", state.monitor, ["on", "off"], null, saveSetting("monitor")),
+      field("access", state.access, state.choices.access ?? Object.keys(LABELS.access), null, saveAccess)),
+    card("Siri, jurnal va xavfsizlik", agentSection({ apiBase, authHeaders, status })),
+    card("Parol", passwordField()),
   );
   container.hidden = false;
 }

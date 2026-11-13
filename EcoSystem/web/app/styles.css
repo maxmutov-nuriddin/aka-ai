@@ -558,3 +558,42 @@ code { font: 0.92em ui-monospace, monospace; background: rgba(255, 255, 255, 0.0
 .eco-stop { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--danger, #ff5d6c); background: color-mix(in srgb, var(--danger, #ff5d6c) 18%, transparent); color: var(--text); font-weight: 800; }
 .nudge-alert { border-left-color: var(--danger, #ff5d6c); }
 .nudge-countdown { border-left-color: #f5a524; }
+
+/* Sozlamalar — alohida sahifa (to'liq ekran): sticky sarlavha, kartochkalar to'ri; telefonda — bitta ustun */
+body.settings-open { overflow: hidden; }
+.settings-page {
+  position: fixed; inset: 0; z-index: 60; overflow-y: auto; overscroll-behavior: contain;
+  background: radial-gradient(70% 45% at 50% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%), var(--bg);
+  animation: rise var(--dur) var(--ease);
+}
+.settings-inner { width: min(1080px, 100%); margin: 0 auto; padding: 0 16px 48px; box-sizing: border-box; }
+.settings-head {
+  position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 14px 0; margin-bottom: 8px; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line);
+}
+.settings-head .settings-title { margin: 0; font: 800 22px/1.2 var(--font-display); }
+.settings-back { display: inline-flex; align-items: center; gap: 4px; height: 36px; padding: 0 12px 0 8px; border-radius: 999px; }
+.settings-head .eco-status { margin-left: auto; color: var(--accent); font-size: 13px; }
+/* Ustunlar (masonry): balandligi har xil kartochkalar orasida bo'sh joy qolmaydi */
+.settings-grid { columns: 3 320px; column-gap: 16px; }
+.settings-grid .settings-card { break-inside: avoid; margin-bottom: 16px; }
+.settings-grid > .eco-settings { display: contents; }
+.settings-card {
+  display: flex; flex-direction: column; gap: 14px; padding: 18px; border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--line);
+}
+.settings-card > h3 { margin: 0; font: 800 15px/1.2 var(--font-display); color: var(--text); }
+.settings-card > * { flex-shrink: 0; }
+.settings-card .eco-field select, .settings-card .eco-field input { width: 100%; box-sizing: border-box; }
+.apps-list { display: flex; flex-direction: column; gap: 8px; }
+.app-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border-radius: 12px; background: var(--glass); }
+.app-name { font-weight: 700; font-size: 14px; white-space: nowrap; }
+.app-get { padding: 6px 12px; border-radius: 999px; font-size: 13px; text-decoration: none; color: var(--text); border: 1px solid var(--line); }
+.app-missing { color: var(--muted); font-size: 12px; text-align: right; }
+.apps-open { text-align: center; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); color: var(--text); text-decoration: none; font-weight: 700; font-size: 13px; }
+.top-actions #memoryBtn { order: 4; }
+@media (max-width: 720px) {
+  .settings-grid { columns: 1; }
+  .settings-head .eco-status { flex-basis: 100%; margin-left: 0; }
+}

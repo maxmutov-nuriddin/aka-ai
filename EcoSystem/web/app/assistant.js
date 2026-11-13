@@ -2,6 +2,7 @@
 // Jigar tayyorlagan faylni yuklab olish. Server: /api/assistant (server/assistant/routes.js).
 
 import { FILE_TYPES } from "../shared/parse.js";
+import { askConfirm } from "./confirm-dialog.js";
 
 const POLL_MS = 30_000; // vaqti kelgan eslatmalarni tekshirish oralig'i
 const BOM = "﻿"; // Excel CSV'dagi o'zbekcha harflarni to'g'ri ochishi uchun
@@ -151,6 +152,13 @@ export async function renderAssistantPanel(container, assistant, { t, lang }) {
     clear.className = "ghost";
     clear.textContent = t("asst.clearMemory");
     clear.addEventListener("click", async () => {
+      const sure = await askConfirm({
+        title: t("asst.clearTitle"),
+        text: t("asst.clearConfirm"),
+        confirm: t("asst.clearMemory"),
+        cancel: t("settings.cancel"),
+      });
+      if (!sure) return;
       await assistant.clearMemories().catch(() => {});
       renderAssistantPanel(container, assistant, { t, lang });
     });
