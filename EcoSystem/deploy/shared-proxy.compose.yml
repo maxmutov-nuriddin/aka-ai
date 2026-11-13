@@ -1,0 +1,13 @@
+# Jigar bir serverda BOSHQA loyiha (masalan, CRM) bilan: 80/443 portlarni o'sha loyihaning Caddy'si egallagan bo'lsa.
+# Jigar'ning o'z Caddy'si ishga tushmaydi; Jigar umumiy "jigar-edge" tarmog'iga ulanadi va Caddy shu orqali yetib keladi.
+#   docker network create jigar-edge          (bir marta)
+#   docker compose -f docker-compose.yml -f deploy/shared-proxy.compose.yml up -d --build jigar
+services:
+  jigar:
+    networks: [default, edge]
+  caddy:
+    profiles: ["standalone"] # bu rejimda o'chiq
+networks:
+  edge:
+    external: true
+    name: jigar-edge

@@ -1,5 +1,5 @@
-// Server manzili (desktop): ECO_URL → saqlangan (userData/config.json) → shu kompyuterdagi server (localhost:3100)
-// → birinchi ochilishda oyna (setup.html) — egasi manzilni kiritadi, ulanish tekshirilib saqlanadi.
+// Server manzili (desktop): ECO_URL → saqlangan (userData/config.json) → ilova ichiga yozilgan manzil (package.json:
+// jigar.serverUrl — javob bersa) → shu kompyuterdagi server (localhost:3100) → birinchi ochilishda oyna (setup.html) — egasi manzilni kiritadi, ulanish tekshirilib saqlanadi.
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
@@ -79,6 +79,9 @@ async function resolveServerUrl() {
   if (fromEnv) return fromEnv;
   const saved = readSaved();
   if (saved) return saved;
+  // Tayyor manzil (masalan, serverdagi Jigar): saqlanmaydi — server vaqtincha o'chiq bo'lsa, keyingi pog'onaga o'tadi.
+  const preset = normalizeServerUrl(require("./package.json").jigar?.serverUrl);
+  if (preset && (await reachable(preset))) return preset;
   if (await reachable(LOCAL_URL)) return LOCAL_URL;
   return askServerUrl();
 }

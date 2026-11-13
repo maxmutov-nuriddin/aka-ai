@@ -2,6 +2,7 @@
 // faol rejim (ekranga o'zi qaraydi), kunlik xulosa va kompyuter holati.
 import { deviceStatusText } from "./pc-actions.js";
 import { agentSection } from "./eco-agent.js";
+import { priceTag, pricesBlock } from "./model-prices.js";
 // Server: GET/PUT /api/settings (server/settings.js), xarakter — PUT /api/auth/profile.
 
 const PROFILE_KEY = "jigar.profile";
@@ -77,7 +78,7 @@ export async function mountEcoSettings(container, { apiBase, authHeaders, person
       const opt = document.createElement("option");
       const off = ready && ready[option] === false;
       opt.value = option;
-      opt.textContent = `${LABELS[key][option] ?? option}${off ? " — kalit yo'q" : ""}`;
+      opt.textContent = `${LABELS[key][option] ?? option}${priceTag(key, option)}${off ? " — kalit yo'q" : ""}`;
       opt.disabled = off;
       opt.selected = option === (value ?? "");
       select.append(opt);
@@ -170,7 +171,8 @@ export async function mountEcoSettings(container, { apiBase, authHeaders, person
       field("llm", state.llm, state.choices.llm, state.ready.llm, saveSetting("llm")),
       field("tts", state.tts, state.choices.tts, state.ready.tts, saveSetting("tts")),
       field("effort", state.effort, state.choices.effort, null, saveSetting("effort")),
-      field("length", savedProfile().length ?? "odatiy", Object.keys(LABELS.length), null, saveProfileField("length"))),
+      field("length", savedProfile().length ?? "odatiy", Object.keys(LABELS.length), null, saveProfileField("length")),
+      pricesBlock({ llm: state.llm, tts: state.tts })),
     card("jarvis", "Jarvis: o'zi kuzatish va ruxsat",
       field("proactive", state.proactive, ["on", "off"], null, saveSetting("proactive")),
       field("briefs", state.briefs, ["on", "off"], null, saveSetting("briefs")),

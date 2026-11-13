@@ -8,7 +8,8 @@
     "start": "electron .",
     "dist:mac": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg --universal",
     "dist:win": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win nsis --x64 --arm64",
-    "dist:win-zip": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win zip --x64 -c.win.signAndEditExecutable=false -c.win.artifactName='Jigar-win.${ext}'"
+    "dist:win-zip": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win zip --x64 -c.win.signAndEditExecutable=false -c.win.artifactName='Jigar-win.${ext}'",
+    "dist:win-exe": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win nsis --x64 -c.win.signAndEditExecutable=false -c.win.artifactName='Jigar-win.${ext}'"
   },
   "devDependencies": {
     "electron": "^45.3.1",
@@ -63,5 +64,8 @@
       "target": "nsis",
       "artifactName": "Jigar-win.${ext}"
     }
+  },
+  "jigar": {
+    "serverUrl": "https://ecosystem.myjigar.uz"
   }
 }

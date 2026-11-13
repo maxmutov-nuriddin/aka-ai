@@ -1,0 +1,3 @@
+# CRM'ning o'z Caddyfile'i (imij ichidagi) o'zgarmaydi — u bu yerda import qilinadi; Jigar sayti alohida faylda.
+import /etc/caddy/Caddyfile
+import /etc/caddy/extra/*.caddy

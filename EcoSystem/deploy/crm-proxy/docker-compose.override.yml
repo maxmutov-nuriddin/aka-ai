@@ -1,0 +1,12 @@
+# CRM papkasiga qo'yiladi (docker compose uni docker-compose.yml bilan birga o'zi o'qiydi).
+# CRM'ning kodi, bazasi, sozlamalari o'zgarmaydi. Qaytarish: shu faylni va proxy-extra/ ni o'chirib, `docker compose up -d web`.
+services:
+  web:
+    command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile.root", "--adapter", "caddyfile"]
+    volumes:
+      - ./proxy-extra/Caddyfile.root:/etc/caddy/Caddyfile.root:ro
+      - ./proxy-extra/sites:/etc/caddy/extra:ro
+    networks: [default, jigar-edge]
+networks:
+  jigar-edge:
+    external: true

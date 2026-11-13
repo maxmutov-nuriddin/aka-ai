@@ -646,3 +646,12 @@ body.settings-open { overflow: hidden; }
 html.in-background .app {
   display: none !important;
 }
+
+/* Sozlamalar: model narxlari jadvali (model-prices.js) */
+.price-box { font-size: 13px; color: var(--muted); }
+.price-box summary { cursor: pointer; color: var(--text); font-weight: 700; }
+.price-table { width: 100%; margin: 10px 0 0; border-collapse: collapse; font-size: 12.5px; }
+.price-table th, .price-table td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--line); }
+.price-table th { color: var(--muted); font-weight: 600; font-size: 11.5px; }
+.price-table td:not(:first-child), .price-table th:not(:first-child) { text-align: right; white-space: nowrap; }
+.price-note { display: block; margin-top: 8px; line-height: 1.5; }
