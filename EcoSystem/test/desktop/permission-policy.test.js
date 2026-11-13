@@ -36,3 +36,13 @@ test("mediaLabel: audio — mikrofon, video — kamera, ikkalasi — 'mikrofon v
   assert.equal(mediaLabel([]), "mikrofon");
   assert.equal(mediaLabel(undefined), "mikrofon");
 });
+
+test("isSameSite: bir xil manzil yoki http→https (o'sha xost) — o'zimizniki; boshqa xost yoki https→http — yo'q", () => {
+  const { isSameSite } = require("../../desktop/permission-policy.js");
+  assert.equal(isSameSite("https://a.uz/app/", "https://a.uz"), true);
+  assert.equal(isSameSite("https://a.uz/app/", "http://a.uz"), true); // server https ga yo'naltirgan
+  assert.equal(isSameSite("http://a.uz/app/", "https://a.uz"), false);
+  assert.equal(isSameSite("https://a.uz.evil.com/", "https://a.uz"), false);
+  assert.equal(isSameSite("https://b.uz/", "http://a.uz"), false);
+  assert.equal(isSameSite("yaroqsiz", "https://a.uz"), false);
+});

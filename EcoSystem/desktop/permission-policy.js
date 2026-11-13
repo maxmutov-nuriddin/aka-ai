@@ -12,6 +12,21 @@ function mediaDecision(stored, sessionDenied = false) {
   return "ask";
 }
 
+/**
+ * Sahifa o'z serverimiznikimi. Bir xil manzil — ha; yoki xost bir xil va sahifa https (server http → https ga
+ * yo'naltirgan: egasi manzilni "http://" bilan kiritgan bo'lsa ham mikrofon rad etilmasin). Boshqa xost — yo'q.
+ */
+function isSameSite(pageUrl, serverUrl) {
+  try {
+    const page = new URL(pageUrl);
+    const server = new URL(serverUrl);
+    if (page.origin === server.origin) return true;
+    return page.hostname === server.hostname && page.protocol === "https:" && server.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
 /** Operatsion tizim mikrofonni ilovadan to'sganmi (Windows "Privacy" yoki macOS). */
 function osBlocked(status) {
   return status === "denied" || status === "restricted";
@@ -32,4 +47,4 @@ function mediaLabel(mediaTypes) {
   return names.join(" va ") || "mikrofon";
 }
 
-module.exports = { mediaDecision, osBlocked, MIC_SETTINGS_URL, mediaLabel };
+module.exports = { isSameSite, mediaDecision, osBlocked, MIC_SETTINGS_URL, mediaLabel };

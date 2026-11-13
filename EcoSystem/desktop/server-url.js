@@ -73,12 +73,27 @@ function askServerUrl(current = "") {
   });
 }
 
+/**
+ * Server boshqa manzilga yo'naltirsa (http → https, o'sha xost) — yakuniy manzil ishlatiladi: sahifa, ruxsatlar va
+ * qurilma ko'prigi bitta manzilda bo'lsin. Boshqa xostga yo'naltirish qabul qilinmaydi.
+ */
+async function canonical(url) {
+  try {
+    const res = await fetch(`${url}/api/health`, { signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS) });
+    const final = new URL(res.url);
+    if (res.ok && final.hostname === new URL(url).hostname) return final.origin;
+  } catch {
+    /* server hozir javob bermayapti — kiritilgan manzil qoladi */
+  }
+  return url;
+}
+
 /** Ishlatiladigan manzil. Hech biri bo'lmasa va egasi oynani yopsa — null. */
 async function resolveServerUrl() {
   const fromEnv = normalizeServerUrl(process.env.ECO_URL);
-  if (fromEnv) return fromEnv;
+  if (fromEnv) return canonical(fromEnv);
   const saved = readSaved();
-  if (saved) return saved;
+  if (saved) return canonical(saved);
   // Tayyor manzil (masalan, serverdagi Jigar): saqlanmaydi — server vaqtincha o'chiq bo'lsa, keyingi pog'onaga o'tadi.
   const preset = normalizeServerUrl(require("./package.json").jigar?.serverUrl);
   if (preset && (await reachable(preset))) return preset;

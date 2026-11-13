@@ -10,6 +10,7 @@ const { startBridge } = require("./bridge.js");
 const { runTool, setMaxAccess } = require("./tools.js");
 const { resolveServerUrl, askServerUrl } = require("./server-url.js");
 const { createPermissions } = require("./permissions.js");
+const { isSameSite } = require("./permission-policy.js");
 
 let permissions = null; // app.whenReady'da yaratiladi
 
@@ -42,11 +43,7 @@ const TRAY_HINTS = { idle: "Jigar — \"Hey Jigar\" deng", listening: "Jigar tin
 
 /** Sahifa shu server (aynan shu origin)mi. */
 function isOwnPage(url) {
-  try {
-    return new URL(url).origin === new URL(ECO_URL).origin;
-  } catch {
-    return false;
-  }
+  return isSameSite(url, ECO_URL);
 }
 
 /** Faqat http(s) havolalar tashqi brauzerda ochiladi (file:, javascript: va boshqalar — yo'q). */
@@ -238,7 +235,7 @@ app.on("before-quit", () => {
 // Mikrofon: sahifa ruxsatni qayta so'raydi (tugma bosilganda) va ichki holatni oladi (jurnal uchun). Faqat Jigar oynasidan.
 ipcMain.handle("jigar:request-mic", (event) => (win && event.sender === win.webContents && permissions ? permissions.requestExplicit() : false));
 ipcMain.handle("jigar:mic-info", (event) =>
-  (win && event.sender === win.webContents && permissions ? permissions.info(event.sender.getURL()) : null));
+  (win && event.sender === win.webContents && permissions ? { ...permissions.info(event.sender.getURL()), server: ECO_URL } : null));
 
 // Jigar holati — tray'da (oyna ochilmaydi): 👂 tinglayapti, 💭 o'ylayapti, 🗣 gapiryapti.
 ipcMain.on("jigar:status", (event, state) => {
