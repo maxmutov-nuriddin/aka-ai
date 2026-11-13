@@ -1,3 +1,11 @@
+# Global sozlama: faqat HTTP/1.1 va HTTP/2. HTTP/3 (QUIC) o'chiq, chunki UDP 443 port tashqariga ochilmagan —
+# aks holda Caddy "alt-svc: h3" e'lon qiladi va Windows'dagi Chromium keyingi so'rovlarni (login) yo'q kanalga yuborib osilib qoladi.
+{
+	servers {
+		protocols h1 h2
+	}
+}
+
 # CRM'ning o'z Caddyfile'i (imij ichidagi) o'zgarmaydi — u bu yerda import qilinadi; Jigar sayti alohida faylda.
 import /etc/caddy/Caddyfile
 import /etc/caddy/extra/*.caddy

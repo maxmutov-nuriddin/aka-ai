@@ -1,0 +1,16 @@
+# VAQTINCHALIK manzil: myjigar.uz faollashguncha (cctld.uz moderatsiyasi) Jigar shu nom bilan ochiladi.
+# sslip.io — "169-58-115-116.sslip.io" avtomatik 169.58.115.116 ga aylanadi; Caddy haqiqiy HTTPS sertifikat oladi (mikrofon ishlaydi).
+# Domen ishlagach olib tashlash: shu faylni deploy/crm-proxy/sites/ dan VA serverdagi /opt/fortis-team-crm/proxy-extra/sites/ dan
+# o'chiring, keyin `bash /opt/jigar/deploy/crm-proxy/add-site.sh`.
+169-58-115-116.sslip.io {
+	encode zstd gzip
+	reverse_proxy jigar:3100 {
+		flush_interval -1
+		transport http {
+			read_timeout 120s
+		}
+	}
+	request_body {
+		max_size 20MB
+	}
+}

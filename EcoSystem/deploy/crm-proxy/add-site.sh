@@ -19,13 +19,17 @@ reload() { docker exec "$CRM_WEB" caddy reload --config /etc/caddy/Caddyfile.roo
 [[ "$(crm_code)" == "200" ]] || { echo "CRM hozir 200 bermayapti — boshlamayman."; exit 1; }
 
 echo "== Hozirgi fayllar zaxiraga olinmoqda: $BACKUP"
-cp -a "$EXTRA/." "$BACKUP/"
+mkdir -p "$BACKUP/sites"
+cp -a "$EXTRA/." "$BACKUP/sites/"
+cp -a "$CRM/proxy-extra/Caddyfile.root" "$BACKUP/Caddyfile.root"
 cp "$SRC"/*.caddy "$EXTRA/"
+cp "$SRC/../Caddyfile.root" "$CRM/proxy-extra/Caddyfile.root"
 
 restore() {
   echo "== QAYTARILMOQDA"
   rm -f "$EXTRA"/*.caddy
-  cp -a "$BACKUP/." "$EXTRA/"
+  cp -a "$BACKUP/sites/." "$EXTRA/"
+  cp -a "$BACKUP/Caddyfile.root" "$CRM/proxy-extra/Caddyfile.root"
   reload || true
   echo "CRM sayti: $(crm_code)"
 }
