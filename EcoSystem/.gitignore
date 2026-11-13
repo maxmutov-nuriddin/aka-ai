@@ -8,3 +8,6 @@ desktop/src-tauri/target/
 
 # Yuklab olish sahifasi uchun yig'ilgan ilovalar (.dmg, .exe, .apk) — YUKLAB-OLISH-REJA.md
 downloads/
+
+# Server sozlamalari (kalitlar!)
+.env.production

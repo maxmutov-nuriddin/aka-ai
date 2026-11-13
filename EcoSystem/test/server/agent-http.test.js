@@ -71,12 +71,16 @@ test("speechText: teglar va markdown olib tashlanadi", () => {
 test("telefon agenti: kalit bilan poll qiladi (cookie'siz); kalitsiz — 401; ro'yxatda turi phone", async () => {
   const s = await startServer({ jigar: voiceJigar(), ttsProviders: {}, stt: { configured: false } });
   try {
-    const { token } = await (await s.post("/api/tokens", { name: "Android" })).json();
+    const { token } = await (await s.post("/api/tokens", { name: "Android", scope: "device" })).json();
+    const siri = await (await s.post("/api/tokens", { name: "Siri" })).json();
     const poll = (auth) => fetch(`${s.base}/api/devices/poll`, {
       method: "POST", headers: { "Content-Type": "application/json", ...(auth ? { Authorization: `Bearer ${auth}` } : {}) },
       body: JSON.stringify({ id: "android-1234", name: "Pixel", platform: "android", kind: "phone" }),
     });
     assert.equal((await poll("jgr_yolgon")).status, 401);
+    assert.equal((await poll(siri.token)).status, 401, "Siri kaliti qurilma sifatida ulana olmaydi");
+    const asSiri = await fetch(`${s.base}/api/voice`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ text: "x" }) });
+    assert.equal(asSiri.status, 401, "qurilma kaliti Siri sifatida ishlamaydi");
     const pending = poll(token);
     let devices = [];
     for (let i = 0; i < 50 && !devices.length; i++) {
@@ -89,5 +93,48 @@ test("telefon agenti: kalit bilan poll qiladi (cookie'siz); kalitsiz — 401; ro
     await pending;
   } finally {
     s.close();
+  }
+});
+
+test("Siri darajasi: sozlama 'to'liq' yoki 'cheksiz' bo'lsa ham Siri 'keng'dan oshmaydi; ilovada — o'zgarmaydi", async () => {
+  const { capLevel } = await import("../../server/agent/routes.js");
+  assert.deepEqual(["safe", "wide", "full", "unlimited"].map((l) => capLevel(l)), ["safe", "wide", "wide", "wide"]);
+  const seen = [];
+  const s = await startServer({ jigar: voiceJigar(seen), ttsProviders: {}, stt: { configured: false } });
+  try {
+    const put = (body) => s.raw("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    await put({ access: "full" });
+    const { token } = await (await s.post("/api/tokens", { name: "Siri" })).json();
+    await fetch(`${s.base}/api/voice`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ text: "salom" }) });
+    assert.equal(seen[0].toolbox !== undefined, true);
+    const access = await (await s.raw("/api/settings")).json();
+    assert.equal(access.access, "full", "ilovadagi daraja o'zgarmadi");
+  } finally {
+    s.close();
+  }
+});
+
+test("xavfsizlik sarlavhalari; production'da HSTS; zaif parol faqat production'da rad etiladi", async () => {
+  const dev = await startServer({ jigar: voiceJigar(), ttsProviders: {}, stt: { configured: false } }, { login: false });
+  try {
+    const res = await fetch(`${dev.base}/api/health`);
+    assert.equal(res.headers.get("x-frame-options"), "DENY");
+    assert.equal(res.headers.get("x-content-type-options"), "nosniff");
+    assert.equal(res.headers.get("strict-transport-security"), null, "HSTS — faqat production");
+    const weak = await fetch(`${dev.base}/api/auth/setup`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: "12345678" }) });
+    assert.equal(weak.status, 201, "lokal ishda 12345678 ruxsat");
+  } finally {
+    dev.close();
+  }
+  const prod = await startServer({ jigar: voiceJigar(), ttsProviders: {}, stt: { configured: false }, env: { NODE_ENV: "production", TRUST_PROXY: "1" } }, { login: false });
+  try {
+    assert.match((await fetch(`${prod.base}/api/health`)).headers.get("strict-transport-security"), /max-age=31536000/);
+    const post = (password) => fetch(`${prod.base}/api/auth/setup`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password }) });
+    const weak = await post("12345678");
+    assert.equal(weak.status, 400);
+    assert.equal((await weak.json()).code, "weak_password");
+    assert.equal((await post("kuchli-parol-2026")).status, 201);
+  } finally {
+    prod.close();
   }
 });

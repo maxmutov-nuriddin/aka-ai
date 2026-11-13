@@ -3,6 +3,7 @@
 //   QILOLMAGAN-ISHLAR.md, XATOLAR.md, HARAKATLAR.md — egasi "qilolmagan ishlaringni ber" desa, Jigar beradi.
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { maskSecrets } from "./redact.js";
 
 export const JOURNAL_KINDS = { gap: "QILOLMAGAN-ISHLAR.md", error: "XATOLAR.md", action: "HARAKATLAR.md" };
 const TITLES = { gap: "Jigar qilolmagan ishlar", error: "Jigar xatolari", action: "Jigar bajargan ishlar" };
@@ -12,7 +13,7 @@ const FILE_LIMIT = 300; // md faylda oxirgi shuncha yozuv
 const KEEP = { gap: 1000, error: 500, action: 2000 };
 const TASHKENT_OFFSET_MS = 5 * 60 * 60_000;
 
-const squeeze = (s, n) => String(s ?? "").replace(/\s+/g, " ").trim().slice(0, n);
+const squeeze = (s, n) => maskSecrets(String(s ?? "")).replace(/\s+/g, " ").trim().slice(0, n);
 const localTime = (iso) => new Date(Date.parse(iso) + TASHKENT_OFFSET_MS).toISOString().replace("T", " ").slice(0, 16);
 
 /** Bitta yozuv — md bo'lim. detail: { so'rov, sabab, kerak, ... } yoki matn. */

@@ -2,18 +2,42 @@
 // Server manzili: ECO_URL → saqlangan → shu kompyuterdagi (localhost:3100) → birinchi ochilishda so'raladi (server-url.js).
 // Tugmalar: Cmd/Ctrl+Shift+J — Jigarni ochadi va tinglashni boshlaydi (istalgan ilovada turganingizda).
 // Jigarning qo'li: bridge.js serverga ulanadi, tools.js buyruqlarni bajaradi (ekran, fayl, ilova; buyruq va yozish — ruxsat bilan).
-const { app, BrowserWindow, Tray, Menu, globalShortcut, session, nativeImage } = require("electron");
+const { app, BrowserWindow, Tray, Menu, globalShortcut, session, nativeImage, shell } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
 const { randomUUID } = require("node:crypto");
 const { startBridge } = require("./bridge.js");
-const { runTool } = require("./tools.js");
+const { runTool, setMaxAccess } = require("./tools.js");
 const { resolveServerUrl, askServerUrl } = require("./server-url.js");
 
 let ECO_URL = null; // app.whenReady'da aniqlanadi
 const SHORTCUT = "CommandOrControl+Shift+J";
 let win = null;
 let tray = null;
+
+/** Sahifa shu server (aynan shu origin)mi. */
+function isOwnPage(url) {
+  try {
+    return new URL(url).origin === new URL(ECO_URL).origin;
+  } catch {
+    return false;
+  }
+}
+
+/** Faqat http(s) havolalar tashqi brauzerda ochiladi (file:, javascript: va boshqalar — yo'q). */
+function openExternal(url) {
+  if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+}
+
+/** Shu kompyuterdagi eng yuqori ruxsat darajasi: ECO_MAX_ACCESS → config.json (maxAccess) → "full". */
+function readMaxAccess() {
+  if (process.env.ECO_MAX_ACCESS) return process.env.ECO_MAX_ACCESS;
+  try {
+    return JSON.parse(fs.readFileSync(path.join(app.getPath("userData"), "config.json"), "utf8")).maxAccess;
+  } catch {
+    return undefined;
+  }
+}
 
 /** Shu kompyuterning doimiy id'si (userData/device.json) — server qurilmalarni ajratadi. */
 function deviceId() {
@@ -72,10 +96,23 @@ app.whenReady().then(async () => {
     app.quit(); // egasi manzil oynasini yopdi
     return;
   }
-  // Mikrofon va kamera — faqat o'z serverimiz sahifasi uchun ruxsat.
+  setMaxAccess(readMaxAccess());
+  // Mikrofon va kamera — faqat o'z serverimiz sahifasi uchun ruxsat (manzil to'liq solishtiriladi:
+  // "localhost:3100.boshqa.com" kabi manzillar mos kelmaydi).
   session.defaultSession.setPermissionRequestHandler((wc, permission, callback) => {
-    const own = wc.getURL().startsWith(ECO_URL);
-    callback(own && ["media", "notifications"].includes(permission));
+    callback(isOwnPage(wc.getURL()) && ["media", "notifications"].includes(permission));
+  });
+  app.on("web-contents-created", (_event, contents) => {
+    // Jigar oynasi faqat o'z serveridan chiqib ketmasin; tashqi havolalar — oddiy brauzerda.
+    contents.on("will-navigate", (event, url) => {
+      if (isOwnPage(url) || url.startsWith("file:")) return;
+      event.preventDefault();
+      openExternal(url);
+    });
+    contents.setWindowOpenHandler(({ url }) => {
+      openExternal(url);
+      return { action: "deny" };
+    });
   });
   const id = deviceId();
   createWindow(id);

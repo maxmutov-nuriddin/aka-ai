@@ -40,6 +40,7 @@ import { authenticate, requireUser, requireUserPage } from "./auth/session.js";
 import { createAuthRouter } from "./auth/routes.js";
 import { cors } from "./http/cors.js";
 import { rateLimiter } from "./http/rate-limit.js";
+import { securityHeaders } from "./http/security.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "..");
@@ -215,6 +216,7 @@ export function createApp({
   const limiter = rateLimiter({ windowMs, max: Number(env.ECO_RATE_MAX) || 60 });
   const ttsLimiter = rateLimiter({ windowMs, max: Number(env.ECO_TTS_RATE_MAX) || 400 });
 
+  app.use(securityHeaders({ production: env.NODE_ENV === "production" }));
   app.use(authenticate(store));
   app.use("/api", cors(allowed));
   app.use("/api", express.json({ limit: "16mb" })); // kamera kadri va PDF
@@ -237,6 +239,7 @@ export function createApp({
     createAuthRouter({
       store,
       secureCookies: env.NODE_ENV === "production" || env.COOKIE_SECURE === "1",
+      production: env.NODE_ENV === "production",
       authMax: Number(env.ECO_AUTH_RATE_MAX) || undefined,
     }),
   );

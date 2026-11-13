@@ -35,7 +35,7 @@ export function agentSection({ apiBase, authHeaders, status }) {
   async function refreshTokens() {
     const { tokens } = await request("/api/tokens").catch(() => ({ tokens: [] }));
     tokenList.replaceChildren(...tokens.map((t) => {
-      const li = el("li", null, `${t.name} · ${t.lastUsed ? `oxirgi: ${t.lastUsed.slice(0, 16).replace("T", " ")}` : "ishlatilmagan"} `);
+      const li = el("li", null, `${t.scope === "device" ? "📱 " : "🎙 "}${t.name} · ${t.lastUsed ? `oxirgi: ${t.lastUsed.slice(0, 16).replace("T", " ")}` : "ishlatilmagan"} `);
       const del = el("button", "link", "o'chirish");
       del.type = "button";
       del.addEventListener("click", async () => {

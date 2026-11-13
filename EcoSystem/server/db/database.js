@@ -141,6 +141,8 @@ const MIGRATIONS = [
      last_used  TEXT
    );
    ALTER TABLE nudges ADD COLUMN ref TEXT;`,
+  // Kalit turi: siri — faqat /api/voice; device — faqat qurilma agenti (poll va natija). Bir kalit ikkala ishga yaramaydi.
+  `ALTER TABLE api_tokens ADD COLUMN scope TEXT NOT NULL DEFAULT 'siri';`,
 ];
 
 /**

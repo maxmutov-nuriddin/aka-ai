@@ -37,9 +37,17 @@ async function openInEditor(dir) {
   return r.code === 0 ? { text: `VS Code'da ochildi: ${dir}` } : { error: "VS Code topilmadi (o'rnatilganmi? 'code' buyrug'i bormi?)." };
 }
 
+/** Topshiriqni faylga yozadi (ko'p qatorli matn Terminal'ga to'g'ridan-to'g'ri yozilmaydi — buziladi). */
+function writePromptFile(prompt) {
+  fs.mkdirSync(RUN_DIR, { recursive: true });
+  const file = path.join(RUN_DIR, `${Date.now()}.prompt`);
+  fs.writeFileSync(file, prompt, { mode: 0o600 });
+  return file;
+}
+
 async function claudeVisible(dir, prompt, level) {
   if (IS_MAC) {
-    const command = `cd ${shellQuote(dir)} && claude ${claudeFlags(level)} ${shellQuote(prompt)}`;
+    const command = `cd ${shellQuote(dir)} && claude ${claudeFlags(level)} "$(cat ${shellQuote(writePromptFile(prompt))})"`;
     const r = await osascript(`tell application "Terminal"\nactivate\ndo script "${appleQuote(command)}"\nend tell`);
     return r.code === 0 ? { text: `Terminal'da Claude Code ochildi: ${dir}` } : { error: `Terminal ochilmadi: ${r.stderr.trim().slice(0, 200)}` };
   }

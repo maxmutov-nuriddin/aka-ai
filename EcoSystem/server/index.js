@@ -2,6 +2,8 @@
 import { createApp, defaultDbFile } from "./app.js";
 import { openDatabase } from "./db/database.js";
 import { homedir, networkInterfaces } from "node:os";
+import { scheduleBackups } from "./db/backup.js";
+import { productionProblems } from "./http/security.js";
 import path from "node:path";
 
 const SESSION_CLEANUP_MS = 6 * 60 * 60_000;
@@ -14,10 +16,21 @@ if (!env.ELEVENLABS_API_KEY && !(env.AZURE_SPEECH_KEY && env.AZURE_SPEECH_REGION
   console.warn("Diqqat: ELEVENLABS_API_KEY yo'q. Jigar brauzer ovozida gapiradi va brauzer orqali tinglaydi.");
 }
 
+// Internetga chiqarishdan oldin xavfli sozlamalar: fatal — server ishga tushmaydi, warn — ogohlantirish.
+const { fatal, warn: warnings } = productionProblems(env);
+for (const message of warnings) console.warn(`Diqqat: ${message}`);
+if (fatal.length) {
+  for (const message of fatal) console.error(`XATO: ${message}`);
+  process.exit(1);
+}
+
 const dbFile = defaultDbFile(env);
 // Jurnal md fayllari (QILOLMAGAN-ISHLAR.md, XATOLAR.md, HARAKATLAR.md): ECO_JOURNAL_DIR yoki ~/Jigar.
 const journalDir = env.ECO_JOURNAL_DIR?.trim() || path.join(homedir(), "Jigar");
-const app = createApp({ env, db: openDatabase(dbFile), journalDir });
+const database = openDatabase(dbFile);
+const app = createApp({ env, db: database, journalDir });
+// Bazaning kunlik zaxirasi (data/backups, oxirgi 7 kun); ECO_BACKUP_DIR bilan o'zgartiriladi.
+scheduleBackups(database, env.ECO_BACKUP_DIR?.trim() || path.join(path.dirname(dbFile), "backups"));
 
 // Muddati o'tgan sessiyalarni vaqti-vaqti bilan tozalash.
 app.store.deleteExpiredSessions();

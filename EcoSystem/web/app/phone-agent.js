@@ -29,7 +29,7 @@ export async function startPhoneAgent({ apiBase, authHeaders }) {
     const id = stored(TOKEN_ID_KEY);
     const { tokens } = await call("/api/tokens");
     if (!token || !tokens.some((t) => String(t.id) === id)) {
-      const created = await call("/api/tokens", "POST", { name: "Android telefon" }); // o'chirilgan bo'lsa — yangisi
+      const created = await call("/api/tokens", "POST", { name: "Android telefon", scope: "device" }); // o'chirilgan bo'lsa — yangisi
       token = created.token;
       localStorage.setItem(TOKEN_KEY, token);
       localStorage.setItem(TOKEN_ID_KEY, String(created.id));

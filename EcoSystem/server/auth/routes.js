@@ -2,6 +2,7 @@
 import express from "express";
 import { ValidationError } from "../core/errors.js";
 import { rateLimiter } from "../http/rate-limit.js";
+import { isWeakPassword } from "../http/security.js";
 import { BlockedError, DuplicateEmailError, OWNER_EMAIL, SESSION_DAYS } from "./store.js";
 import { sessionCookie } from "./session.js";
 
@@ -11,7 +12,10 @@ const AUTH_MAX = 20; // parolni tanlab topishdan himoya
 /**
  * @param {{ store: ReturnType<import("./store.js").createAuthStore>, secureCookies: boolean, authMax?: number }} options
  */
-export function createAuthRouter({ store, secureCookies, authMax = AUTH_MAX }) {
+export function createAuthRouter({ store, secureCookies, authMax = AUTH_MAX, production = false }) {
+  /** Internetga chiqarilganda zaif parol (12345678 kabi) qabul qilinmaydi; lokal ishda — ruxsat. */
+  const weak = (password) => production && isWeakPassword(password);
+  const WEAK_MESSAGE = "Parol juda oddiy (12345678, password kabi). Uzunroq va noyob parol tanlang.";
   const router = express.Router();
   const limiter = rateLimiter({
     windowMs: AUTH_WINDOW_MS,
@@ -34,6 +38,7 @@ export function createAuthRouter({ store, secureCookies, authMax = AUTH_MAX }) {
   router.post("/setup", limiter, async (req, res) => {
     try {
       if (store.ownerUser()) return res.status(409).json({ error: "Parol allaqachon qo'yilgan. Kiring.", code: "already_setup" });
+      if (weak(req.body?.password)) return res.status(400).json({ error: WEAK_MESSAGE, code: "weak_password" });
       const name = String(req.body?.name ?? "").trim() || "Egasi";
       const user = await store.createUser({ name, email: OWNER_EMAIL, password: req.body?.password, profile: req.body?.profile });
       startSession(req, res, user, 201);
@@ -63,6 +68,7 @@ export function createAuthRouter({ store, secureCookies, authMax = AUTH_MAX }) {
   router.put("/password", limiter, async (req, res) => {
     if (!req.user) return res.status(401).json({ error: "Kirilmagan.", code: "auth_required" });
     try {
+      if (weak(req.body?.password)) return res.status(400).json({ error: WEAK_MESSAGE, code: "weak_password" });
       await store.updatePassword(req.user.id, req.body?.password);
       res.json({ ok: true });
     } catch (err) {

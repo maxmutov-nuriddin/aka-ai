@@ -55,3 +55,6 @@ Mikrofon va kamera ruxsatlari qo'shilgan (iOS `Info.plist`, Android `AndroidMani
 | iOS | Apple doim tinglashga ruxsat bermaydi → "Hey Siri, Jigar" (Shortcuts) |
 
 Porcupine uchun: console.picovoice.ai da AccessKey va "Hey Jigar" so'zi modeli (.ppn) yaratiladi.
+
+## Serverga joylash
+HTTPS bilan internetga chiqarish: [DEPLOY.md](DEPLOY.md) (Docker + Caddy).

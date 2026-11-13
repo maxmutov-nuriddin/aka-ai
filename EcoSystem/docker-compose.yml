@@ -1,0 +1,34 @@
+# Jigar EcoSystem: server + HTTPS (Caddy, Let's Encrypt avtomatik).
+#   1) .env.production yarating (deploy/.env.production.example dan), 2) DOMAIN ni yozing, 3) docker compose up -d
+# Ilovalar (.dmg, .zip, .apk) — ./downloads papkasiga qo'ying: /download sahifasida chiqadi.
+services:
+  jigar:
+    build: .
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      TRUST_PROXY: "1"
+      NODE_ENV: production
+    volumes:
+      - jigar-data:/data
+      - ./downloads:/app/downloads:ro
+    expose:
+      - "3100"
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - jigar
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?DOMAIN ni yozing (masalan jigar.sizning-domen.uz)}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+volumes:
+  jigar-data:
+  caddy-data:
+  caddy-config:

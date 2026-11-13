@@ -36,6 +36,7 @@
       "setup-preload.js",
       "setup.html",
       "youtube-search.js",
+      "access-cap.js",
       "home.js"
     ],
     "mac": {

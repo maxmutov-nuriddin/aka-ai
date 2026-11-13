@@ -30,7 +30,7 @@ export function createDeviceRouter({ hub, approvals, nudges, tokens = null }) {
   // Telefon agenti (Android, fonda) — sessiya cookie'si yo'q: shaxsiy kalit (jgr_...) bilan, faqat poll va natija.
   router.use(["/devices/poll", "/devices/result"], (req, _res, next) => {
     if (!req.user && tokens) {
-      const userId = tokens.userIdFor(/^Bearer\s+(\S+)$/i.exec(req.get("Authorization") || "")?.[1]);
+      const userId = tokens.userIdFor(/^Bearer\s+(\S+)$/i.exec(req.get("Authorization") || "")?.[1], "device");
       if (userId) req.user = { id: userId };
     }
     next();

@@ -5,6 +5,7 @@ import { DeviceOfflineError, pickDevice } from "../devices/hub.js";
 import { createRequire } from "node:module";
 import { PC_TOOLS, PC_TOOL_NAMES, TOOL_STATUS, describeAction, toToolContent, text, toolKind } from "../devices/tools.js";
 import { needsConfirm } from "./access.js";
+import { maskSecrets, redactInput } from "./redact.js";
 import { SERVER_TOOLS, SERVER_TOOL_NAMES, runServerTool } from "./server-tools.js";
 
 // Faqat ko'rish/o'qish — harakat jurnaliga yozilmaydi.
@@ -40,14 +41,14 @@ export function createToolbox({ hub, userId, currentDeviceId = null, access = "s
   async function callDevice(name, input, device) {
     onStatus(TOOL_STATUS[name]);
     const summary = `${name}${input.action ? ` ${input.action}` : ""}`;
-    const logged = JSON.stringify(input).slice(0, LOG_INPUT_MAX);
+    const logged = redactInput(name, input);
     try {
       const result = await hub.call(userId, device.id, { tool: name, input, approved: true, access });
-      if (result?.error) services.journal.add(userId, "error", summary, { kiritish: logged, xato: result.error }, device.name);
-      else if (!isReadOnly(name, input)) services.journal.add(userId, "action", summary, { kiritish: logged, natija: String(result?.text ?? "").slice(0, LOG_INPUT_MAX) }, device.name);
+      if (result?.error) services.journal.add(userId, "error", summary, { kiritish: logged, xato: maskSecrets(result.error) }, device.name);
+      else if (!isReadOnly(name, input)) services.journal.add(userId, "action", summary, { kiritish: logged, natija: maskSecrets(String(result?.text ?? "")).slice(0, LOG_INPUT_MAX) }, device.name);
       return toToolContent(result);
     } catch (err) {
-      services.journal.add(userId, "error", summary, { kiritish: logged, xato: err.message }, device.name);
+      services.journal.add(userId, "error", summary, { kiritish: logged, xato: maskSecrets(err.message) }, device.name);
       return fail(err instanceof DeviceOfflineError ? err.message : `Bajarib bo'lmadi: ${err.message}`);
     }
   }

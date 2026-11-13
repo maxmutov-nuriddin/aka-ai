@@ -1,0 +1,14 @@
+# HTTPS (Let's Encrypt) avtomatik: {$DOMAIN} — docker-compose.yml dagi DOMAIN.
+{$DOMAIN} {
+	encode zstd gzip
+	# Oqimli javoblar (chat NDJSON) buferlanmasin
+	reverse_proxy jigar:3100 {
+		flush_interval -1
+		transport http {
+			read_timeout 120s
+		}
+	}
+	request_body {
+		max_size 20MB
+	}
+}

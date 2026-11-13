@@ -8,6 +8,7 @@ const PATH_MAX = 1024;
 const STEPS_MAX = 2000;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const TOKEN_PREFIX = "jgr_";
+export const TOKEN_SCOPES = ["siri", "device"];
 
 const cleanName = (s) => String(s ?? "").replace(/\s+/g, " ").trim().slice(0, NAME_MAX);
 const key = (s) => cleanName(s).toLowerCase();
@@ -69,25 +70,26 @@ export function createScenarios(db) {
 /** @param {import("node:sqlite").DatabaseSync} db */
 export function createApiTokens(db, { now = Date.now } = {}) {
   const q = {
-    add: db.prepare("INSERT INTO api_tokens (user_id, name, token_hash, created_at) VALUES (?, ?, ?, ?)"),
-    list: db.prepare("SELECT id, name, created_at AS createdAt, last_used AS lastUsed FROM api_tokens WHERE user_id = ? ORDER BY id"),
-    byHash: db.prepare("SELECT id, user_id AS userId FROM api_tokens WHERE token_hash = ?"),
+    add: db.prepare("INSERT INTO api_tokens (user_id, name, token_hash, created_at, scope) VALUES (?, ?, ?, ?, ?)"),
+    list: db.prepare("SELECT id, name, scope, created_at AS createdAt, last_used AS lastUsed FROM api_tokens WHERE user_id = ? ORDER BY id"),
+    byHash: db.prepare("SELECT id, user_id AS userId, scope FROM api_tokens WHERE token_hash = ?"),
     used: db.prepare("UPDATE api_tokens SET last_used = ? WHERE id = ?"),
     remove: db.prepare("DELETE FROM api_tokens WHERE user_id = ? AND id = ?"),
   };
   return {
-    /** Yangi kalit — faqat shu yerda bir marta ko'rsatiladi. */
-    create(userId, name) {
+    /** Yangi kalit — faqat shu yerda bir marta ko'rsatiladi. scope: "siri" | "device". */
+    create(userId, name, scope = "siri") {
+      if (!TOKEN_SCOPES.includes(scope)) throw new ValidationError(`scope: ${TOKEN_SCOPES.join(" | ")}`);
       const token = `${TOKEN_PREFIX}${randomBytes(24).toString("base64url")}`;
-      const { lastInsertRowid } = q.add.run(userId, cleanName(name) || "Siri", hash(token), new Date(now()).toISOString());
-      return { id: Number(lastInsertRowid), token };
+      const { lastInsertRowid } = q.add.run(userId, cleanName(name) || "Siri", hash(token), new Date(now()).toISOString(), scope);
+      return { id: Number(lastInsertRowid), token, scope };
     },
     list: (userId) => q.list.all(userId),
-    /** Kalit egasining id'si yoki null. */
-    userIdFor(token) {
+    /** Kalit egasining id'si — faqat shu turdagi (scope) kalit bo'lsa; boshqasi — null. */
+    userIdFor(token, scope) {
       if (typeof token !== "string" || !token.startsWith(TOKEN_PREFIX)) return null;
       const row = q.byHash.get(hash(token));
-      if (!row) return null;
+      if (!row || row.scope !== scope) return null;
       q.used.run(new Date(now()).toISOString(), row.id);
       return row.userId;
     },

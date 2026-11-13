@@ -14,6 +14,11 @@ const { power, probe, health } = require("./power.js");
 const { dev } = require("./dev.js");
 const { message } = require("./messages.js");
 const { screenText } = require("./screen-text.js");
+const { effectiveLevel } = require("./access-cap.js");
+
+// Shu kompyuterdagi eng yuqori ruxsat (main.js o'rnatadi: ECO_MAX_ACCESS yoki config.json).
+let maxAccess = "full";
+const setMaxAccess = (value) => { maxAccess = value; };
 
 const SCREEN_SIZE = { width: 1600, height: 1000 }; // surat shu o'lchamga sig'diriladi (tokenlar tejaladi)
 const JPEG_QUALITY = 70;
@@ -180,11 +185,11 @@ async function runTool(command, deps) {
   const handler = HANDLERS[command?.tool];
   if (!handler) return { error: `Noma'lum asbob: ${command?.tool}` };
   try {
-    const level = ["safe", "wide", "full", "unlimited"].includes(command.access) ? command.access : "safe";
+    const level = effectiveLevel(command.access, maxAccess);
     return await handler(command.input ?? {}, command.approved === true, deps, level);
   } catch (err) {
     return { error: `Bajarib bo'lmadi: ${errorText(err)}` };
   }
 }
 
-module.exports = { runTool };
+module.exports = { runTool, setMaxAccess };
