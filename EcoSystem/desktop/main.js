@@ -9,6 +9,9 @@ const { randomUUID } = require("node:crypto");
 const { startBridge } = require("./bridge.js");
 const { runTool, setMaxAccess } = require("./tools.js");
 const { resolveServerUrl, askServerUrl } = require("./server-url.js");
+const { createPermissions } = require("./permissions.js");
+
+let permissions = null; // app.whenReady'da yaratiladi
 
 let ECO_URL = null; // app.whenReady'da aniqlanadi
 const SHORTCUT = "CommandOrControl+Shift+J";
@@ -174,9 +177,9 @@ app.whenReady().then(async () => {
   }
   // Mikrofon va kamera — faqat o'z serverimiz sahifasi uchun ruxsat (manzil to'liq solishtiriladi:
   // "localhost:3100.boshqa.com" kabi manzillar mos kelmaydi).
-  session.defaultSession.setPermissionRequestHandler((wc, permission, callback) => {
-    callback(isOwnPage(wc.getURL()) && ["media", "notifications"].includes(permission));
-  });
+  // Ilova ruxsatni o'zi so'raydi (birinchi marta oyna), javobni eslab qoladi (permissions.js).
+  permissions = createPermissions({ isOwnPage, getConfig: readConfig, setConfigField: writeConfigField, getWindow: () => win });
+  session.defaultSession.setPermissionRequestHandler(permissions.handler);
   app.on("web-contents-created", (_event, contents) => {
     // Jigar oynasi faqat o'z serveridan chiqib ketmasin; tashqi havolalar — oddiy brauzerda.
     contents.on("will-navigate", (event, url) => {
@@ -193,6 +196,7 @@ app.whenReady().then(async () => {
   applyAutoStart(autoStartOn());
   createWindow(id);
   if (STARTED_HIDDEN) syncDock(false);
+  else permissions.checkOsAccess(); // Windows/macOS mikrofonni to'sgan bo'lsa — ogohlantirish va sozlamalar tugmasi
   tray = new Tray(trayImage("idle"));
   tray.setToolTip(TRAY_HINTS.idle);
   tray.setContextMenu(Menu.buildFromTemplate([
@@ -207,6 +211,7 @@ app.whenReady().then(async () => {
         applyAutoStart(item.checked);
       },
     },
+    { label: "Mikrofon/kamera ruxsatini qayta so'rash", click: () => permissions.reset() },
     { type: "separator" },
     { label: "Chiqish", click: () => { app.isQuitting = true; app.quit(); } },
   ]));

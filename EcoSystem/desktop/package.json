@@ -36,6 +36,8 @@
       "server-url.js",
       "setup-preload.js",
       "app-preload.js",
+      "permissions.js",
+      "permission-policy.js",
       "trayTemplate.png",
       "trayTemplate@2x.png",
       "tray-listenTemplate.png",
