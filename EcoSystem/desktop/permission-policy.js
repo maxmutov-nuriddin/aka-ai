@@ -1,10 +1,14 @@
 // Ruxsat qarorlari (toza mantiq — Electron'siz, testlanadi). Chaqiruvchi: permissions.js.
 // Saqlanadigan qiymat (userData/config.json → permissions.media): "granted" | "denied" | undefined (hali so'ralmagan).
 
-/** Sahifa mikrofon/kamera so'radi: saqlangan javobga qarab — "allow" | "deny" | "ask". */
-function mediaDecision(stored) {
+/**
+ * Sahifa mikrofon/kamera so'radi: "allow" | "deny" | "ask". Faqat "granted" abadiy saqlanadi.
+ * "Rad etish" — faqat shu seans uchun (sessionDenied): ko'rinmay yopilgan oyna (yashirin ishga tushish, to'liq ekranli
+ * o'yin) ruxsatni abadiy o'chirib qo'ymasin. Eski versiyalar saqlagan "denied" ham qayta so'raladi.
+ */
+function mediaDecision(stored, sessionDenied = false) {
   if (stored === "granted") return "allow";
-  if (stored === "denied") return "deny";
+  if (sessionDenied) return "deny";
   return "ask";
 }
 

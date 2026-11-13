@@ -107,10 +107,24 @@ const wakeHandlers = {
     if (!IS_DESKTOP_APP) updatePrefs({ wake: false });
     $("wakeToggle").checked = false;
     // Texnik sabab — ekranda va serverdagi XATOLAR.md jurnalida (egasi nusxalab yubormasa ham ko'rinadi).
-    if (detail) reportClientIssue({ apiBase: () => host.apiBase, authHeaders }, { where: "Hey Jigar", name: detail.split(":")[0], message: detail });
+    if (detail) reportMicIssue("Hey Jigar", detail);
     showError(detail ? `${t("asst.wakeOff")} [${detail}]` : t("asst.wakeOff"));
   },
 };
+
+/** Mikrofon xatosi — serverdagi XATOLAR.md ga (desktop'da ilovaning ichki ruxsat holati ham qo'shiladi). */
+async function reportMicIssue(where, detail) {
+  const state = await window.jigarDesktop?.micInfo?.().catch(() => null);
+  const message = state ? `${detail} | ilova: ${JSON.stringify(state)}` : detail;
+  reportClientIssue({ apiBase: () => host.apiBase, authHeaders }, { where, name: detail.split(":")[0], message });
+}
+
+/** Ruxsat berilgach — o'chib qolgan "Hey Jigar" yana yoqiladi (egasi o'zi o'chirmagan bo'lsa). */
+function resumeWakeAfterGrant() {
+  if (prefs.wakeOff === true || !wake.supported) return;
+  $("wakeToggle").checked = true;
+  wake.setEnabled(true, prefs.lang);
+}
 const wake = IS_DESKTOP_APP
   ? createServerWake({ ...wakeHandlers, apiBase: () => host.apiBase, authHeaders: () => authHeaders() })
   : createWake(wakeHandlers);
@@ -836,7 +850,17 @@ const voice = createVoice({
   onEmotion: (emotion) => avatar.setEmotion(emotion),
   onError(kind, message, detail = "") {
     // Desktop ilovada manzil satri/qulf belgisi yo'q: to'g'ri yo'riqnoma + texnik sabab (nima to'sganini ko'rsatadi).
-    if (detail) reportClientIssue({ apiBase: () => host.apiBase, authHeaders }, { where: "mikrofon tugmasi", name: detail.split(":")[0], message: detail });
+    if (detail) reportMicIssue("mikrofon tugmasi", detail);
+    // Desktop: ruxsat yo'q — ilova ruxsat oynasini qayta ko'rsatadi; berilsa — tinglash va "Hey Jigar" o'zi davom etadi.
+    if (IS_DESKTOP_APP && kind === "denied" && window.jigarDesktop?.requestMic) {
+      window.jigarDesktop.requestMic().then((granted) => {
+        if (!granted) return showError(detail ? `${t("err.micDeniedDesktop")} [${detail}]` : t("err.micDeniedDesktop"));
+        showError("");
+        resumeWakeAfterGrant();
+        voice.listen();
+      }, () => showError(t("err.micDeniedDesktop")));
+      return;
+    }
     if (IS_DESKTOP_APP && (kind === "denied" || (kind === "other" && detail))) {
       const hint = kind === "denied" ? t("err.micDeniedDesktop") : t(message);
       return showError(detail ? `${hint} [${detail}]` : hint);

@@ -235,6 +235,11 @@ app.on("window-all-closed", () => {});
 app.on("before-quit", () => {
   app.isQuitting = true;
 });
+// Mikrofon: sahifa ruxsatni qayta so'raydi (tugma bosilganda) va ichki holatni oladi (jurnal uchun). Faqat Jigar oynasidan.
+ipcMain.handle("jigar:request-mic", (event) => (win && event.sender === win.webContents && permissions ? permissions.requestExplicit() : false));
+ipcMain.handle("jigar:mic-info", (event) =>
+  (win && event.sender === win.webContents && permissions ? permissions.info(event.sender.getURL()) : null));
+
 // Jigar holati — tray'da (oyna ochilmaydi): 👂 tinglayapti, 💭 o'ylayapti, 🗣 gapiryapti.
 ipcMain.on("jigar:status", (event, state) => {
   if (!tray || !win || event.sender !== win.webContents || !(state in TRAY_IMAGES)) return;

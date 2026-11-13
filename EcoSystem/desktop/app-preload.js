@@ -9,6 +9,10 @@ contextBridge.exposeInMainWorld("jigarDesktop", {
   status: (state) => {
     if (STATES.has(state)) ipcRenderer.send("jigar:status", state);
   },
+  /** Mikrofon tugmasi: ruxsat yo'q bo'lsa — ilova ruxsat oynasini qayta ko'rsatadi. true — ruxsat berildi. */
+  requestMic: () => ipcRenderer.invoke("jigar:request-mic"),
+  /** Jurnal uchun: ilova ichidagi ruxsat holati (saqlangan javob, manzil o'zimizmi). */
+  micInfo: () => ipcRenderer.invoke("jigar:mic-info"),
   onVisibility: (callback) => {
     if (typeof callback !== "function") return;
     ipcRenderer.on("jigar:visibility", (_event, visible) => callback(Boolean(visible)));

@@ -6,11 +6,13 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const { mediaDecision, osBlocked, MIC_SETTINGS_URL, mediaLabel } = require("../../desktop/permission-policy.js");
 
-test("mediaDecision: saqlangan javob bo'lmasa — so'raydi; bo'lsa — shuni qo'llaydi", () => {
+test("mediaDecision: faqat 'granted' abadiy; 'Rad etish' — faqat shu seans; eski 'denied' qayta so'raladi", () => {
   assert.equal(mediaDecision(undefined), "ask");
   assert.equal(mediaDecision(null), "ask");
   assert.equal(mediaDecision("granted"), "allow");
-  assert.equal(mediaDecision("denied"), "deny");
+  assert.equal(mediaDecision("granted", true), "allow"); // saqlangan ruxsat seansdagi raddan ustun
+  assert.equal(mediaDecision("denied"), "ask"); // eski versiya saqlagan rad — ko'rinmay yopilgan bo'lishi mumkin
+  assert.equal(mediaDecision(undefined, true), "deny"); // shu seansda rad etilgan — qayta-qayta so'ramaydi
   assert.equal(mediaDecision("nomalum"), "ask"); // buzilgan qiymat — xavfsiz tomonga: qayta so'raydi
 });
 
