@@ -41,6 +41,22 @@ docker compose logs -f jigar    # "Jigar EcoSystem ishga tushdi" chiqishi kerak
 ```
 Caddy HTTPS sertifikatini (Let's Encrypt) o'zi oladi. `https://<domen>/` ni oching.
 
+## 3b. Serverda boshqa loyiha bo'lsa (CRM bilan bir serverda) — 80/443 band
+Bunday serverda Jigar'ning o'z Caddy'si ishlamaydi (portlar band). Jigar boshqa loyihaning Caddy'si orqali ochiladi,
+u loyihaning kodiga tegilmaydi:
+```bash
+docker network create jigar-edge          # bir marta
+cd /opt/jigar
+docker compose -f docker-compose.yml -f deploy/shared-proxy.compose.yml up -d --build jigar
+SKIP_DNS_CHECK=1 bash deploy/crm-proxy/apply.sh   # DNS tayyor bo'lsa SKIP_DNS_CHECK kerak emas
+```
+`apply.sh` tartibi: CRM zaxirasi → yangi Caddy sozlamasini alohida konteynerda tekshirish → faqat CRM'ning `web`
+konteynerini qayta yaratish (bir necha soniya) → CRM tekshiruvi (ishlamasa o'zi avvalgi holatga qaytaradi).
+Jigar sayti manzili `deploy/crm-proxy/sites/jigar.caddy` da (domenni shu yerda o'zgartiring).
+Yangilash: `bash deploy/upload.sh root@<ip>`, keyin `up -d --build jigar` (yuqoridagi birinchi buyruq).
+**Parol:** Jigar ochilishidan OLDIN egasi parolini o'zingiz qo'ying (birinchi kirgan qo'yadi): ichki tarmoqda
+`/api/auth/setup` ga `{"password":"..."}` yuboring (`jigar-edge` tarmog'idagi vaqtinchalik curl konteyneridan).
+
 ## 4. Birinchi kirish
 1. Sahifa parol qo'yishni so'raydi. **Uzun va noyob parol** tanlang (`12345678` kabi parollar rad etiladi).
 2. Sozlamalar → "Jarvis" bo'limida:

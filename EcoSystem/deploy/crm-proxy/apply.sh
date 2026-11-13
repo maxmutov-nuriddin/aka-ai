@@ -30,11 +30,19 @@ say "0. Shartlar"
 docker network inspect jigar-edge >/dev/null
 [[ "$(docker inspect -f '{{.State.Health.Status}}' jigar-jigar-1)" == "healthy" ]] || { echo "Jigar sog'lom emas."; exit 1; }
 [[ "$(crm_code)" == "200" ]] || { echo "CRM hozir 200 bermayapti — boshlamayman."; exit 1; }
+DNS_READY=1
 for r in 1.1.1.1 8.8.8.8; do
   ip="$(dig +short A "$DOMAIN" @"$r" | tail -1)"
-  [[ "$ip" == "$SERVER_IP" ]] || { echo "DNS tayyor emas ($r: '${ip:-bosh}'). Sertifikat olinmaydi — to'xtadim."; exit 2; }
+  [[ "$ip" == "$SERVER_IP" ]] || DNS_READY=0
 done
-echo "DNS: $DOMAIN -> $SERVER_IP (ikkala umumiy DNS'da)"
+if [[ $DNS_READY -eq 1 ]]; then
+  echo "DNS: $DOMAIN -> $SERVER_IP (ikkala umumiy DNS'da)"
+elif [[ "${SKIP_DNS_CHECK:-0}" == "1" ]]; then
+  echo "DNS hali tayyor emas — davom etaman (SKIP_DNS_CHECK=1). Caddy sertifikatni DNS ko'ringach o'zi qayta urinib oladi."
+else
+  echo "DNS tayyor emas. Hozir ulash uchun: SKIP_DNS_CHECK=1 bash $0 (sertifikat DNS ko'ringach o'zi olinadi)."
+  exit 2
+fi
 
 say "1. CRM zaxirasi"
 ./deploy/backup.sh
@@ -67,6 +75,10 @@ echo "CRM sayti: 200"
 docker ps --format '{{.Names}} {{.Status}}' | grep fortis
 
 say "6. Jigar HTTPS (sertifikat olinishi 1-2 daqiqa)"
+if [[ $DNS_READY -ne 1 ]]; then
+  echo "DNS ko'ringunicha HTTPS ishlamaydi — bu kutilgan holat. CRM ishlayapti. Jigar DNS ko'ringach o'zi ochiladi."
+  exit 0
+fi
 for _ in $(seq 1 40); do
   code="$(curl -s -m 8 -o /dev/null -w '%{http_code}' "https://$DOMAIN/api/health" || true)"
   if [[ "$code" == "200" ]]; then echo "https://$DOMAIN/api/health: 200"; exit 0; fi
