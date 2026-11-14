@@ -1,6 +1,6 @@
 {
   "name": "jigar-desktop",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Jigar — shaxsiy yordamchi (desktop)",
   "main": "main.js",
   "private": true,
@@ -80,6 +80,10 @@
     ]
   },
   "jigar": {
-    "serverUrl": "https://ecosystem.myjigar.uz"
+    "serverUrl": "https://ecosystem.myjigar.uz",
+    "serverUrls": [
+      "https://ecosystem.myjigar.uz",
+      "https://169-58-115-116.sslip.io"
+    ]
   }
 }

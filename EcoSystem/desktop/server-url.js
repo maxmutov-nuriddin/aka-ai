@@ -88,6 +88,12 @@ async function canonical(url) {
   return url;
 }
 
+/** package.json "jigar": serverUrls (tartib bilan) + eski serverUrl; noto'g'ri va takrorlar tashlanadi. */
+function presetUrls(config = {}) {
+  const list = [...(Array.isArray(config?.serverUrls) ? config.serverUrls : []), config?.serverUrl];
+  return [...new Set(list.map((u) => normalizeServerUrl(u)).filter(Boolean))];
+}
+
 /** Ishlatiladigan manzil. Hech biri bo'lmasa va egasi oynani yopsa — null. */
 async function resolveServerUrl() {
   const fromEnv = normalizeServerUrl(process.env.ECO_URL);
@@ -95,10 +101,12 @@ async function resolveServerUrl() {
   const saved = readSaved();
   if (saved) return canonical(saved);
   // Tayyor manzil (masalan, serverdagi Jigar): saqlanmaydi — server vaqtincha o'chiq bo'lsa, keyingi pog'onaga o'tadi.
-  const preset = normalizeServerUrl(require("./package.json").jigar?.serverUrl);
-  if (preset && (await reachable(preset))) return preset;
+  // Bir nechta tayyor manzil: domen (DNS hali ishlamasa) → zaxira manzil (sslip) — mahalliy eski serverga tushib qolmasin.
+  for (const preset of presetUrls(require("./package.json").jigar)) {
+    if (await reachable(preset)) return preset;
+  }
   if (await reachable(LOCAL_URL)) return LOCAL_URL;
   return askServerUrl();
 }
 
-module.exports = { resolveServerUrl, askServerUrl, normalizeServerUrl, readSaved };
+module.exports = { resolveServerUrl, askServerUrl, normalizeServerUrl, readSaved, presetUrls };
