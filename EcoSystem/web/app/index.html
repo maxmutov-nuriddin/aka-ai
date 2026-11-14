@@ -314,7 +314,33 @@
     </dialog>
   </div>
 
-  <script src="../vendor/mermaid.min.js"></script>
+  <!-- Modullar parallel oldindan yuklanadi (ketma-ket import zanjiri sekin tarmoqda soniyalab kechiktirardi).
+       Ro'yxat web/app/preload-graph.mjs bilan tekshiriladi (test/web/preload.test.js). -->
+  <link rel="modulepreload" href="/app/app.js">
+  <link rel="modulepreload" href="/app/assistant.js">
+  <link rel="modulepreload" href="/app/camera.js">
+  <link rel="modulepreload" href="/app/caption.js">
+  <link rel="modulepreload" href="/app/confirm-dialog.js">
+  <link rel="modulepreload" href="/app/diag.js">
+  <link rel="modulepreload" href="/app/eco-agent.js">
+  <link rel="modulepreload" href="/app/eco-settings.js">
+  <link rel="modulepreload" href="/app/i18n.js">
+  <link rel="modulepreload" href="/app/model-prices.js">
+  <link rel="modulepreload" href="/app/page-file.js">
+  <link rel="modulepreload" href="/app/pc-actions.js">
+  <link rel="modulepreload" href="/app/phone-agent.js">
+  <link rel="modulepreload" href="/app/phone-screen.js">
+  <link rel="modulepreload" href="/app/settings-apps.js">
+  <link rel="modulepreload" href="/app/settings-nav.js">
+  <link rel="modulepreload" href="/app/speech-feed.js">
+  <link rel="modulepreload" href="/app/speech.js">
+  <link rel="modulepreload" href="/app/voice.js">
+  <link rel="modulepreload" href="/app/wake-server.js">
+  <link rel="modulepreload" href="/app/wake.js">
+  <link rel="modulepreload" href="/app/wav.js">
+  <link rel="modulepreload" href="/shared/avatar.js">
+  <link rel="modulepreload" href="/shared/icons.js">
+  <link rel="modulepreload" href="/shared/parse.js">
   <script src="host-web.js"></script>
 
   <script type="module" src="app.js"></script>

@@ -99,16 +99,20 @@ async function probe(condition, level) {
   return result.error ? result : json(result);
 }
 
+/** Haqiqiy batareya foizi: 1..100 (0% — batareyasiz qurilmaning soxta javobi; noutbuk 0% da ishlamaydi). */
+const validPercent = (p) => Number.isFinite(p) && p >= 1 && p <= 100;
+
 async function battery() {
   if (IS_MAC) {
     const r = await run("pmset", ["-g", "batt"], { timeoutMs: 10_000 });
     const m = /(\d+)%;\s*([a-z ]+);/i.exec(r.stdout);
-    return m ? { percent: Number(m[1]), charging: !/discharging/i.test(m[2]) } : null;
+    return m && validPercent(Number(m[1])) ? { percent: Number(m[1]), charging: !/discharging/i.test(m[2]) } : null;
   }
   if (IS_WIN) {
     const r = await powershell("Get-CimInstance Win32_Battery | ForEach-Object { \"$($_.EstimatedChargeRemaining) $($_.BatteryStatus)\" }");
     const [percent, status] = r.stdout.trim().split(/\s+/).map(Number);
-    return Number.isFinite(percent) ? { percent, charging: status === 2 || status >= 6 } : null;
+    // Batareyasiz kompyuter (stol PC, UPS) ba'zan soxta "0%" qaytaradi — haqiqiy batareya emas deb hisoblanadi.
+    return validPercent(percent) ? { percent, charging: status === 2 || status >= 6 } : null;
   }
   return null;
 }

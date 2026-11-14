@@ -48,3 +48,14 @@ test("encodeWav: 16-bit mono WAV sarlavhasi va namunalar", async () => {
   assert.equal(view.getInt16(46, true), 0x7fff);
   assert.equal(view.getInt16(48, true), -0x8000);
 });
+
+test("createSegmenter.feed: moslashuvchan sezgirlik — past ovozli mikrofon ham boshlanadi; baland shovqinda boshlanmaydi", () => {
+  const quiet = createSegmenter();
+  let events = [];
+  for (let t = 0; t < 1000; t += 50) { const e = quiet.feed(0.012, t, 0.008); if (e) events.push(e); }
+  assert.equal(events[0], "start"); // 0.012 >= 0.008 — past ovoz tanildi
+  const noisy = createSegmenter();
+  events = [];
+  for (let t = 0; t < 1000; t += 50) { const e = noisy.feed(0.012, t, 0.03); if (e) events.push(e); }
+  assert.deepEqual(events, []); // 0.012 < 0.03 — shovqin deb hisoblanadi
+});

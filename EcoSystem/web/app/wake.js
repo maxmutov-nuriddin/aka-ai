@@ -124,7 +124,53 @@ export function createWake({ onWake, onUnavailable = () => {} }) {
 /** Test uchun: matnda uyg'otish so'zi bormi. */
 // "Hey" bilan aytilsa, ism oxiri yo'qolsa ham yetadi: "Hey, Jigga!", "Эй, джиги".
 const HEY_WAKE_RE = /(^|[^\p{L}])(hey|hei|ey|эй|хей|хэй|гей)[\s,!.-]+((dzh|dj|j|zh|ch)i[gk]|(дж|ж|ч)и[гк])\p{L}*/iu;
-export const hasWakeWord = (text) => WAKE_RE.test(String(text ?? "")) || HEY_WAKE_RE.test(String(text ?? ""));
+
+// Qisqa gapda (≤3 so'z) ism biroz buzilib yozilgan bo'lsa ham ("Дигар", "жигир", "jigga", "gigar") — chaqiruv.
+// Uzun gapda faqat aniq imlo: boshqa so'zlar "jigar"ga tasodifan o'xshab qolmasin.
+const CYR = { а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "e", ж: "j", з: "z", и: "i", й: "i", к: "k", л: "l", м: "m", н: "n", о: "o", п: "p", р: "r", с: "s", т: "t", у: "u", ф: "f", х: "h", ц: "c", ч: "c", ш: "s", щ: "s", ъ: "", ы: "i", ь: "", э: "e", ю: "u", я: "a", ў: "u", қ: "k", ғ: "g", ҳ: "h" };
+const SHORT_UTTERANCE_WORDS = 3;
+const NAME = "jigar";
+
+/** Kirill → lotin (taxminiy), faqat harflar. "Джигар" → "djigar". */
+const skeleton = (word) => [...word.toLowerCase()].map((ch) => CYR[ch] ?? ch).join("").replace(/[^a-z]/g, "");
+
+function distance(a, b) {
+  const prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i += 1) {
+    let diagonal = prev[0];
+    prev[0] = i;
+    for (let j = 1; j <= b.length; j += 1) {
+      const above = prev[j];
+      prev[j] = Math.min(prev[j] + 1, prev[j - 1] + 1, diagonal + (a[i - 1] === b[j - 1] ? 0 : 1));
+      diagonal = above;
+    }
+  }
+  return prev[b.length];
+}
+
+/** Bitta so'z "Jigar" ismiga yetarlicha o'xshashmi (j/g/d/z/c bilan boshlanib, ≤2 harf farq; yoki ≤1 farq). */
+function looksLikeName(word) {
+  const s = skeleton(word).replace(/^(dj|zj|dz|zh|ch)/, "j");
+  if (s.length < 4 || s.length > 7) return false;
+  const d = distance(s, NAME);
+  return d <= 1 || (d <= 2 && /^[jgdzc]/.test(s));
+}
+
+/** Matnni so'zlarga ajratadi: [{ word, end }] — end: so'z oxirining indeksi. */
+const words = (text) => [...text.matchAll(/[\p{L}']+/gu)].map((m) => ({ word: m[0], end: m.index + m[0].length }));
+
+/** Qisqa gapda buzilgan ism topilsa — shu so'zning oxiri (indeks); aks holda -1. */
+function fuzzyNameEnd(text) {
+  const list = words(text);
+  if (list.length === 0 || list.length > SHORT_UTTERANCE_WORDS) return -1;
+  const hit = list.find((w) => looksLikeName(w.word));
+  return hit ? hit.end : -1;
+}
+
+export const hasWakeWord = (text) => {
+  const value = String(text ?? "");
+  return WAKE_RE.test(value) || HEY_WAKE_RE.test(value) || fuzzyNameEnd(value) >= 0;
+};
 
 // "Jigar, stop" / "Jigar, to'xta" / "Jigar, bas" — gapirishni va tinglashni to'xtatadi (keyingi chaqiruvgacha).
 const STOP_RE = /^(?:(?:iltimos|ilt|please|пожалуйста)[\s,]+)?(stop|стоп|ст[оа]п|to['ʻ’`]?xta|тў?хта|тохта|bas|бас|jim|жим|хватит|hvatit|yetar|етар|bo['ʻ’`]?ldi|болди|enough|hush|tinch)(?![\p{L}])/iu;
@@ -141,7 +187,8 @@ const MIN_COMMAND_LETTERS = 3; // "Hey Jigar!" dan keyin qolgan "ha" — buyruq 
 export function wakeRemainder(text) {
   const value = String(text ?? "");
   const match = HEY_WAKE_RE.exec(value) ?? WAKE_RE.exec(value);
-  if (!match) return "";
-  const rest = value.slice(match.index + match[0].length).replace(/^[\s,!.?:;-]+/u, "").trim();
+  const end = match ? match.index + match[0].length : fuzzyNameEnd(value);
+  if (end < 0) return "";
+  const rest = value.slice(end).replace(/^[\s,!.?:;-]+/u, "").trim();
   return (rest.match(/\p{L}/gu) ?? []).length >= MIN_COMMAND_LETTERS ? rest : "";
 }

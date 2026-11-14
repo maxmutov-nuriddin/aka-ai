@@ -38,6 +38,7 @@
       "app-preload.js",
       "permissions.js",
       "permission-policy.js",
+      "load-url.js",
       "trayTemplate.png",
       "trayTemplate@2x.png",
       "tray-listenTemplate.png",

@@ -414,9 +414,13 @@ export function createApp({
   app.get(["/app/", "/app/index.html"], requireUserPage, page("app", "index.html"));
 
   app.get("/shared/parse.js", (_req, res) => res.sendFile(path.join(here, "core", "parse.js")));
+  // Katta tashqi kutubxona (mermaid, 5.5 MB): bir hafta keshda — versiyasi paketda qotirilgan.
   app.get("/vendor/mermaid.min.js", (_req, res) =>
-    res.sendFile(path.join(root, "node_modules", "mermaid", "dist", "mermaid.min.js")),
+    res.sendFile(path.join(root, "node_modules", "mermaid", "dist", "mermaid.min.js"), {
+      headers: { "Cache-Control": "public, max-age=604800, immutable" },
+    }),
   );
+  // Kod fayllari har safar tekshiriladi (ETag, 304 — yangilanish darrov ko'rinadi).
   app.use(express.static(webDir, { index: false }));
 
   app.use((err, _req, res, _next) => {

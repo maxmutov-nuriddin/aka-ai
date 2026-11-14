@@ -2,6 +2,7 @@
 // qidirish, ochish (vaqtdan), pauza, vaqtga o'tish, YouTube ovozi (tizim ovozidan alohida), to'liq ekran.
 // Sahifadagi YouTube pleer API (movie_player) ishlatiladi; bo'lmasa — <video> elementi.
 const { BrowserWindow } = require("electron");
+const { loadTolerant } = require("./load-url.js");
 const { videoIdFrom, parseSearch, search } = require("./youtube-search.js");
 
 const SEEK_STEP_S = 10;
@@ -21,6 +22,8 @@ function ensurePlayer() {
     backgroundColor: "#000000",
     webPreferences: { partition: "persist:youtube", contextIsolation: true, sandbox: true, autoplayPolicy: "no-user-gesture-required" },
   });
+  // Oddiy Chrome sifatida ko'rinsin: "Electron" belgisi bo'lsa YouTube ba'zan yuklashni to'xtatadi.
+  player.webContents.setUserAgent(player.webContents.getUserAgent().replace(/\s(Electron|jigar)\/\S+/gi, ""));
   player.on("closed", () => { player = null; });
   return player;
 }
@@ -78,7 +81,7 @@ async function play(input) {
   if (!id) return { error: "Video topilmadi — boshqacha so'z bilan qidirib ko'ring." };
   const win = ensurePlayer();
   const start = seconds(input.seconds);
-  await win.loadURL(`https://www.youtube.com/watch?v=${id}${start ? `&t=${start}s` : ""}`);
+  await loadTolerant(win.webContents, `https://www.youtube.com/watch?v=${id}${start ? `&t=${start}s` : ""}`, { host: "youtube.com" });
   win.show();
   if (!(await waitForVideo())) return { text: `Ochildi: https://youtu.be/${id} (video hali yuklanyapti).` };
   await runInPlayer('api("playVideo") || v.play()');

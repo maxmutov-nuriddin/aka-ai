@@ -126,7 +126,13 @@ function resumeWakeAfterGrant() {
   wake.setEnabled(true, prefs.lang);
 }
 const wake = IS_DESKTOP_APP
-  ? createServerWake({ ...wakeHandlers, apiBase: () => host.apiBase, authHeaders: () => authHeaders() })
+  ? createServerWake({
+    ...wakeHandlers,
+    apiBase: () => host.apiBase,
+    authHeaders: () => authHeaders(),
+    // Sozlash uchun: 3 daqiqa ishlagach bir marta (gap soni, eng baland daraja, shovqin) — XATOLAR.md ga; gap matni yozilmaydi.
+    onStats: (message) => reportClientIssue({ apiBase: () => host.apiBase, authHeaders }, { where: "Hey Jigar statistika", name: "stat", message }),
+  })
   : createWake(wakeHandlers);
 let pageFile = null; // veb-rejim, yuklangan darslik: { kind, name, dataUrl } — pastda: "Darslik fayli"
 
@@ -147,27 +153,40 @@ function freshState() {
 }
 
 // ---------- Mermaid ----------
+// Kutubxona 5.5 MB: dastlabki yuklashni to'smaslik uchun faqat birinchi diagramma kerak bo'lganda yuklanadi.
 let mermaidCounter = 0;
-if (window.mermaid) {
-  // Chizma doim oq qutida (.diagram) — "dark" mavzuda chiziq va yozuvlar oq fonda ko'rinmay qolardi.
-  window.mermaid.initialize({
-    startOnLoad: false,
-    securityLevel: "strict",
-    theme: "base",
-    // Jigar uslubi: yumshoq ranglar, yirik yozuv, egri strelkalar (oq qutida)
-    themeVariables: {
-      fontFamily: "system-ui, -apple-system, 'Segoe UI', sans-serif",
-      fontSize: "17px",
-      primaryColor: "#ede9fe",
-      primaryBorderColor: "#7c74ff",
-      primaryTextColor: "#1e1b4b",
-      secondaryColor: "#dcfce7",
-      tertiaryColor: "#fef3c7",
-      lineColor: "#6366f1",
-      pie1: "#7c74ff", pie2: "#34d399", pie3: "#fbbf24", pie4: "#f472b6", pie5: "#60a5fa", pie6: "#fb923c",
-    },
-    flowchart: { curve: "basis", padding: 14, nodeSpacing: 40, rankSpacing: 46 },
+let mermaidReady = null;
+
+function loadMermaid() {
+  mermaidReady ??= new Promise((resolve) => {
+    const script = document.createElement("script");
+    script.src = "../vendor/mermaid.min.js";
+    script.onload = () => {
+      // Chizma doim oq qutida (.diagram) — "dark" mavzuda chiziq va yozuvlar oq fonda ko'rinmay qolardi.
+      window.mermaid?.initialize({
+        startOnLoad: false,
+        securityLevel: "strict",
+        theme: "base",
+        // Jigar uslubi: yumshoq ranglar, yirik yozuv, egri strelkalar (oq qutida)
+        themeVariables: {
+          fontFamily: "system-ui, -apple-system, 'Segoe UI', sans-serif",
+          fontSize: "17px",
+          primaryColor: "#ede9fe",
+          primaryBorderColor: "#7c74ff",
+          primaryTextColor: "#1e1b4b",
+          secondaryColor: "#dcfce7",
+          tertiaryColor: "#fef3c7",
+          lineColor: "#6366f1",
+          pie1: "#7c74ff", pie2: "#34d399", pie3: "#fbbf24", pie4: "#f472b6", pie5: "#60a5fa", pie6: "#fb923c",
+        },
+        flowchart: { curve: "basis", padding: 14, nodeSpacing: 40, rankSpacing: 46 },
+      });
+      resolve(window.mermaid ?? null);
+    };
+    script.onerror = () => resolve(null);
+    document.head.append(script);
   });
+  return mermaidReady;
 }
 
 /** Model chizgan rasm (SVG) — <img> ichida: undagi skript va havolalar ishlamaydi (xavfsiz). */
@@ -185,9 +204,10 @@ function renderSvgImage(container, code) {
 async function renderVisual(container, code) {
   const trimmed = code.trim();
   if (/^<svg[\s>]/i.test(trimmed) && trimmed.length <= SVG_MAX_CHARS) return renderSvgImage(container, trimmed);
-  if (!window.mermaid) return showCode(container, code);
+  const mermaid = await loadMermaid();
+  if (!mermaid) return showCode(container, code);
   try {
-    const { svg } = await window.mermaid.render(`jigar-mmd-${++mermaidCounter}`, code);
+    const { svg } = await mermaid.render(`jigar-mmd-${++mermaidCounter}`, code);
     container.innerHTML = svg; // securityLevel: "strict" — mermaid o'zi tozalaydi
   } catch {
     showCode(container, code);

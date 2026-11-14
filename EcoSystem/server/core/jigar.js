@@ -333,8 +333,10 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ge
     const params = {
       model: { haiku: config.haikuModel, sonnet: config.sonnetModel, opus: config.model }[tier],
       max_tokens: config.maxTokens,
-      system,
-      cache_control: { type: "ephemeral" }, // tizim prompti + sahifa keshlanadi
+      // Tizim prompti (asboblar bilan, ~18 ming token) ALOHIDA va 1 soat keshlanadi: yangi suhbat/savol boshlanganda ham
+      // keshdan o'qiladi (tezroq, ~10 barobar arzon). Faqat oxirgi blok keshlansa — har yangi savolda butun prompt qayta yozilardi.
+      system: [{ type: "text", text: system, cache_control: { type: "ephemeral", ttl: "1h" } }],
+      cache_control: { type: "ephemeral" }, // suhbat (sahifa va tarix) ham keshlanadi
       output_config: { effort: style.effort || config.effort }, // egasi sozlamalarda tanlaydi
       ...(haiku ? { thinking: { type: "disabled" } } : {}),
       tools: [webSearchTool(haiku), ...(toolbox?.definitions ?? [])], // internet + server asboblari + qurilmalar (ulangan bo'lsa)

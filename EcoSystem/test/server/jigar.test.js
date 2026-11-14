@@ -93,8 +93,11 @@ test("chat: Claude parametrlari — model, tizim, kesh, zaxira model, internet q
   assert.deepEqual(p.cache_control, { type: "ephemeral" });
   assert.equal(p.fallbacks, "default");
   assert.equal(p.tools[0].name, "web_search");
-  assert.match(p.system, /- Ismi: Nuriddin/);
-  assert.match(p.system, /- Dasturchi/);
+  // Tizim prompti alohida blok va 1 soat keshlanadi (yangi savolda ham keshdan o'qiladi)
+  assert.equal(p.system.length, 1);
+  assert.deepEqual(p.system[0].cache_control, { type: "ephemeral", ttl: "1h" });
+  assert.match(p.system[0].text, /- Ismi: Nuriddin/);
+  assert.match(p.system[0].text, /- Dasturchi/);
   const last = p.messages[0].content;
   assert.equal(last[0].type, "image");
   assert.ok(last[1].text.startsWith(CAMERA_NOTE));

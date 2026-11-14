@@ -11,6 +11,10 @@ const SAMPLE_RATE = 16_000;
 const CHUNK_SAMPLES = 1024; // ≈ 64 ms
 const PREROLL_MS = 400;
 const SEND_GAP_MS = 1500; // ketma-ket yuborishlar orasida (xarajat va limit)
+// Moslashuvchan sezgirlik: atrof shovqini (jim paytdagi daraja) × FLOOR_FACTOR, lekin [MIN, MAX] oralig'ida.
+// Tinch xona va past ovozli mikrofon — sezgir; shovqinli xona — kam yolg'on ishga tushish.
+const THRESHOLD = { min: 0.008, max: 0.03, floorFactor: 3, floorSmoothing: 0.02 };
+const STATS_AFTER_MS = 3 * 60_000; // shuncha ishlagandan keyin bir marta qisqa statistika serverga yoziladi (sozlash uchun)
 
 /**
  * Ovoz faolligi bo'yicha bo'laklash (sof — testlanadi). feed(daraja, vaqt) →
@@ -22,8 +26,9 @@ export function createSegmenter(options = {}) {
   let startedAt = null;
   let quietSince = null;
   return {
-    feed(level, now) {
-      const loud = level >= o.threshold;
+    /** threshold (ixtiyoriy) — shu kadrdagi sezgirlik (atrof shovqiniga moslashadi); berilmasa — qo'zg'almas. */
+    feed(level, now, threshold = o.threshold) {
+      const loud = level >= threshold;
       if (startedAt == null) {
         loudSince = loud ? (loudSince ?? now) : null;
         if (loudSince != null && now - loudSince >= o.startMs) {
@@ -82,23 +87,40 @@ export function encodeWav(chunks, sampleRate = SAMPLE_RATE) {
  * @param {{ onWake: () => void, onUnavailable?: (reason: string) => void, apiBase: () => string,
  *           authHeaders: () => Record<string, string> }} deps
  */
-export function createServerWake({ onWake, onUnavailable = () => {}, apiBase, authHeaders }) {
+export function createServerWake({ onWake, onUnavailable = () => {}, onStats = null, apiBase, authHeaders }) {
   const supported = Boolean(globalThis.navigator?.mediaDevices?.getUserMedia && globalThis.AudioContext);
   let wanted = false;
   let paused = false;
   let lang = "uz";
   let live = null; // { stream, ctx, processor }
   let lastSent = 0;
+  let pendingBlob = null; // yuborish oralig'ida kelgan gap tashlab yuborilmaydi — navbatdagi bitta (oxirgisi) saqlanadi
+  const stats = { sent: 0, matched: 0, peak: 0, floor: 0, since: 0, reported: false };
+
+  function maybeReportStats() {
+    if (stats.reported || !stats.since || Date.now() - stats.since < STATS_AFTER_MS) return;
+    stats.reported = true;
+    onStats?.(`${stats.sent} ta gap yuborildi, ${stats.matched} tasi "Jigar" deb tanildi; eng baland daraja ${stats.peak.toFixed(3)}, shovqin ~${stats.floor.toFixed(4)}`);
+  }
 
   async function send(blob) {
-    if (Date.now() - lastSent < SEND_GAP_MS) return;
+    const wait = SEND_GAP_MS - (Date.now() - lastSent);
+    if (wait > 0) {
+      const first = pendingBlob === null;
+      pendingBlob = blob;
+      if (first) setTimeout(() => { const next = pendingBlob; pendingBlob = null; if (next) send(next); }, wait);
+      return;
+    }
     lastSent = Date.now();
+    stats.sent += 1;
+    maybeReportStats();
     try {
       const res = await fetch(`${apiBase()}/api/stt?lang=${lang}`, { method: "POST", headers: { "Content-Type": blob.type || "audio/webm", ...authHeaders() }, body: blob });
       if (res.status === 503) return giveUp("stt"); // serverda ovoz tanish sozlanmagan
       if (!res.ok) return;
       const { text } = await res.json();
       if (wanted && !paused && hasWakeWord(text)) {
+        stats.matched += 1;
         halt();
         onWake(wakeRemainder(text), text); // "Hey Jigar, ovozni 40 qil" — buyruq ham birga
       }
@@ -118,7 +140,7 @@ export function createServerWake({ onWake, onUnavailable = () => {}, apiBase, au
     if (!supported || !wanted || paused || live) return;
     let stream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); // autoGainControl — past ovozli mikrofonni kuchaytiradi
     } catch (err) {
       return giveUp("not-allowed", `${err?.name ?? "Error"}: ${err?.message ?? ""}`.trim());
     }
@@ -137,7 +159,12 @@ export function createServerWake({ onWake, onUnavailable = () => {}, apiBase, au
       clock += (CHUNK_SAMPLES / SAMPLE_RATE) * 1000;
       if (recording) recording.push(chunk);
       else preroll = [...preroll.slice(1 - prerollChunks), chunk];
-      const event = segmenter.feed(rms(chunk), clock);
+      const level = rms(chunk);
+      stats.since ||= Date.now();
+      stats.peak = Math.max(stats.peak, level);
+      if (!recording && level < THRESHOLD.max) stats.floor += (level - stats.floor) * THRESHOLD.floorSmoothing; // jim paytdagi daraja
+      const threshold = Math.min(THRESHOLD.max, Math.max(THRESHOLD.min, stats.floor * THRESHOLD.floorFactor));
+      const event = segmenter.feed(level, clock, threshold);
       if (event === "start") {
         recording = [...preroll];
         preroll = [];

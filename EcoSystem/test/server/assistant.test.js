@@ -75,7 +75,7 @@ test("prompt: xotira bo'limi, hozirgi vaqt va internet qidiruvi doim", async () 
   await jigar.chat({ history: [{ role: "user", content: "Ob-havo?" }], memories: ["Ismi Nuriddin"], nowNote: "Hozir: payshanba" });
   assert.equal(calls[0].tools[0].name, "web_search");
   assert.match(calls[0].messages[0].content, /\(Hozir: payshanba\)$/);
-  assert.match(calls[0].system, /- Ismi Nuriddin/);
+  assert.match(calls[0].system[0].text, /- Ismi Nuriddin/);
 });
 test("pause_turn: qidiruv uzoq cho'zilsa javob davom ettiriladi va matnlar qo'shiladi", async () => {
   const replies = [
@@ -137,4 +137,11 @@ test("isStopCommand / isDeliberateWake: 'Jigar, stop' to'xtatadi; gapirayotganda
   assert.ok(isDeliberateWake("Hey Jigar, nima gap", "nima gap"));
   assert.ok(isDeliberateWake("Jigar, stop", "stop"));
   assert.ok(!isDeliberateWake("Men Jigarman, yordamchingiz", "")); // o'z ovozidagi ism — chaqiruv emas
+});
+
+test("hasWakeWord: qisqa gapda buzilgan ism ham chaqiruv; uzun gap va begona so'z — yo'q", async () => {
+  const { hasWakeWord, wakeRemainder } = await import("../../web/app/wake.js");
+  for (const t of ["Jigar", "Дигар", "жигир", "Jigga", "gigar", "Чигар", "hey jigr", "Жигар, ovozni 40 qil"]) assert.ok(hasWakeWord(t), t);
+  for (const t of ["jigarrang ko'ylak", "tiger", "ovozni 40 qil", "bugun havo yaxshi, ertaga ham", "Hujum", "Rigid", "salom"]) assert.ok(!hasWakeWord(t), t);
+  assert.equal(wakeRemainder("Жигар ovozni 40 qil"), "ovozni 40 qil");
 });
