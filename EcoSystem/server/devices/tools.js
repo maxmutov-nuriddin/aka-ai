@@ -28,12 +28,13 @@ const CONTROL_TOOLS = [
   },
   {
     name: "pc_apps",
-    description: "Ilovalar: list — ochiq ilovalar; open, focus (oldinga chiqarish), hide (yashirish), quit (yopish) — `app` nomi bilan; hide_all — hammasini yashirish (ish stoli); quit_all — hammasini yopish (egasidan ruxsat so'raladi).",
+    description: "Ilovalar: list — ochiq ilovalar; open, focus (oldinga chiqarish), hide (yashirish), quit (yopish) — `app` nomi bilan; close_tab — brauzerdagi bitta TABni yopish (butun brauzerni emas): `title` — tab nomi yoki sayt, masalan 'YouTube' (macOS'da hamma mos tablar, Windows'da faqat faol tab); hide_all — hammasini yashirish (ish stoli); quit_all — hammasini yopish (egasidan ruxsat so'raladi).",
     input_schema: {
       type: "object",
       properties: {
-        action: enumOf(["list", "open", "focus", "hide", "quit", "hide_all", "quit_all"], "Amal"),
+        action: enumOf(["list", "open", "focus", "hide", "quit", "close_tab", "hide_all", "quit_all"], "Amal"),
         app: { type: "string", description: "Ilova nomi (list'dagi kabi), masalan 'Telegram', 'Google Chrome'" },
+        title: { type: "string", maxLength: 80, description: "close_tab uchun: yopiladigan tab nomi yoki sayt (masalan 'YouTube', 'Yandex Music')" },
       },
       required: ["action"],
       additionalProperties: false,

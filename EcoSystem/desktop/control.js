@@ -2,7 +2,7 @@
 // macOS — AppleScript ("System Events" uchun Automation ruxsati birinchi marta so'raladi), Windows — PowerShell.
 const os = require("node:os");
 const { osascript, powershell, run } = require("./os-run.js");
-const { mac, win } = require("./scripts.js");
+const { mac, win, cleanTitle } = require("./scripts.js");
 const { isSafeAppName } = require("./policy.js");
 const { youtube, playerOpen } = require("./youtube.js");
 
@@ -13,6 +13,8 @@ const VOLUME_STEP = 10;
 const KEEP_MAC = ["Jigar", "Electron", "Finder"];
 const KEEP_WIN = ["Jigar", "electron", "explorer"];
 const MUSIC_APPS = ["Spotify", "Music"];
+// macOS brauzerlari: tab nomi va manzili AppleScript orqali o'qiladi (faqat ishlayotganlar — o'zi ochilib ketmasin).
+const MAC_BROWSERS = ["Google Chrome", "Brave Browser", "Microsoft Edge", "Arc", "Safari"];
 
 const unsupported = () => ({ error: "Bu amal faqat macOS va Windows'da ishlaydi." });
 const fail = (r, what) => ({ error: `${what}: ${(r.stderr || r.stdout || "xato").trim().slice(0, 300)}` });
@@ -86,7 +88,25 @@ async function media({ action, level }) {
   }
 }
 
-async function apps({ action, app }) {
+/** Brauzerdagi tab(lar)ni sarlavhasi/manzili bo'yicha yopadi — butun brauzerni emas. */
+async function closeTabs(title) {
+  const text = cleanTitle(title);
+  if (text.length < 2) return { error: "Qaysi tabni yopish kerak? (masalan, 'YouTube') — `title` bering." };
+  if (IS_WIN) return script("", win.closeTabs(text), (out) => `${out.trim()} ta tab yopildi: "${text}".`, "Tabni yopish");
+  if (!IS_MAC) return unsupported();
+  const running = (await runningApps()) ?? [];
+  const browsers = MAC_BROWSERS.filter((b) => running.includes(b));
+  if (!browsers.length) return { error: "Ochiq brauzer topilmadi." };
+  let closed = 0;
+  for (const browser of browsers) {
+    const r = await osascript(mac.closeTabs(browser, text));
+    if (r.code !== 0) return permissionHint(r) ?? fail(r, `${browser}: tabni yopish`);
+    closed += Number(r.stdout.trim()) || 0;
+  }
+  return closed ? { text: `${closed} ta tab yopildi: "${text}".` } : { error: `Nomi yoki manzilida "${text}" bo'lgan tab topilmadi.` };
+}
+
+async function apps({ action, app, title }) {
   const name = String(app ?? "").trim();
   const needsName = ["open", "focus", "hide", "quit"].includes(action);
   if (needsName && !isSafeAppName(name)) return { error: "Ilova nomi noto'g'ri yoki berilmagan." };
@@ -108,6 +128,8 @@ async function apps({ action, app }) {
       return script(mac.quit(name), win.quit(name), `${name} yopildi.`, name);
     case "hide_all":
       return script(mac.hideAll(KEEP_MAC), win.hideAll(), "Hamma oynalar yashirildi.", "Yashirish");
+    case "close_tab":
+      return closeTabs(title);
     case "quit_all":
       return quitAll();
     default:

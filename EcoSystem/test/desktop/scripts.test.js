@@ -63,3 +63,18 @@ test("dev: prompt qo'shtirnoqlari — shell va AppleScript qochirish (in'yeksiya
   assert.equal(shellQuote("$(rm -rf ~)"), "'$(rm -rf ~)'");
   assert.equal(appleQuote('say "hi" \\ x'), 'say \\"hi\\" \\\\ x');
 });
+
+test("closeTabs: mac — brauzer, tab nomi/manzili; tirnoq xavfsiz; Safari — name. Windows — fokus tekshiruvi va chiqish kodi", () => {
+  const chrome = mac.closeTabs("Google Chrome", 'You"Tube\\x');
+  assert.match(chrome, /tell application "Google Chrome"/);
+  assert.match(chrome, /title of t contains "You\\"Tube\\\\x"/);
+  assert.match(chrome, /URL of t contains/);
+  assert.match(mac.closeTabs("Safari", "YouTube"), /name of t contains "YouTube"/);
+  assert.equal(scripts.cleanTitle("a\u0000b\nc  "), "a b c");
+  assert.equal(scripts.cleanTitle("x".repeat(200)).length, 80);
+  const ps = win.closeTabs("it's");
+  assert.match(ps, /\$text = 'it''s'/); // tirnoq ikkilanadi
+  assert.match(ps, /GetForegroundWindow\(\) -ne \$h\) \{ break \}/); // oyna oldinga chiqmasa — Ctrl+W yuborilmaydi
+  assert.match(ps, /exit 3/);
+  assert.match(ps, /'chrome','msedge'/);
+});
