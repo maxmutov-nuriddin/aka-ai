@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   buildMessages, createJigar, getConfig, normalizeHistory, normalizePage, normalizeLang, normalizeLength, normalizePersona,
-  systemPromptFor, withHeardAlternative, PERSONAS, LIMITS, SYSTEM_PROMPT, CAMERA_NOTE, VOICE_NOTE, ValidationError,
+  systemPromptFor, stripOptional, promptNeeds, recentHistory, withHeardAlternative, PERSONAS, LIMITS, SYSTEM_PROMPT, CAMERA_NOTE, VOICE_NOTE, ValidationError,
 } from "../../server/core/jigar.js";
 
 const config = { model: "claude-opus-5-5", effort: "medium", maxTokens: 16000, fallbacks: true };
@@ -38,7 +38,7 @@ test("normalizatorlar: til, uzunlik, xarakter", () => {
 
 test("systemPromptFor: bitta moslashuvchan xarakter (persona e'tiborsiz), uzunlik, ism (tozalanadi), rus tili, xotira — oxirida", () => {
   const base = systemPromptFor("uz");
-  assert.ok(base.startsWith(SYSTEM_PROMPT));
+  assert.ok(base.startsWith(stripOptional(SYSTEM_PROMPT)));
   assert.match(base, /do'st va yordamchi/);
   assert.match(base, /Sen ustoz emassan/);
   assert.equal(systemPromptFor("uz", { persona: "jahldor" }), base); // tanlov ta'sir qilmaydi
@@ -263,4 +263,26 @@ test("addressNote: egasi \"sen\" yoki \"Siz\" deganini aniqlaydi; belgisiz — o
   const history = [{ role: "user", content: "sen zo'rsan" }, { role: "assistant", content: "x" }, { role: "user", content: "ovozni 40 qil" }];
   assert.equal(addressNote(history), ADDRESS_NOTES.sen);
   assert.equal(addressNote(null), "");
+});
+
+test("ixtiyoriy prompt bo'limlari: kamera/sahifa/vizual faqat kerak bo'lganda; token ancha kam", () => {
+  const lean = systemPromptFor("uz");
+  const full = systemPromptFor("uz", { needs: ["kamera", "sahifa", "vizual"] });
+  assert.ok(!/<!--/.test(lean) && !/<!--/.test(full), "markerlar tozalanadi");
+  assert.doesNotMatch(lean, /Mermaid|viewBox|Kamera \(Jigarning ko'zi\)/);
+  assert.match(full, /Mermaid/);
+  assert.match(full, /Kamera \(Jigarning ko'zi\)/);
+  assert.ok(full.length - lean.length > 3500, "ixtiyoriy qismlar ~3.5 ming belgidan ko'p");
+  assert.deepEqual(promptNeeds({ lastUserText: "ovozni 30 qil" }), []);
+  assert.deepEqual(promptNeeds({ lastUserText: "bitta diagramma chizib ber" }), ["vizual"]);
+  assert.deepEqual(promptNeeds({ camera: true, page: true, lastUserText: "jadval qil" }), ["kamera", "sahifa", "vizual"]);
+});
+
+test("recentHistory: oxirgi 10 ta; birinchisi doim 'user'; qisqa tarix o'zgarmaydi", () => {
+  const mk = (n) => Array.from({ length: n }, (_, i) => ({ role: i % 2 === 0 ? "user" : "assistant", content: String(i) }));
+  assert.equal(recentHistory(mk(7)).length, 7);
+  const trimmed = recentHistory(mk(21)); // oxirgi 10: indekslar 11..20 → 11 — assistant, tashlanadi → 9 ta, user bilan boshlanadi
+  assert.equal(trimmed[0].role, "user");
+  assert.equal(trimmed.at(-1).content, "20");
+  assert.ok(trimmed.length <= 10);
 });

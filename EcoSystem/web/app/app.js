@@ -9,6 +9,7 @@ import { createAssistant, fileButton, formatDue, renderAssistantPanel } from "./
 import { createWake, isStopCommand, isDeliberateWake } from "./wake.js";
 import { createServerWake } from "./wake-server.js";
 import { reportClientIssue } from "./diag.js";
+import { playChime } from "./chime.js";
 import { startPhoneAgent } from "./phone-agent.js";
 import { renderApps } from "./settings-apps.js";
 
@@ -88,6 +89,7 @@ const wakeHandlers = {
   // (keyingi chaqiruvgacha tinglamaydi); boshqa gap — joriy javobni to'xtatib, yangisini boshlaydi.
   onWake(command = "", heard = "") {
     if (state.finished || !voice.supported.listen) return;
+    playChime(); // ism eshitildi — qisqa "ding": egasi Jigar tinglayotganini biladi
     const engaged = voiceState === "speaking" || state.busy;
     if (engaged && !isDeliberateWake(heard, command)) return; // o'z ovozidagi "Jigar" — e'tiborsiz
     if (isStopCommand(command)) return hushJigar();

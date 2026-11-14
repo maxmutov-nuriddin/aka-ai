@@ -39,6 +39,8 @@
       "permissions.js",
       "permission-policy.js",
       "load-url.js",
+      "status-pill.js",
+      "pill-policy.js",
       "trayTemplate.png",
       "trayTemplate@2x.png",
       "tray-listenTemplate.png",

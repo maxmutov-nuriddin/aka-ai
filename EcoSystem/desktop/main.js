@@ -10,9 +10,11 @@ const { startBridge } = require("./bridge.js");
 const { runTool, setMaxAccess } = require("./tools.js");
 const { resolveServerUrl, askServerUrl } = require("./server-url.js");
 const { createPermissions } = require("./permissions.js");
+const { createStatusPill } = require("./status-pill.js");
 const { isSameSite } = require("./permission-policy.js");
 
 let permissions = null; // app.whenReady'da yaratiladi
+const pill = createStatusPill({ getMainWindow: () => win }); // fon holati yozuvi (ekran pastida)
 
 let ECO_URL = null; // app.whenReady'da aniqlanadi
 const SHORTCUT = "CommandOrControl+Shift+J";
@@ -242,6 +244,10 @@ ipcMain.on("jigar:status", (event, state) => {
   if (!tray || !win || event.sender !== win.webContents || !(state in TRAY_IMAGES)) return;
   if (process.platform === "darwin") tray.setImage(trayImage(state));
   tray.setToolTip(TRAY_HINTS[state]);
+  pill.update(state); // oyna yopiq bo'lsa ham: "Tinglayapti…" / "O'ylayapti…" / "Gapiryapti…"
 });
 app.on("activate", () => win?.show());
-app.on("will-quit", () => globalShortcut.unregisterAll());
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
+  pill.destroy();
+});

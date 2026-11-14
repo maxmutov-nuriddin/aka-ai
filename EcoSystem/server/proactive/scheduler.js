@@ -12,8 +12,8 @@ const WATCH_PROMPT = readPrompt("proactive-watch.md");
 const BRIEF_PROMPT = readPrompt("proactive-brief.md");
 
 export const TICK_MS = 60_000; // har daqiqada tekshiradi
-export const WATCH_EVERY_MS = 10 * 60_000; // ekranga 10 daqiqada bir qaraydi
-export const WATCH_COOLDOWN_MS = 30 * 60_000; // ekran haqida ketma-ket gaplar orasida kamida 30 daqiqa
+export const WATCH_EVERY_MS = 30 * 60_000; // ekranga 30 daqiqada bir qaraydi (har qarash — rasmli so'rov, token)
+export const WATCH_COOLDOWN_MS = 60 * 60_000; // ekran haqida ketma-ket gaplar orasida kamida 1 soat
 const TASHKENT_OFFSET_MS = 5 * 60 * 60_000;
 const HOUR_MS = 60 * 60_000;
 const DAY_MS = 24 * HOUR_MS;

@@ -64,9 +64,32 @@ function memoryPromptFor(memories) {
   return ["# XOTIRA (foydalanuvchi haqida avval eslab qolganlaring — kerak bo'lsa ishlat, takror so'rama)", ...facts.map((f) => `- ${f}`)].join("\n");
 }
 
+/**
+ * Promptdagi ixtiyoriy bo'limlar (<!--nom-->...<!--/nom-->): kamera, sahifa, vizual (chizma qoidalari, ~3 ming token).
+ * Faqat so'ralganlari qoladi — qolganlari tokenni bekorga yemasin.
+ */
+export function stripOptional(text, wanted = []) {
+  const keep = new Set(wanted);
+  return text.replace(/<!--(\w+)-->\n?([\s\S]*?)<!--\/\1-->\n?/g, (_, name, body) => (keep.has(name) ? body : ""));
+}
+
+const VISUAL_RE = /chiz|diagramma|sxema|jadval|grafik|график|схем|таблиц|диаграмм|нарису|rasm\s*(qil|ber|chiz)/i;
+/** Shu so'rovga qaysi ixtiyoriy bo'limlar kerak: kamera rasmi, sahifa/hujjat, chizma so'ralgan. */
+export function promptNeeds({ camera = false, page = false, lastUserText = "" } = {}) {
+  return [camera && "kamera", page && "sahifa", VISUAL_RE.test(lastUserText) && "vizual"].filter(Boolean);
+}
+
+/** Oxirgi SEND_TURNS ta xabar; birinchisi doim "user" bo'lsin (API talabi). */
+const SEND_TURNS = 10;
+export function recentHistory(history, max = SEND_TURNS) {
+  if (history.length <= max) return history;
+  const tail = history.slice(-max);
+  return tail[0].role === "user" ? tail : tail.slice(1);
+}
+
 /** Tizim prompti: asosiy + xarakter + uzunlik + ism + til + xotira. Xotira oxirida — kamdan-kam o'zgaradi (kesh). */
-export function systemPromptFor(lang = "uz", { length = "odatiy", persona = null, name = null, memories = null } = {}) {
-  const parts = [SYSTEM_PROMPT];
+export function systemPromptFor(lang = "uz", { length = "odatiy", persona = null, name = null, memories = null, needs = [] } = {}) {
+  const parts = [stripOptional(SYSTEM_PROMPT, needs)];
   parts.push(CHARACTER_PROMPT); // persona e'tiborga olinmaydi — xarakter bitta
   if (length === "qisqa") parts.push(SHORT_PROMPT);
   if (length === "batafsil") parts.push(DETAILED_PROMPT);
@@ -100,6 +123,7 @@ const PROMISE_NUDGE = "(Tizim: sen bajaraman deding, lekin hech qanday asbob cha
 const NOW_NOTE_MAX = 900; // vaqt + qurilma izohi (oxirgi xabarga)
 const THINK_MAX_TOKENS = 2000; // proaktiv fikr (ekranga o'zi qarash, kunlik xulosa) — qisqa
 
+const SHORT_MAX_TOKENS = 3000;
 export const LIMITS = {
   pageChars: 60_000, // sahifa matni (undan uzuni kesiladi va modelga aytiladi)
   messageChars: 4_000, // foydalanuvchining bitta (yangi) xabari
@@ -332,7 +356,8 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ge
     const haiku = tier === "haiku";
     const params = {
       model: { haiku: config.haikuModel, sonnet: config.sonnetModel, opus: config.model }[tier],
-      max_tokens: config.maxTokens,
+      // Qisqa javob rejimida chegara past: tasodifiy cheksiz uzun javob (token va vaqt) bo'lmasin; uzun ish (fayl yozish) sig'adi.
+      max_tokens: style.length === "qisqa" ? Math.min(config.maxTokens, SHORT_MAX_TOKENS) : config.maxTokens,
       // Tizim prompti (asboblar bilan, ~18 ming token) ALOHIDA va 1 soat keshlanadi: yangi suhbat/savol boshlanganda ham
       // keshdan o'qiladi (tezroq, ~10 barobar arzon). Faqat oxirgi blok keshlansa — har yangi savolda butun prompt qayta yozilardi.
       system: [{ type: "text", text: system, cache_control: { type: "ephemeral", ttl: "1h" } }],
@@ -427,6 +452,8 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ge
       };
       const normPage = normalizePage(page);
       const camera = normalizeCameraImage(image);
+      const lastUser = Array.isArray(history) ? String(history.at(-1)?.content ?? "") : "";
+      style.needs = promptNeeds({ camera: Boolean(camera), page: Boolean(normPage), lastUserText: lastUser });
       const lastIndex = Array.isArray(history) ? history.length - 1 : -1;
       const lastContent = (m) => {
         const heardText = withHeardAlternative(m.content, heardAlt);
@@ -439,7 +466,9 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ge
       };
       const normHistory = normalizeHistory(history).map((m, i) => (i === lastIndex ? { ...m, content: lastContent(m) } : m));
       const userContent = normHistory[normHistory.length - 1].content;
-      const messages = buildMessages({ page: normPage, history: normHistory, selection, image: camera });
+      // Token tejash: sahifa bo'lmasa — faqat oxirgi xabarlar yuboriladi (eski gaplar kerak emas; to'liq tarix mijozda qoladi).
+      const sent = normPage ? normHistory : recentHistory(normHistory);
+      const messages = buildMessages({ page: normPage, history: sent, selection, image: camera });
       const result = await call(messages, normLang, style, llm, typeof onDelta === "function" ? onDelta : null, toolbox);
       // userContent: mijoz tarixga aynan shuni yozadi — keyingi so'rovlarda prefiks o'zgarmaydi (kesh ishlaydi).
       return { ...result, userContent, pageTruncated: Boolean(normPage?.truncated), parsed: parseAkaResponse(result.text) };
