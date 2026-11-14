@@ -1,8 +1,8 @@
 // Qurilmaning o'z ruxsat chegarasi: server qanday daraja yuborsa ham, bu kompyuterda undan yuqori ishlamaydi.
-// Standart — "full" (cheksiz rejim ushbu kompyuterda ishlamaydi). O'zgartirish: ECO_MAX_ACCESS yoki
+// Standart — "unlimited" (egasi Sozlamalarda tanlagan daraja to'liq ishlaydi; cheksizni yoqish — parol bilan). O'zgartirish: ECO_MAX_ACCESS yoki
 // userData/config.json ichida "maxAccess": "safe" | "wide" | "full" | "unlimited". Server buzilsa yoki aldansa ham himoya shu yerda.
 const LEVELS = ["safe", "wide", "full", "unlimited"];
-const DEFAULT_MAX = "full";
+const DEFAULT_MAX = "unlimited";
 
 const valid = (value) => (LEVELS.includes(value) ? value : null);
 

@@ -8,6 +8,7 @@ import { readPageFile, PageFileError } from "./page-file.js";
 import { createAssistant, fileButton, formatDue, renderAssistantPanel } from "./assistant.js";
 import { createWake, isStopCommand, isDeliberateWake } from "./wake.js";
 import { createServerWake } from "./wake-server.js";
+import { mountWakeTest } from "./wake-test.js";
 import { reportClientIssue } from "./diag.js";
 import { playChime } from "./chime.js";
 import { startPhoneAgent } from "./phone-agent.js";
@@ -137,6 +138,15 @@ const wake = IS_DESKTOP_APP
     onStats: (message) => reportClientIssue({ apiBase: () => host.apiBase, authHeaders }, { where: "Hey Jigar statistika", name: "stat", message }),
   })
   : createWake(wakeHandlers);
+// Siri ("Hey Siri, Jigar") / jigar://listen — desktop ilova darhol tinglaydi, "Hey Jigar" aytilgandek.
+window.jigarDesktop?.onListen?.(() => wakeHandlers.onWake("", "hey jigar"));
+mountWakeTest($("wakeTest"), {
+  apiBase: () => host.apiBase,
+  authHeaders: () => authHeaders(),
+  lang: () => prefs.lang,
+  pauseWake: () => wake.pause(),
+  resumeWake: () => wake.resume(),
+});
 let pageFile = null; // veb-rejim, yuklangan darslik: { kind, name, dataUrl } — pastda: "Darslik fayli"
 
 let state = freshState();

@@ -219,13 +219,15 @@ export function createElevenLabs({ env = process.env, fetchImpl = fetch } = {}) 
   }
 
   /** Matn + so'zlar (har biri logprob bilan — talaffuz ishorasi uchun) + aniqlangan til ("rus", "uzb"). */
-  async function transcribeDetailed(audio, mimeType, { lang } = {}) {
+  /** keyterms — tanishni shu so'zlarga moyil qiladi ("Jigar" — uyg'otish so'zi); takroriy maydon sifatida yuboriladi. */
+  async function transcribeDetailed(audio, mimeType, { lang, keyterms = [] } = {}) {
     const { key } = requireConfig();
     validateAudio(audio, mimeType);
     const form = new FormData();
     form.append("model_id", STT_MODEL);
     if (lang !== AUTO_LANG) form.append("language_code", langOf(lang));
     form.append("tag_audio_events", "false");
+    for (const term of keyterms) form.append("keyterms", term);
     const ext = /wav/.test(mimeType) ? "wav" : /mp4|m4a/.test(mimeType) ? "m4a" : /ogg/.test(mimeType) ? "ogg" : "webm";
     form.append("file", new Blob([audio], { type: mimeType }), `speech.${ext}`);
 

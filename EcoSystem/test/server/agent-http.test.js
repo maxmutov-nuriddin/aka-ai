@@ -49,7 +49,6 @@ test("sozlamalar: cheksiz daraja — faqat to'g'ri parol bilan; TO'XTA — xavfs
     assert.equal((await put({ access: "unlimited", password: "yomon-parol" })).status, 403);
     const ok = await (await put({ access: "unlimited", password: TEST_USER.password })).json();
     assert.equal(ok.access, "unlimited");
-    assert.ok(ok.accessUntil > Date.now());
     assert.equal((await (await put({ access: "wide" })).json()).access, "wide");
     const stop = await (await s.post("/api/stop", {})).json();
     assert.equal(stop.ok, true);

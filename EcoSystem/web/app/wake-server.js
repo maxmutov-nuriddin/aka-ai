@@ -6,15 +6,19 @@
 // aks holda "Hey" kesilib, tanish xizmati ismni eshitmay qoladi.
 import { hasWakeWord, wakeRemainder } from "./wake.js";
 
-const VAD = { threshold: 0.018, startMs: 60, silenceMs: 600, minMs: 350, maxMs: 6000 };
-const SAMPLE_RATE = 16_000;
+// Maksimal sezgirlik: past ovoz va qisqa "Jigar" (≈0.3 s) ham yoziladi; yolg'on bo'laklarni tanish xizmati saralaydi.
+export const VAD = { threshold: 0.012, startMs: 40, silenceMs: 550, minMs: 250, maxMs: 6000 };
+export const SAMPLE_RATE = 16_000;
+// noiseSuppression o'chiq: u past/uzoqdan aytilgan "Jigar"ni ham "shovqin" deb o'chirib yuborardi.
+// echoCancellation — Jigar o'z ovozini eshitmasin; autoGainControl — past mikrofonni kuchaytiradi.
+export const MIC_CONSTRAINTS = { echoCancellation: true, noiseSuppression: false, autoGainControl: true };
 const CHUNK_SAMPLES = 1024; // ≈ 64 ms
 const PREROLL_MS = 400;
-const SEND_GAP_MS = 1500; // ketma-ket yuborishlar orasida (xarajat va limit)
+const SEND_GAP_MS = 600; // ketma-ket yuborishlar orasida (xarajat va limit)
 // Moslashuvchan sezgirlik: atrof shovqini (jim paytdagi daraja) × FLOOR_FACTOR, lekin [MIN, MAX] oralig'ida.
 // Tinch xona va past ovozli mikrofon — sezgir; shovqinli xona — kam yolg'on ishga tushish.
-const THRESHOLD = { min: 0.008, max: 0.03, floorFactor: 3, floorSmoothing: 0.02 };
-const STATS_AFTER_MS = 3 * 60_000; // shuncha ishlagandan keyin bir marta qisqa statistika serverga yoziladi (sozlash uchun)
+export const THRESHOLD = { min: 0.004, max: 0.02, floorFactor: 2.2, floorSmoothing: 0.02 };
+const STATS_AFTER_MS = 60_000; // shuncha ishlagandan keyin bir marta qisqa statistika serverga yoziladi (sozlash uchun)
 
 /**
  * Ovoz faolligi bo'yicha bo'laklash (sof — testlanadi). feed(daraja, vaqt) →
@@ -51,7 +55,7 @@ export function createSegmenter(options = {}) {
   };
 }
 
-const rms = (samples) => Math.sqrt(samples.reduce((sum, v) => sum + v * v, 0) / samples.length);
+export const rms = (samples) => Math.sqrt(samples.reduce((sum, v) => sum + v * v, 0) / samples.length);
 
 /** Float32 PCM bo'laklari → WAV (16-bit mono). Sof — testlanadi. */
 export function encodeWav(chunks, sampleRate = SAMPLE_RATE) {
@@ -95,12 +99,12 @@ export function createServerWake({ onWake, onUnavailable = () => {}, onStats = n
   let live = null; // { stream, ctx, processor }
   let lastSent = 0;
   let pendingBlob = null; // yuborish oralig'ida kelgan gap tashlab yuborilmaydi — navbatdagi bitta (oxirgisi) saqlanadi
-  const stats = { sent: 0, matched: 0, peak: 0, floor: 0, since: 0, reported: false };
+  const stats = { sent: 0, matched: 0, failed: 0, lastText: "", peak: 0, floor: 0, since: 0, reported: false };
 
   function maybeReportStats() {
     if (stats.reported || !stats.since || Date.now() - stats.since < STATS_AFTER_MS) return;
     stats.reported = true;
-    onStats?.(`${stats.sent} ta gap yuborildi, ${stats.matched} tasi "Jigar" deb tanildi; eng baland daraja ${stats.peak.toFixed(3)}, shovqin ~${stats.floor.toFixed(4)}`);
+    onStats?.(`${stats.sent} ta gap yuborildi, ${stats.matched} tasi "Jigar" deb tanildi, ${stats.failed} xato; oxirgisi: "${stats.lastText}"; eng baland daraja ${stats.peak.toFixed(3)}, shovqin ~${stats.floor.toFixed(4)}`);
   }
 
   async function send(blob) {
@@ -115,10 +119,14 @@ export function createServerWake({ onWake, onUnavailable = () => {}, onStats = n
     stats.sent += 1;
     maybeReportStats();
     try {
-      const res = await fetch(`${apiBase()}/api/stt?lang=${lang}`, { method: "POST", headers: { "Content-Type": blob.type || "audio/webm", ...authHeaders() }, body: blob });
+      const res = await fetch(`${apiBase()}/api/stt?lang=${lang}&wake=1`, { method: "POST", headers: { "Content-Type": blob.type || "audio/webm", ...authHeaders() }, body: blob });
       if (res.status === 503) return giveUp("stt"); // serverda ovoz tanish sozlanmagan
-      if (!res.ok) return;
+      if (!res.ok) {
+        stats.failed += 1;
+        return;
+      }
       const { text } = await res.json();
+      if (text) stats.lastText = text.slice(0, 40);
       if (wanted && !paused && hasWakeWord(text)) {
         stats.matched += 1;
         halt();
@@ -140,7 +148,7 @@ export function createServerWake({ onWake, onUnavailable = () => {}, onStats = n
     if (!supported || !wanted || paused || live) return;
     let stream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); // autoGainControl — past ovozli mikrofonni kuchaytiradi
+      stream = await navigator.mediaDevices.getUserMedia({ audio: MIC_CONSTRAINTS }); // autoGainControl — past ovozli mikrofonni kuchaytiradi
     } catch (err) {
       return giveUp("not-allowed", `${err?.name ?? "Error"}: ${err?.message ?? ""}`.trim());
     }

@@ -72,7 +72,7 @@ test("baza zaxirasi: bugungi nusxa bir marta; eskilari (7 tadan ortig'i) o'chadi
 
 test("qurilma chegarasi: server cheksiz yuborsa ham 'full'dan oshmaydi; noto'g'ri daraja — safe", () => {
   const { effectiveLevel } = require("../../desktop/access-cap.js");
-  assert.equal(effectiveLevel("unlimited"), "full");
+  assert.equal(effectiveLevel("unlimited"), "unlimited");
   assert.equal(effectiveLevel("unlimited", "unlimited"), "unlimited");
   assert.equal(effectiveLevel("full", "wide"), "wide");
   assert.equal(effectiveLevel("wide", "full"), "wide");

@@ -20,7 +20,7 @@ const LABELS = {
     safe: "Xavfsiz — uy papkasi, har ishga «Ha»",
     wide: "Keng — butun disk",
     full: "To'liq — «Ha» faqat xavfli ishlarga",
-    unlimited: "Cheksiz — 1 soat (parol bilan)",
+    unlimited: "Cheksiz — hech narsa so'ramaydi (parol bilan)",
   },
   length: { qisqa: "Qisqa", odatiy: "O'rtacha", batafsil: "Batafsil" },
 };
@@ -104,11 +104,11 @@ export async function mountEcoSettings(container, { apiBase, authHeaders, person
   const saveSetting = (key) => async (value) => {
     state = await request("/api/settings", "PUT", { [key]: value });
   };
-  /** Ruxsat darajasi: cheksiz — parol bilan (server tekshiradi), 1 soatdan keyin o'zi "to'liq"ga qaytadi. */
+  /** Ruxsat darajasi: cheksiz — parol bilan (server tekshiradi), muddatsiz: egasi o'zi boshqasini tanlaguncha. */
   const saveAccess = async (value) => {
     const body = { access: value };
     if (value === "unlimited") {
-      const password = window.prompt("Cheksiz rejim (1 soat): Jigar hech narsa so'ramasdan ishlaydi. Parolingizni kiriting:");
+      const password = window.prompt("Cheksiz rejim: Jigar hech narsa so'ramasdan («Ha»siz), muddatsiz ishlaydi. Parolingizni kiriting:");
       if (!password) throw new Error("Bekor qilindi.");
       body.password = password;
     }

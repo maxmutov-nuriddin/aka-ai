@@ -65,3 +65,20 @@ test("runFastCommand: qurilmasiz — null; majburiy qadam xato — null; ixtiyor
   assert.equal(closed, "YouTube yopildi.");
   assert.equal(await runFastCommand(matchFastCommand("soat necha", { now: new Date("2026-11-14T03:31:00Z") }), null), "Hozir 08:31.");
 });
+
+test("tezkor: ilova yopish, ekran, uyqu, oynalar, fokus", () => {
+  assert.deepEqual(matchFastCommand("Telegramni yop").steps, [{ name: "pc_apps", input: { action: "quit", app: "Telegram" } }]);
+  assert.equal(matchFastCommand("ekranni o'chir").steps[0].input.action, "sleep_display");
+  assert.equal(matchFastCommand("kompyuterni uxlat").steps[0].name, "pc_power");
+  assert.equal(matchFastCommand("oynalarni yashir").steps[0].input.action, "hide_all");
+  assert.deepEqual(matchFastCommand("Chromega o't").steps[0].input, { action: "focus", app: "Chrome" });
+  assert.equal(matchFastCommand("musiqani o'chir"), null, "musiqa — ilova emas");
+  assert.equal(matchFastCommand("ovozni o'chir").steps[0].input.action, "mute", "ovoz qoidasi ustun");
+});
+
+test("tezkor: holat o'qish — javob asbob natijasi", async () => {
+  const command = matchFastCommand("batareya necha foiz");
+  assert.equal(command.report, true);
+  const toolbox = { devices: [{}], run: async () => ({ isError: false, content: [{ type: "text", text: "Batareya 38%, zaryadlanmoqda." }] }) };
+  assert.equal(await runFastCommand(command, toolbox), "Batareya 38%, zaryadlanmoqda.");
+});

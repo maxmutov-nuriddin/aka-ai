@@ -2,9 +2,8 @@
 //   safe      — uy papkasi; buyruq, yozish va xavfli amallar "Ha" bilan (standart)
 //   wide      — butun disk (maxfiy fayllardan tashqari); "Ha" — safe kabi
 //   full      — cheklovsiz; "Ha" faqat qaytarib bo'lmaydigan ishlarga (o'chirish, xabar, kompyuterni o'chirish ...)
-//   unlimited — hech narsa so'ralmaydi; muddatli (1 soat), keyin o'zi full'ga qaytadi; yoqish — parol bilan
+//   unlimited — hech narsa so'ralmaydi ("Ha"siz), muddatsiz; yoqish — parol bilan (egasi o'zi qaytarmaguncha)
 export const ACCESS_LEVELS = ["safe", "wide", "full", "unlimited"];
-export const UNLIMITED_MS = 60 * 60_000;
 
 // Qaytarib bo'lmaydigan yoki tashqariga ta'sir qiladigan buyruqlar — full darajada ham "Ha" so'raladi.
 const DESTRUCTIVE_RE = new RegExp([
@@ -51,9 +50,5 @@ export function needsConfirm(name, input, level = "safe") {
   return Boolean(ASK_WHEN_CAREFUL[name]?.(input));
 }
 
-/** Daraja (unlimited muddati o'tgan bo'lsa — full). */
-export function effectiveLevel(level, unlimitedUntil, now = Date.now()) {
-  if (!ACCESS_LEVELS.includes(level)) return "safe";
-  if (level === "unlimited" && !(Number(unlimitedUntil) > now)) return "full";
-  return level;
-}
+/** Saqlangan daraja; noma'lum qiymat — safe. */
+export const effectiveLevel = (level) => (ACCESS_LEVELS.includes(level) ? level : "safe");

@@ -1,7 +1,7 @@
 // EcoSystem sozlamalari (egasi ilovadan o'zgartiradi): miya, ovoz xizmati, javob chuqurligi, faol rejim, kunlik xulosa.
 // Bazadagi `settings` jadvalida saqlanadi; berilmagan qiymat — .env (ECO_LLM, ECO_TTS, AKA_EFFORT) dagi standart.
 import { ValidationError } from "./core/errors.js";
-import { ACCESS_LEVELS, UNLIMITED_MS, effectiveLevel } from "./agent/access.js";
+import { ACCESS_LEVELS, effectiveLevel } from "./agent/access.js";
 
 // haiku — standart; sonnet — kuchliroq; opus — ro'yxatda, hozircha ishlatilmaydi (qimmat).
 export const LLM_CHOICES = ["haiku", "sonnet", "opus", "gemini", "openai"];
@@ -41,8 +41,7 @@ export function createEcoSettings(db, env = {}, { now = Date.now } = {}) {
     /** Joriy tanlov. access — amaldagi daraja (cheksiz rejim muddati o'tgan bo'lsa — full). */
     all() {
       const values = Object.fromEntries(Object.keys(FIELDS).map((field) => [field, read(field)]));
-      const until = Number(q.get.get("eco_access_until")?.value) || 0;
-      return { ...values, access: effectiveLevel(values.access, until, now()), accessUntil: values.access === "unlimited" ? until : null };
+      return { ...values, access: effectiveLevel(values.access) };
     },
     /** Qisman yangilash; noto'g'ri qiymat — ValidationError. Qaytaradi: yangi holat. */
     update(patch) {
@@ -52,8 +51,7 @@ export function createEcoSettings(db, env = {}, { now = Date.now } = {}) {
         if (!FIELDS[key].includes(value)) throw new ValidationError(`${key}: ${FIELDS[key].join(" | ")} bo'lishi kerak`);
       }
       for (const [key, value] of entries) q.set.run(`eco_${key}`, value);
-      // Cheksiz rejim — muddatli (1 soat). Parol tekshiruvi — chaqiruvchida (app.js).
-      if (patch.access === "unlimited") q.set.run("eco_access_until", String(now() + UNLIMITED_MS));
+      // Cheksiz rejim — muddatsiz. Parol tekshiruvi — chaqiruvchida (app.js).
       return this.all();
     },
   };

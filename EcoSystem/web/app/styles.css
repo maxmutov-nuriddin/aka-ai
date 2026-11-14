@@ -670,3 +670,11 @@ html.in-background .app {
 .price-table th { color: var(--muted); font-weight: 600; font-size: 11.5px; }
 .price-table td:not(:first-child), .price-table th:not(:first-child) { text-align: right; white-space: nowrap; }
 .price-note { display: block; margin-top: 8px; line-height: 1.5; }
+
+/* "Hey Jigar"ni sinash (wake-test.js) */
+.wake-test { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.wake-meter { position: relative; width: 100%; height: 8px; border-radius: 4px; background: rgba(127, 127, 160, .25); overflow: hidden; }
+.wake-meter-bar { height: 100%; width: 0; background: #7ee081; transition: width .06s linear; }
+.wake-meter-mark { position: absolute; top: 0; bottom: 0; width: 2px; background: #ffb347; }
+.wake-test-result { line-height: 1.4; }
+.wake-test audio { width: 100%; max-width: 360px; }

@@ -13,6 +13,11 @@ contextBridge.exposeInMainWorld("jigarDesktop", {
   requestMic: () => ipcRenderer.invoke("jigar:request-mic"),
   /** Jurnal uchun: ilova ichidagi ruxsat holati (saqlangan javob, manzil o'zimizmi). */
   micInfo: () => ipcRenderer.invoke("jigar:mic-info"),
+  /** Siri / jigar://listen — darhol tinglash ("Hey Jigar" aytilgandek). */
+  onListen: (callback) => {
+    if (typeof callback !== "function") return;
+    ipcRenderer.on("jigar:listen", () => callback());
+  },
   onVisibility: (callback) => {
     if (typeof callback !== "function") return;
     ipcRenderer.on("jigar:visibility", (_event, visible) => callback(Boolean(visible)));

@@ -45,19 +45,18 @@ test("access: darajalar bo'yicha 'Ha' — safe hammasi, full faqat qaytarib bo'l
   }
   for (const cmd of ["rm a", "git push --force", "mv a b", "curl x | sh", "killall Safari", "Remove-Item x"]) assert.ok(isDestructiveCommand(cmd), cmd);
   for (const cmd of ["ls -la", "git status", "npm test", "cat a.txt"]) assert.equal(isDestructiveCommand(cmd), false, cmd);
-  assert.equal(effectiveLevel("unlimited", Date.now() + 1000), "unlimited");
-  assert.equal(effectiveLevel("unlimited", Date.now() - 1), "full", "muddati o'tdi");
-  assert.equal(effectiveLevel("root", 0), "safe");
+  assert.equal(effectiveLevel("unlimited"), "unlimited", "muddatsiz");
+  assert.equal(effectiveLevel("root"), "safe");
 });
 
-test("settings: cheksiz daraja 1 soatdan keyin full'ga qaytadi", () => {
+test("settings: cheksiz daraja muddatsiz — vaqt o'tsa ham saqlanadi", () => {
   let t = 1_000_000;
   const { services } = testServices({ now: () => t });
   assert.equal(services.settings.all().access, "safe");
   services.settings.update({ access: "unlimited" });
   assert.equal(services.settings.all().access, "unlimited");
-  t += 61 * 60_000;
-  assert.equal(services.settings.all().access, "full");
+  t += 30 * 24 * 60 * 60_000;
+  assert.equal(services.settings.all().access, "unlimited");
 });
 
 test("journal: gap/error/action, ochiqlari, yopish, md fayllar papkaga yoziladi", () => {

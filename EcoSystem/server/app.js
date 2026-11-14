@@ -300,7 +300,7 @@ export function createApp({
   app.get("/api/settings", requireUser, (_req, res) => res.json(settingsView()));
   app.put("/api/settings", requireUser, async (req, res) => {
     try {
-      // Cheksiz ruxsat (1 soat) — faqat parol bilan.
+      // Cheksiz ruxsat (muddatsiz, "Ha"siz) — yoqish faqat parol bilan.
       if (req.body?.access === "unlimited" && !(await store.verifyCredentials(OWNER_EMAIL, req.body?.password))) {
         return res.status(403).json({ error: "Parol noto'g'ri — cheksiz rejim yoqilmadi." });
       }
@@ -338,9 +338,12 @@ export function createApp({
     }
   });
 
+  const WAKE_KEYTERMS = ["Jigar", "Hey Jigar", "Джигар"];
   app.post("/api/stt", requireUser, ttsLimiter, express.raw({ type: "audio/*", limit: "10mb" }), async (req, res) => {
     try {
-      const text = await voice.stt.transcribe(req.body, req.get("Content-Type"), { lang: normalizeLang(req.query.lang) });
+      // ?wake=1 — "Hey Jigar" bo'lagi: tanish ismga moyil qilinadi (aks holda "jigar" boshqa so'z bo'lib chiqadi).
+      const keyterms = req.query.wake === "1" ? WAKE_KEYTERMS : [];
+      const text = await voice.stt.transcribe(req.body, req.get("Content-Type"), { lang: normalizeLang(req.query.lang), keyterms });
       res.json({ text });
     } catch (err) {
       const [status, message] = voiceErrorResponse(err, "Ovozni tanib bo'lmadi. Qayta urinib ko'ring.");

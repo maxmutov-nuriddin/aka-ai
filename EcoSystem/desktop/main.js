@@ -12,6 +12,7 @@ const { resolveServerUrl, askServerUrl } = require("./server-url.js");
 const { createPermissions } = require("./permissions.js");
 const { createStatusPill } = require("./status-pill.js");
 const { isSameSite } = require("./permission-policy.js");
+const { SCHEME, deepLinkAction, deepLinkFromArgv } = require("./deep-link.js");
 
 let permissions = null; // app.whenReady'da yaratiladi
 const pill = createStatusPill({ getMainWindow: () => win }); // fon holati yozuvi (ekran pastida)
@@ -129,6 +130,11 @@ function createWindow(id) {
   // Server chat qaysi kompyuterdan yozilganini biladi ("shu kompyuterda" — aytilmasa ham shu yerda bajariladi).
   win.webContents.setUserAgent(`${win.webContents.getUserAgent()} JigarDesktop/${id}`);
   win.loadURL(`${ECO_URL}/app/`);
+  win.webContents.on("did-finish-load", () => {
+    if (!pendingListen) return;
+    pendingListen = false;
+    setTimeout(() => win?.webContents.send("jigar:listen"), LISTEN_AFTER_LOAD_MS); // sahifa modullari ulanib olsin
+  });
   // Yopish tugmasi — ilova yopilmaydi, fonda qoladi (tray'dan qayta ochiladi).
   win.on("close", (event) => {
     if (app.isQuitting) return;
@@ -193,6 +199,7 @@ app.whenReady().then(async () => {
   });
   const id = deviceId();
   applyAutoStart(autoStartOn());
+  if (deepLinkFromArgv(process.argv)) pendingListen = true; // Windows: ilova havola bilan ishga tushdi
   createWindow(id);
   if (STARTED_HIDDEN) syncDock(false);
   else permissions.checkOsAccess(); // Windows/macOS mikrofonni to'sgan bo'lsa — ogohlantirish va sozlamalar tugmasi
@@ -220,12 +227,35 @@ app.whenReady().then(async () => {
   startBridge({ baseUrl: ECO_URL, deviceId: id, runTool: (command) => runTool(command, { getWindow: () => win }) });
 });
 
+// Siri / Shortcuts: jigar://listen — Jigar darhol tinglaydi (oyna ochilmaydi). Sahifa tayyor bo'lmasa — yuklangach.
+let pendingListen = false;
+const LISTEN_AFTER_LOAD_MS = 1500;
+function onDeepLink(url) {
+  if (deepLinkAction(url) !== "listen") return;
+  if (!win || win.webContents.isLoading()) {
+    pendingListen = true;
+    return;
+  }
+  win.webContents.send("jigar:listen");
+}
+if (process.defaultApp) app.setAsDefaultProtocolClient(SCHEME, process.execPath, [path.resolve(process.argv[1] ?? ".")]);
+else app.setAsDefaultProtocolClient(SCHEME);
+app.on("open-url", (event, url) => { // macOS
+  event.preventDefault();
+  onDeepLink(url);
+});
+
 // Bitta nusxa: ikkinchi marta ochilsa — mavjud Jigar ko'rinadi (ikki "quloq" bir-biriga xalaqit bermasin).
+// Windows'da jigar:// havolasi ham shu yo'l bilan keladi (argv ichida) — unda oyna ochilmaydi, faqat tinglaydi.
 if (!app.requestSingleInstanceLock()) {
   app.isQuitting = true;
   app.quit();
 } else {
-  app.on("second-instance", () => summon());
+  app.on("second-instance", (_event, argv) => {
+    const link = deepLinkFromArgv(argv);
+    if (link) onDeepLink(link);
+    else summon();
+  });
 }
 
 // Oynalar yopilsa ham ilova tray'da yashaydi (server manzili oynasi yopilgach ham — Windows'da standart bo'yicha chiqib ketardi).

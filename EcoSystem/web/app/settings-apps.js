@@ -38,6 +38,15 @@ const PLATFORMS = {
   },
 };
 
+// Mac: "Hey Siri, Jigar" — Jigar ilovasi o'zi tinglashni boshlaydi (kalitsiz, to'liq imkoniyat bilan).
+const SIRI_MAC_STEPS = [
+  "Jigar ilovasi (dmg) o'rnatilgan va ishlab turgan bo'lsin.",
+  "Shortcuts (Быстрые команды) ilovasini oching → \"+\" — yangi buyruq, nomi: Jigar.",
+  "Amal qo'shing: \"Open URLs\" (Открыть URL-адреса) → manzil: jigar://listen",
+  "Tayyor: \"Hey Siri, Jigar\" deng — \"ding\" eshitiladi, keyin buyruqni ayting (\"Telegramni och\").",
+];
+
+// iPhone yoki Jigar ilovasisiz: Siri matnni serverga yuboradi (kalit bilan; imkoniyat — "Keng" darajagacha).
 const SIRI_STEPS = (origin) => [
   "Sozlamalar → Xavfsizlik → \"Siri uchun kalit\" → \"Yangi kalit yaratish\" — kalitni nusxalang.",
   "Shortcuts ilovasida yangi buyruq yarating, nomi: Jigar.",
@@ -126,7 +135,7 @@ export async function renderApps(list, apiBase) {
   const siriTitle = el("div", "app-title");
   siriTitle.append(el("span", "app-name", "🎙 Siri"), el("small", "app-note", "\"Hey Siri, Jigar\" — Mac va iPhone"));
   siriHead.append(siriTitle);
-  siri.append(siriHead, howTo(SIRI_STEPS(origin), false, "Qanday sozlanadi"));
+  siri.append(siriHead, howTo(SIRI_MAC_STEPS, mine === "mac", "Mac: Jigar ilovasi tinglasin"), howTo(SIRI_STEPS(origin), false, "iPhone: Siri orqali buyruq"));
   list.replaceChildren(
     ...(data.version ? [el("small", "app-version", `Versiya ${data.version}`)] : []),
     ...[qrBlock(data, mine)].filter(Boolean),

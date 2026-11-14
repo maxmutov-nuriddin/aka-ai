@@ -47,6 +47,9 @@ function tashkentTime(now = new Date()) {
   return `${String(t.getUTCHours()).padStart(2, "0")}:${String(t.getUTCMinutes()).padStart(2, "0")}`;
 }
 
+// "X'ni yop/o'chir" — X ilova emas bo'lsa (ovoz, ekran, chiroq ...) — tezkor yopishga tushmaydi.
+const CLOSE_NOT_APP = /\b(ovoz|ekran|monitor|kompyuter|mac|noutbuk|chiroq|svet|internet|wi-?fi|bluetooth|musiqa|qo'shiq|video|kamera|mikrofon|hammasi|barchasi|tab)/;
+
 const RULES = [
   // Vaqt (asbobsiz)
   [/^soat (?:necha|nechchi|nechi)(?: bo'ldi)?$/, (_m, ctx) => ({ say: `Hozir ${tashkentTime(ctx.now)}.` })],
@@ -76,6 +79,22 @@ const RULES = [
   [/^oldingi (?:qo'shiq|musiqa|trek)$/, () => ({ steps: [step("pc_media", { action: "previous" })] })],
   // Tizim
   [/^(?:ekran(?:ni)?|kompyuter(?:ni)?) qulfla$|^qulfla$/, () => ({ steps: [step("pc_system", { action: "lock" })] })],
+  [/^(?:ekran(?:ni)?|monitor(?:ni)?) (?:o'chir|o'chirib qo'y)$/, () => ({ steps: [step("pc_system", { action: "sleep_display" })], say: "Ekran o'chirildi." })],
+  [/^(?:kompyuter(?:ni)?|mac(?:ni)?|noutbuk(?:ni)?) (?:uxlat|uyquga qo'y)$|^uxla$/, () => ({ steps: [step("pc_power", { action: "sleep" })], say: "Uxlatdim." })],
+  // Holatni o'qish — javob asbob natijasining o'zi (AI'siz)
+  [/^(?:batareya|zaryad|quvvat)(?: (?:necha(?: foiz)?|qancha|qoldi|holati))*$/, () => ({ steps: [step("pc_system", { action: "battery" })], report: true })],
+  [/^(?:kompyuter|mac|tizim|noutbuk|pc)(?:ning)? (?:holati|ahvoli)(?: qanday)?$/, () => ({ steps: [step("pc_system", { action: "info" })], report: true })],
+  // Oynalar
+  [/^(?:hamma |barcha )?oynalar(?:ni)? (?:yashir|yig'ishtir)$|^hammasini yashir$/, () => ({ steps: [step("pc_apps", { action: "hide_all" })], say: "Oynalar yashirildi." })],
+  [/^([a-z][a-z0-9' .-]{1,30}?)(?:'?ga)? o't$/, (m) => {
+    const app = titleCase(stripSuffix(m[1]));
+    return app.length < 2 ? null : { steps: [step("pc_apps", { action: "focus", app })], say: `${app} oldinda.` };
+  }],
+  // Ilova yopish ("Telegramni yop") — tab, YouTube va ovoz yuqoridagi qoidalarda
+  [/^([a-z][a-z0-9' .-]{1,30}?) (?:yop|yopib qo'y|o'chir)$/, (m) => {
+    const app = titleCase(stripSuffix(m[1]));
+    return CLOSE_NOT_APP.test(m[1]) || app.length < 2 ? null : { steps: [step("pc_apps", { action: "quit", app })], say: `${app} yopildi.` };
+  }],
   // Ilova ochish ("Telegramni och", "Yandex Musicni och") — topilmasa AI veb versiyasini ochadi
   [/^([a-z][a-z0-9' .-]{1,30}?) och$/, (m) => {
     const app = titleCase(stripSuffix(m[1]));
@@ -83,7 +102,7 @@ const RULES = [
   }],
 ];
 
-/** @returns {{ steps?: object[], say?: string } | null} */
+/** @returns {{ steps?: object[], say?: string, report?: boolean } | null} report — javob asbob natijasining o'zi. */
 export function matchFastCommand(text, ctx = {}) {
   const s = normalize(text);
   if (!s || s.split(" ").length > MAX_WORDS) return null;
@@ -115,5 +134,6 @@ export async function runFastCommand(command, toolbox) {
   }
   if (command.say) return command.say;
   const first = texts.find(Boolean);
+  if (command.report && first) return first.slice(0, 300);
   return first ? `Bajarildi. ${first}`.slice(0, 200) : "Bajarildi.";
 }

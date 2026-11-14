@@ -118,7 +118,7 @@ export const PROMISE_RE = new RegExp(
   + `(qilaman|ko${APOS}raman|tekshiraman|ochaman|yopaman|qo${APOS}yaman|o${APOS}rnataman|yuboraman|qidiraman|bajaraman|ko${APOS}rib chiqaman|aniqlayman|topaman|yoqaman|проверю|открою|посмотрю|сделаю|найду)`,
   "i",
 );
-const NARRATION_HOLD = 160; // asbobdan oldingi sharh shu uzunlikkacha ushlab turiladi
+const NARRATION_HOLD = 600; // asbobdan oldingi sharh shu uzunlikkacha ushlab turiladi (uzun "avval tekshiraman…" ham ovozga tushmasin)
 const PROMISE_NUDGE = "(Tizim: sen bajaraman deding, lekin hech qanday asbob chaqirmading. Hozir shu javobda asbob bilan haqiqatan bajar, natijani ko'r va qisqa ayt. Bajarib bo'lmasa — nega ekanini ayt va journal gap bilan yoz.)";
 const NOW_NOTE_MAX = 900; // vaqt + qurilma izohi (oxirgi xabarga)
 const THINK_MAX_TOKENS = 2000; // proaktiv fikr (ekranga o'zi qarash, kunlik xulosa) — qisqa
@@ -385,7 +385,8 @@ export function createJigar({ client = new Anthropic(), config = getConfig(), ge
           onDelta(pending);
         }
       });
-      if (!flowing && message.stop_reason === "tool_use") return { message, said: "" };
+      // Asbob chaqirgan qadamning matni yakuniy javobga qo'shilmaydi (maydalanmasin: faqat natijadan keyingi bitta javob).
+      if (message.stop_reason === "tool_use") return { message, said: "" };
       if (!flowing && pending) onDelta(pending);
       return { message, said: extractText(message) };
     };
