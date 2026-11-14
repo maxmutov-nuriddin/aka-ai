@@ -32,6 +32,7 @@ import { createProjects, createScenarios, createApiTokens } from "./agent/record
 import { createAgentScheduler } from "./agent/scheduler.js";
 import { createAgentRouter } from "./agent/routes.js";
 import { matchFastCommand, runFastCommand } from "./agent/fast-commands.js";
+import { buildId, versionHtml, immutableVersioned } from "./http/assets.js";
 import { parseAkaResponse } from "./core/parse.js";
 import { createDeviceRouter } from "./devices/routes.js";
 import { createNudgeStore } from "./proactive/store.js";
@@ -431,7 +432,19 @@ export function createApp({
   app.get("/", (req, res) => res.redirect(302, req.user ? "/app/" : "/login"));
   app.get("/login", (req, res, next) => (req.user ? res.redirect(302, "/app/") : next()), page("auth", "index.html"));
   app.get("/app", (req, res, next) => (req.path === "/app" ? res.redirect(301, "/app/") : next()));
-  app.get(["/app/", "/app/index.html"], requireUserPage, page("app", "index.html"));
+  // Asosiy sahifa: kod fayllariga versiya (?v) qo'shiladi va ular 1 yil keshlanadi — takroriy ochilish tez; HTML'ning o'zi har safar tekshiriladi.
+  let appHtml = null;
+  const versionedAppHtml = () => {
+    appHtml ??= versionHtml(
+      readFileSync(path.join(webDir, "app", "index.html"), "utf8"),
+      buildId([path.join(webDir, "app"), path.join(webDir, "shared")], [path.join(here, "core", "parse.js")]),
+    );
+    return appHtml;
+  };
+  app.get(["/app/", "/app/index.html"], requireUserPage, (_req, res) => {
+    res.set("Cache-Control", "no-cache").type("html").send(versionedAppHtml());
+  });
+  app.use(immutableVersioned);
 
   app.get("/shared/parse.js", (_req, res) => res.sendFile(path.join(here, "core", "parse.js")));
   // Katta tashqi kutubxona (mermaid, 5.5 MB): bir hafta keshda — versiyasi paketda qotirilgan.

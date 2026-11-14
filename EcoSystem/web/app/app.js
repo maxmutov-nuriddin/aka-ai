@@ -1173,7 +1173,10 @@ el.typeToggle.addEventListener("click", () => {
 // Chapda bo'limlar, o'ngda tanlangan bo'lim (settings-nav.js).
 const settingsNav = setupSettingsNav($("settingsGrid"), $("settingsNav"));
 function setSettingsOpen(open) {
-  if (open) settingsNav.refresh();
+  if (open) {
+    ensureEcoSettings(); // miya, ovoz, kalitlar, qurilmalar — birinchi ochilishda yuklanadi
+    settingsNav.refresh();
+  }
   el.settingsPop.hidden = !open;
   el.settingsBtn.setAttribute("aria-expanded", String(open));
   document.body.classList.toggle("settings-open", open); // orqadagi sahifa aylanmasin
@@ -1214,13 +1217,29 @@ $("nameForm").addEventListener("submit", async (event) => {
 // ---------- Support ----------
 // Ovoz xizmati, xarakter, sinf va foydalanuvchilar — Support panelida (/admin).
 // Ilovada support faqat panelga havolani ko'radi.
+let ecoSettingsReady = false; // egasi kirgan (renderSupport)
+let ecoSettingsMounted = false;
+
+/** Sozlamalar kartochkalari (miya, ovoz, kalitlar, qurilmalar) — 3 ta so'rov: sahifa ochilganda emas, sozlamalar ochilganda yuklanadi. */
+function ensureEcoSettings() {
+  if (!ecoSettingsReady || ecoSettingsMounted) return;
+  ecoSettingsMounted = true;
+  mountEcoSettings($("ecoSettings"), { apiBase: () => host.apiBase, authHeaders, persona: prefs.persona, onProfile: syncServerProfile, t });
+}
+
+const BACKGROUND_START_MS = 2500; // fon ishlari (eslatma, nudge, telefon agenti) birinchi ko'rinishdan keyin boshlanadi
+
 function renderSupport(user) {
   const isSupport = Boolean(user); // EcoSystem: kirgan har kim — egasi, yordamchi imkoniyatlari doim ochiq
   for (const node of document.querySelectorAll(".support-only")) node.hidden = !isSupport; // sozlamalar va navbar (Xotira)
+  ecoSettingsReady = isSupport;
   if (isSupport) {
-    assistant.start(); // eslatmalar vaqtida keladi
-    nudgeWatcher.start(); // Jigar o'zi aytgan gaplar (ekranga qarab maslahat, kunlik xulosa)
-    startPhoneAgent({ apiBase: () => host.apiBase, authHeaders }); // Android ilovada — telefon Jigar'ga ulanadi
+    // Sahifa ko'rinishini kechiktirmaslik uchun 6 ta fon so'rovi sal keyin boshlanadi.
+    setTimeout(() => {
+      assistant.start(); // eslatmalar vaqtida keladi
+      nudgeWatcher.start(); // Jigar o'zi aytgan gaplar (ekranga qarab maslahat, kunlik xulosa)
+      startPhoneAgent({ apiBase: () => host.apiBase, authHeaders }); // Android ilovada — telefon Jigar'ga ulanadi
+    }, BACKGROUND_START_MS);
     // Eski /download havolasi (yoki QR) → Sozlamalar ochiladi, kerakli bo'lim tanlanadi (?settings=apps).
     const wantedSection = new URLSearchParams(location.search).get("settings");
     if (wantedSection) {
@@ -1233,9 +1252,8 @@ function renderSupport(user) {
     $("wakeToggle").checked = Boolean(wakeOn);
     $("wakeToggle").disabled = !wake.supported;
     wake.setEnabled(wakeOn, prefs.lang);
-    // Miya, ovoz, chuqurlik va xarakter — shu yerdan tanlanadi (to'liq boshqaruv egasida).
-    mountEcoSettings($("ecoSettings"), { apiBase: () => host.apiBase, authHeaders, persona: prefs.persona, onProfile: syncServerProfile, t });
   }
+  if (!el.settingsPop.hidden) ensureEcoSettings(); // sozlamalar kirishdan oldin ochilgan bo'lsa — endi yuklaymiz
   const link = el.settingsPop.querySelector(".admin-link");
   if (link) link.href = `${host.apiBase}/admin`; // kengaytmada ham server manziliga ochiladi
 }
