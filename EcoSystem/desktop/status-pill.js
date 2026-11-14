@@ -4,11 +4,11 @@
 const { BrowserWindow, screen } = require("electron");
 const { pillLabel, PILL_HIDE_DELAY_MS } = require("./pill-policy.js");
 
-const SIZE = { width: 240, height: 48 };
+const SIZE = { width: 280, height: 56 };
 const BOTTOM_MARGIN = 72;
 
 const PAGE = `<!doctype html><meta charset="utf-8"><style>
-  html,body{margin:0;height:100%;background:transparent;overflow:hidden;font:600 15px system-ui,"Segoe UI",sans-serif}
+  html,body{margin:0;height:100%;background:transparent;overflow:hidden;font:600 17px system-ui,"Segoe UI",sans-serif}
   .pill{box-sizing:border-box;height:100%;display:flex;align-items:center;gap:10px;padding:0 18px;border-radius:999px;
     background:rgba(16,18,40,.94);color:#eef0ff;border:1px solid rgba(124,116,255,.55);box-shadow:0 6px 24px rgba(0,0,0,.45)}
   .dot{width:10px;height:10px;border-radius:50%;background:#7ee081;animation:p 1.1s ease-in-out infinite}
@@ -42,7 +42,8 @@ function createStatusPill({ getMainWindow }) {
   }
 
   function place(win) {
-    const { workArea } = screen.getPrimaryDisplay();
+    // Kursor turgan ekranda (ikkinchi monitorda ham ko'rinsin)
+    const { workArea } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
     win.setPosition(
       Math.round(workArea.x + (workArea.width - SIZE.width) / 2),
       Math.round(workArea.y + workArea.height - SIZE.height - BOTTOM_MARGIN),
