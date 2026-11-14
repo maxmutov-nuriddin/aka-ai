@@ -2,7 +2,7 @@
 <html lang="uz">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Jigar — shaxsiy yordamchi</title>
   <link rel="icon" href="../shared/logo.svg" type="image/svg+xml">
   <!-- PWA: iPhone'da "Bosh ekranga qo'shish" — ilova kabi ochiladi (yuklab olish sahifasi, iOS yo'riqnomasi) -->
@@ -217,9 +217,9 @@
               </button>
             </div>
           </div>
-          <!-- Pauza: faqat suhbat boshlangach ko'rinadi (app.js: renderPauseBtn) -->
-          <button type="button" class="pill pause-btn" id="pauseBtn" aria-pressed="false" hidden>
-            <span aria-hidden="true">⏸</span><span>Pauza</span>
+          <!-- To'xtatish: Jigar tinglayotgan, o'ylayotgan yoki gapirayotgan paytdagina ko'rinadi (app.js: renderPauseBtn) -->
+          <button type="button" class="pill pause-btn" id="pauseBtn" hidden>
+            <span aria-hidden="true">⏹</span><span id="pauseLabel">To'xtatish</span>
           </button>
           <form class="composer" id="composer">
             <div class="row" id="textRow" hidden>

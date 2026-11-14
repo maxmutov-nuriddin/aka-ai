@@ -158,3 +158,24 @@ test("ilova xatosi (POST /api/journal/client): XATOLAR.md ga yoziladi; 'where'si
     s.close();
   }
 });
+
+test("/api/chat: oddiy buyruq AI'siz javob beradi (model: tezkor); boshqa gap — AI'ga o'tadi", async () => {
+  const seen = [];
+  const s = await startServer({ jigar: voiceJigar(seen), ttsProviders: {}, stt: { configured: false } });
+  try {
+    const quick = await (await s.post("/api/chat", { history: [{ role: "user", content: "Jigar, soat necha" }], voice: true })).json();
+    assert.equal(quick.model, "tezkor");
+    assert.match(quick.parsed.tushuntirish, /Hozir \d\d:\d\d\./);
+    assert.equal(quick.parsed.savol, "Jigar, soat necha"); // ovozli xabar: [SAVOL] ham qaytadi
+    assert.deepEqual(quick.usage, { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 });
+    assert.equal(seen.length, 0, "AI chaqirilmagan");
+    const slow = await (await s.post("/api/chat", { history: [{ role: "user", content: "Bugun ob-havo qanday bo'ladi" }] })).json();
+    assert.notEqual(slow.model, "tezkor");
+    assert.equal(seen.length, 1, "murakkab gap AI'ga ketdi");
+    // Qurilma ulanmagan: "ovozni 40 qil" asbobsiz bajarilmaydi — AI tushuntiradi
+    await s.post("/api/chat", { history: [{ role: "user", content: "ovozni 40 qil" }] });
+    assert.equal(seen.length, 2);
+  } finally {
+    s.close();
+  }
+});

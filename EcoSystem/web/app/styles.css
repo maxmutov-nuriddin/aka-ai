@@ -460,6 +460,21 @@ code { font: 0.92em ui-monospace, monospace; background: rgba(255, 255, 255, 0.0
 @media (max-height: 640px) {
   .dialogue { max-height: 28vh; }
   .mic { --mic-size: 64px; }
+  /* Past ekran (brauzer paneli bilan): salomlashuvning uzun izohi yashiriladi — tugmalar ostida kesilib qolmasin */
+  .caption-hello #helloText { display: none; }
+  .avatar { flex-basis: clamp(180px, 38vh, 420px); }
+}
+@media (max-height: 540px) {
+  .status-pill { display: none; } /* juda past ekranda holat yozuvi ham sig'maydi — tugmalar ko'rinib tursin */
+}
+
+/* Telefon (PWA, brauzer): pastki tugmalar xavfsiz maydon (home indikator, brauzer paneli) ustida va bir-biriga yopishmaydi */
+@media (max-width: 720px) {
+  .controls { padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+  .voice-bar { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; }
+  .voice-bar .pill { max-width: 100%; padding: 0 12px; }
+  .pause-btn { max-width: 100%; }
+  .status-pill { max-width: 88vw; }
 }
 
 @media (prefers-reduced-motion: reduce) {

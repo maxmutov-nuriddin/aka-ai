@@ -31,6 +31,8 @@ import { createWatchStore } from "./agent/watches.js";
 import { createProjects, createScenarios, createApiTokens } from "./agent/records.js";
 import { createAgentScheduler } from "./agent/scheduler.js";
 import { createAgentRouter } from "./agent/routes.js";
+import { matchFastCommand, runFastCommand } from "./agent/fast-commands.js";
+import { parseAkaResponse } from "./core/parse.js";
 import { createDeviceRouter } from "./devices/routes.js";
 import { createNudgeStore } from "./proactive/store.js";
 import { createProactive } from "./proactive/scheduler.js";
@@ -381,6 +383,24 @@ export function createApp({
       const { page, history, selection, heardAlt, lang, length, persona, image, voice: fromVoice } = req.body ?? {};
       if (req.body?.stream === true) stream = createNdjsonWriter(res);
       const toolbox = toolboxFor(req, res, stream);
+      // Oddiy aniq buyruq ("ovozni 40 qil", "Telegramni och") — AI'siz, darrov, tokensiz. Tushunmasa yoki xato bo'lsa — AI.
+      const lastText = String(Array.isArray(history) ? history.at(-1)?.content ?? "" : "");
+      const quick = !image && !page && lang !== "ru" ? matchFastCommand(lastText) : null;
+      const quickSay = quick ? await runFastCommand(quick, toolbox) : null;
+      if (quickSay) {
+        const text = `${fromVoice === true ? `[SAVOL]\n${lastText}\n\n` : ""}[TUSHUNTIRISH]\n[smiles] ${quickSay}`;
+        const parsed = parseAkaResponse(text);
+        const parts = saveAssistantParts(req.user, parsed);
+        stream?.write({ type: "delta", text });
+        const body = {
+          text, stopReason: "end_turn", refused: false, truncated: false, model: "tezkor",
+          usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, userContent: lastText, pageTruncated: false, parsed,
+          ...(parts ? { assistant: parts } : {}),
+        };
+        if (stream) stream.end({ type: "done", ...body });
+        else res.json(body);
+        return;
+      }
       const recentNudges = nudges.since(req.user.id, RECENT_NUDGE_MS)
         .filter((n) => n.text !== "—").slice(-RECENT_NUDGE_COUNT).map((n) => n.text);
       const result = await jigar.chat({

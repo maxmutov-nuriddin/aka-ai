@@ -93,6 +93,7 @@ const wakeHandlers = {
     const engaged = voiceState === "speaking" || state.busy;
     if (engaged && !isDeliberateWake(heard, command)) return; // o'z ovozidagi "Jigar" — e'tiborsiz
     if (isStopCommand(command)) return hushJigar();
+    paused = false; // "Hey Jigar" — to'xtatishdan keyin yana tinglaydi
     if (engaged) interruptReply();
     state.lastInput = "voice";
     if (state.busy) {
@@ -147,6 +148,8 @@ function freshState() {
     items: [], // xulosa uchun: [{savol, javob, quiz}]
     busy: false,
     afterBusy: null, // "Hey Jigar" javob tayyorlanayotganda aytildi — keyin bajariladigan ish
+    expectsReply: false, // Jigarning oxirgi javobi savol bilan tugadimi ("...mi?") — shundagina o'zi qayta tinglaydi
+    log: [], // saqlanadigan ko'rinish: [{ u: egasining gapi, a: Jigar javobi }]
     finished: false,
     selection: "",
     pendingQuiz: null, // {quiz, answer(letter)} — ovoz bilan javob berish uchun
@@ -467,12 +470,13 @@ async function api(pathname, body) {
   return readJsonResponse(await postApi(pathname, body));
 }
 
-async function postApi(pathname, body) {
+async function postApi(pathname, body, signal) {
   await host.ready;
   const res = await fetch(`${host.apiBase}${pathname}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(body),
+    signal,
   });
   if (res.status === 401) {
     handleUnauthorized();
@@ -485,8 +489,8 @@ async function postApi(pathname, body) {
  * Oqimli so'rov: server javobni bo'laklab yuboradi (NDJSON) — har matn bo'lagi onDelta ga, oxirida to'liq javob
  * (api() bilan bir xil shakl). Server oqimsiz (oddiy JSON) javob bersa ham ishlaydi.
  */
-async function apiStream(pathname, body, onDelta, onEvent = () => {}) {
-  const res = await postApi(pathname, { ...body, stream: true });
+async function apiStream(pathname, body, onDelta, onEvent = () => {}, signal) {
+  const res = await postApi(pathname, { ...body, stream: true }, signal);
   if (!res.ok || !(res.headers.get("Content-Type") || "").includes("ndjson") || !res.body) return readJsonResponse(res);
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
@@ -609,6 +613,7 @@ function setSelection(text) {
 }
 
 async function sendMessage(text, { fromQuiz = false, fromVoice = false, heardAlt = "", pronunciation = null } = {}) {
+  if (!fromQuiz && looksLikeStop(text)) return hushJigar(); // "stop" — band bo'lsa ham darrov to'xtaydi
   if (state.busy || state.finished) return;
   showError("");
   // Kamera yoqiq — joriy kadr shu savolga ilova qilinadi (quiz javobiga emas).
@@ -658,7 +663,7 @@ async function sendMessage(text, { fromQuiz = false, fromVoice = false, heardAlt
       page, history: state.history, selection, mode: prefs.mode, lang: prefs.lang, length: prefs.length, simple: prefs.simple,
       ...profileFields(), heardAlt, ...(pronunciation ? { pronunciation } : {}), ...(image ? { image } : {}),
       ...(fromVoice && message ? { voice: true } : {}), // Jigar tushungan savolni to'g'ri yozib qaytaradi ([SAVOL])
-    }, (delta) => feed?.push(delta), (msg) => handleStreamEvent(msg, typing));
+    }, (delta) => feed?.push(delta), (msg) => handleStreamEvent(msg, typing), (chatAbort = new AbortController()).signal);
     typing.remove();
     // Tarif: kunlik limit tugashiga oz qolganda oldindan ogohlantiramiz.
     renderUsage(data.dailyUsage);
@@ -691,6 +696,10 @@ async function sendMessage(text, { fromQuiz = false, fromVoice = false, heardAlt
     if (data.pageTruncated && state.history.length === 2) {
       addNotice(t("notice.pageTruncated"));
     }
+    state.expectsReply = /\?["')\]\s]*$/.test(shown.tushuntirish.trim()); // savol bilan tugasa — o'zi qayta tinglaydi
+    state.log.push({ u: heardRight || message, a: shown.tushuntirish });
+    state.history = trimHistory(state.history);
+    saveChat();
     state.pendingQuiz = null; // yangi kartada quiz bo'lsa, renderQuiz qayta o'rnatadi
     setQuiz(null);
     addAkaCard(shown, itemIndex);
@@ -711,6 +720,7 @@ async function sendMessage(text, { fromQuiz = false, fromVoice = false, heardAlt
     typing.remove();
     state.history.pop(); // muvaffaqiyatsiz xabarni tarixdan olib tashlaymiz
     el.chat.lastElementChild?.classList.contains("user") && el.chat.lastElementChild.remove();
+    if (e?.name === "AbortError") return; // "To'xtatish" — xato emas, jim
     if (!fromQuiz && !fromVoice) el.input.value = message;
     showError(e.message || t("err.generic"));
   } finally {
@@ -742,10 +752,57 @@ async function endLesson() {
   }
 }
 
+// ---------- Suhbat tarixi: sahifa yangilansa yo'qolmasin ----------
+const CHAT_KEY = "jigar.chat";
+const CHAT_KEEP_MS = 7 * 24 * 3600_000; // bir haftadan eski suhbat qaytarilmaydi
+const HISTORY_KEEP = 30; // API tarixi: oxirgi 30 xabar (server chegarasi 40; AI'ga baribir oxirgi 10 ta boradi)
+
+/** Tarixni oxirgi HISTORY_KEEP ta xabar bilan cheklaydi; birinchisi doim "user" bo'ladi. */
+function trimHistory(history) {
+  const tail = history.slice(-HISTORY_KEEP);
+  return tail[0]?.role === "assistant" ? tail.slice(1) : tail;
+}
+
+function saveChat() {
+  try {
+    localStorage.setItem(CHAT_KEY, JSON.stringify({ at: Date.now(), history: state.history, log: state.log.slice(-HISTORY_KEEP) }));
+  } catch {
+    /* saqlab bo'lmasa ham suhbat ishlayveradi */
+  }
+}
+
+function clearSavedChat() {
+  try {
+    localStorage.removeItem(CHAT_KEY);
+  } catch {
+    /* ahamiyatsiz */
+  }
+}
+
+/** Saqlangan suhbatni qaytaradi: API tarixi (Jigar oldingi gaplarni va o'z xatolarini biladi) va ekrandagi xabarlar. */
+function restoreChat() {
+  let saved;
+  try {
+    saved = JSON.parse(localStorage.getItem(CHAT_KEY) || "null");
+  } catch {
+    saved = null;
+  }
+  if (!saved || !Array.isArray(saved.history) || !saved.history.length || Date.now() - Number(saved.at) > CHAT_KEEP_MS) return;
+  state.history = trimHistory(saved.history.filter((m) => m && typeof m.content === "string" && ["user", "assistant"].includes(m.role)));
+  state.log = Array.isArray(saved.log) ? saved.log.filter((e) => e && typeof e.u === "string" && typeof e.a === "string") : [];
+  for (const entry of state.log) {
+    addUserBubble(entry.u, "");
+    state.items.push({ savol: entry.u, javob: entry.a.slice(0, 1200), quiz: null });
+    addAkaCard({ tushuntirish: entry.a }, state.items.length - 1);
+  }
+  renderChatCount();
+}
+
 function resetChat() {
   if (state.busy) return;
   voice.stopAll();
   state = freshState();
+  clearSavedChat();
   el.chat.replaceChildren(el.empty);
   el.empty.hidden = false;
   showError("");
@@ -791,7 +848,7 @@ const SIMPLE_LEVELS = ["5-7", "8-9"];
 const ECO_PERSONA = "moslashuvchan"; // EcoSystem: xarakter bitta
 let prefs = loadPrefs();
 let voiceState = "idle";
-let paused = false; // o'quvchi "Pauza" bosgan — Jigar o'zi qayta tinglamaydi
+let paused = false; // egasi "To'xtatish" / "stop" degan — keyingi mikrofon bosilguncha yoki "Hey Jigar"gacha o'zi qayta tinglamaydi
 
 /** Ro'yxatdan o'tishda tanlangan uslub. Sozlamalar oynasi yo'q — shu javoblar ustun. */
 function profilePrefs() {
@@ -854,6 +911,7 @@ const voice = createVoice({
     voiceState = next;
     window.jigarDesktop?.status(next); // tray: 👂 tinglayapti, 💭 o'ylayapti, 🗣 gapiryapti
     // Jigar gapirayotganda ham "Hey Jigar" / "Jigar, stop" eshitiladi; faqat savol tinglanayotganda — mikrofon bitta.
+    if (next === "listening") showError(""); // ruxsat berilgan: eski "mikrofonga ruxsat yo'q" xabari qolib ketmasin
     if (next === "idle" || next === "speaking") wake.resume();
     else wake.pause();
     if (next !== "speaking") caption.done();
@@ -908,10 +966,10 @@ function renderAvatar() {
   avatar.setState(thinking ? "thinking" : voiceState);
 }
 
-/** Pauza faqat suhbat ketayotganda (yoki pauzadan qaytish uchun) kerak — jim boshlang'ich holatda yashirin. */
+/** "To'xtatish" faqat Jigar band bo'lganda (tinglayapti, o'ylayapti, gapiryapti) ko'rinadi; bo'sh paytda yashirin. */
 function renderPauseBtn() {
-  const started = state.items.length > 0 || state.busy || voiceState !== "idle";
-  el.pauseBtn.hidden = state.finished || !(started || paused);
+  el.pauseBtn.hidden = state.finished || !(state.busy || voiceState !== "idle");
+  $("pauseLabel").textContent = prefs.lang === "ru" ? "Стоп" : "To'xtatish";
 }
 
 function renderVoiceStatus() {
@@ -920,9 +978,6 @@ function renderVoiceStatus() {
   if (!state.busy && voiceState !== "speaking") revealQuiz();
   if (!voice.supported.listen) return setVoiceStatus(t("status.unsupported"));
   if (state.busy) return setVoiceStatus(t("status.busy"));
-  if (paused && voiceState === "idle") {
-    return setVoiceStatus(prefs.lang === "ru" ? "Пауза — нажми ▶, чтобы продолжить" : "Pauza — davom etish uchun ▶ ni bos");
-  }
   if (voiceState === "idle" && voice.pushToTalk) return setVoiceStatus(t("status.idlePushToTalk"));
   setVoiceStatus(t(`status.${voiceState}`));
 }
@@ -988,12 +1043,14 @@ function renderPersonaTag() {
 }
 
 const LISTEN_NEXT = Symbol("listen"); // "Hey Jigar" javob tayyorlanayotganda aytildi — tugagach savol tinglanadi
+let chatAbort = null; // joriy /api/chat so'rovi (To'xtatish bosilsa bekor qilinadi)
 let hush = 0; // "Jigar, stop" sanog'i: to'xtatilgan javob keyin ovoz chiqarmaydi va qayta tinglamaydi
 
 /** Joriy javobni to'xtatadi (ovoz, tinglash); tayyorlanayotgan javob kelganda ham gapirmaydi. */
 function interruptReply() {
   hush += 1;
   state.afterBusy = null;
+  chatAbort?.abort(); // tayyorlanayotgan javob so'rovi ham bekor qilinadi
   voice.stopAll();
 }
 
@@ -1001,7 +1058,15 @@ function interruptReply() {
 function hushJigar() {
   interruptReply();
   state.lastInput = "stopped";
-  if (!prefs.muted) voice.speak(prefs.lang === "ru" ? "Хорошо." : "Xo'p.");
+  paused = true;
+  renderVoiceStatus();
+  if (!prefs.muted) voice.speak(prefs.lang === "ru" ? "Всё, остановился." : "Hop, to'xtadim.");
+}
+
+/** Qisqa "stop"/"to'xta"/"bas" — AI'siz, darrov to'xtaydi (≤ 3 so'z; "stoplarni sanab ber" emas). */
+function looksLikeStop(text) {
+  const clean = String(text ?? "").trim().replace(/^(?:hey\s+)?jigar[,!.\s]*/i, "");
+  return clean.split(/\s+/).length <= 3 && isStopCommand(clean);
 }
 
 function handleSpoken(text, heardAlt = "", pronunciation = null) {
@@ -1019,8 +1084,9 @@ function handleSpoken(text, heardAlt = "", pronunciation = null) {
 /** Jigar gapirib bo'lgach: o'quvchi ovoz bilan gaplashayotgan bo'lsa — yana tinglaydi. */
 function listenAgainAfter(listenAfter) {
   return () => {
-    const auto = listenAfter && !voice.pushToTalk && voice.supported.listen;
-    if (auto && !paused && !state.busy && !state.finished) voice.listen();
+    // Qayta tinglash faqat Jigar o'zi savol bergan bo'lsa ("...mi?"): buyruq bajarilgach suhbat tugaydi, mikrofon o'zi yonmaydi.
+    const auto = listenAfter && state.expectsReply && !voice.pushToTalk && voice.supported.listen;
+    if (auto && !paused && !state.busy && !state.finished) voice.listen({ auto: true });
   };
 }
 
@@ -1054,7 +1120,7 @@ let pressStartedAt = 0;
 function pressStart() {
   if (state.busy || state.finished) return;
   showError("");
-  if (paused) setPaused(false); // mikrofonni o'zi bosdi — pauza tugadi
+  paused = false; // mikrofonni o'zi bosdi — to'xtatish tugadi
   if (voice.listening) return voice.stopListening();
   pressStartedAt = Date.now();
   voice.listen();
@@ -1096,25 +1162,8 @@ el.explain.addEventListener("click", () => {
   voice.stopAll();
   sendMessage("", { fromVoice: true });
 });
-// Pauza: suhbat jonli davom etadi, lekin kerak bo'lmaganda to'xtatib qo'yish mumkin.
-function setPaused(next) {
-  paused = next;
-  const ru = prefs.lang === "ru";
-  el.pauseBtn.setAttribute("aria-pressed", String(paused));
-  el.pauseBtn.firstElementChild.textContent = paused ? "▶" : "⏸";
-  const label = paused ? (ru ? "Продолжить" : "Davom etish") : (ru ? "Пауза" : "Pauza");
-  el.pauseBtn.lastElementChild.textContent = label;
-  renderVoiceStatus();
-}
-el.pauseBtn.addEventListener("click", () => {
-  if (paused) {
-    setPaused(false);
-    if (!state.busy && !state.finished && voice.supported.listen) voice.listen();
-    return;
-  }
-  voice.stopAll(); // tinglash ham, gapirish ham to'xtaydi
-  setPaused(true);
-});
+// To'xtatish: tinglash, gapirish va tayyorlanayotgan javob — hammasi to'xtaydi; Jigar "Hop, to'xtadim" deydi.
+el.pauseBtn.addEventListener("click", () => hushJigar());
 
 el.typeToggle.addEventListener("click", () => {
   updatePrefs({ typing: !prefs.typing });
@@ -1501,5 +1550,6 @@ host.onPageChange?.(() => {
   }
 });
 
+restoreChat(); // sahifa yangilansa ham suhbat qaytadi
 updatePageUi();
 setBusy(false);
