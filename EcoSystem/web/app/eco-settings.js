@@ -1,5 +1,6 @@
 // EcoSystem sozlamalari (Sozlamalar oynasida): miya, ovoz xizmati, javob chuqurligi, Jigar xarakteri,
 // faol rejim (ekranga o'zi qaraydi), kunlik xulosa va kompyuter holati.
+import { askPassword } from "./confirm-dialog.js";
 import { deviceStatusText } from "./pc-actions.js";
 import { agentSection } from "./eco-agent.js";
 import { priceTag, pricesBlock } from "./model-prices.js";
@@ -108,7 +109,11 @@ export async function mountEcoSettings(container, { apiBase, authHeaders, person
   const saveAccess = async (value) => {
     const body = { access: value };
     if (value === "unlimited") {
-      const password = window.prompt("Cheksiz rejim: Jigar hech narsa so'ramasdan («Ha»siz), muddatsiz ishlaydi. Parolingizni kiriting:");
+      const password = await askPassword({
+        title: "Cheksiz rejim",
+        text: "Jigar hech narsa so'ramasdan («Ha»siz), muddatsiz ishlaydi: fayl o'chirish va buyruqlar ham. Parolingizni kiriting:",
+        confirm: "Yoqish",
+      });
       if (!password) throw new Error("Bekor qilindi.");
       body.password = password;
     }

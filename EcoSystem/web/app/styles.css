@@ -678,3 +678,7 @@ html.in-background .app {
 .wake-meter-mark { position: absolute; top: 0; bottom: 0; width: 2px; background: #ffb347; }
 .wake-test-result { line-height: 1.4; }
 .wake-test audio { width: 100%; max-width: 360px; }
+
+/* Parol so'rash dialogi (confirm-dialog.js askPassword) */
+.confirm-input { width: 100%; box-sizing: border-box; margin: 4px 0 14px; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid rgba(124, 116, 255, .45); background: rgba(0, 0, 0, .2); color: inherit; font: inherit; }
