@@ -1242,6 +1242,9 @@ const BACKGROUND_START_MS = 2500; // fon ishlari (eslatma, nudge, telefon agenti
 function renderSupport(user) {
   const isSupport = Boolean(user); // EcoSystem: kirgan har kim — egasi, yordamchi imkoniyatlari doim ochiq
   for (const node of document.querySelectorAll(".support-only")) node.hidden = !isSupport; // sozlamalar va navbar (Xotira)
+  // O'rnatilgan ilova (dmg/exe): yuklab olish bo'limi kerak emas; Siri faqat Mac'da (Windows'da bo'lim butunlay yashirin).
+  if (IS_DESKTOP_APP && !window.jigarDesktop?.installSiri) $("appsCard").hidden = true;
+  settingsNav.refresh();
   ecoSettingsReady = isSupport;
   if (isSupport) {
     // Sahifa ko'rinishini kechiktirmaslik uchun 6 ta fon so'rovi sal keyin boshlanadi.

@@ -146,8 +146,20 @@ function siriInstaller(apiBase, authHeaders) {
   return box;
 }
 
+/** Jigar ilovasining ichida: yuklab olish ro'yxati yo'q — faqat Siri (Mac). */
+function renderDesktopSiri(list, apiBase, authHeaders) {
+  const siri = el("div", "app-row");
+  const title = el("div", "app-title");
+  title.append(el("span", "app-name", "🎙 Siri"), el("small", "app-note", "\"Hey Siri, Jigarga ayt\""));
+  const head = el("div", "app-head");
+  head.append(title);
+  siri.append(head, ...(window.jigarDesktop.installSiri ? [siriInstaller(apiBase, authHeaders)] : []), howTo(SIRI_MAC_STEPS, false, "Siri: Jigar tinglasin (qo'lda)"));
+  list.replaceChildren(siri);
+}
+
 /** @param {HTMLElement} list @param {() => string} apiBase @param {() => Record<string, string>} authHeaders */
 export async function renderApps(list, apiBase, authHeaders = () => ({})) {
+  if (window.jigarDesktop) return renderDesktopSiri(list, apiBase, authHeaders); // o'rnatilgan ilovada yuklab olish kerak emas
   let data = { files: [], version: "", phoneUrl: null, qr: null };
   try {
     data = await (await fetch(`${apiBase()}/api/downloads`)).json();
