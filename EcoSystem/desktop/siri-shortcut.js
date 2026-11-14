@@ -4,7 +4,8 @@
 // Bu fayl — toza mantiq (Electron'siz, testlanadi): shortcut tavsifi (JSON → plutil bilan plist) va kirish tekshiruvi.
 // Chaqiruvchi: main.js (jigar:install-siri). Kalit faqat vaqtinchalik faylda turadi va darhol o'chiriladi.
 
-const SHORTCUT_NAME = "Jigarga ayt";
+// Buyruq nomi "Jigar": Siri "Hey Siri, Jigar" desa shu ishga tushadi. Mac ilovasi nomi "Jigar AI" (nomlar to'qnashmasin).
+const SHORTCUT_NAME = "Jigar";
 const TOKEN_RE = /^jgr_[A-Za-z0-9_-]{10,200}$/;
 const OBJECT_REPLACEMENT = "￼"; // Shortcuts matn ichidagi o'zgaruvchi belgisi
 const VOICE_PATH = "/api/voice";

@@ -1,12 +1,12 @@
 {
   "name": "jigar-desktop",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "description": "Jigar — shaxsiy yordamchi (desktop)",
   "main": "main.js",
   "private": true,
   "scripts": {
     "start": "electron .",
-    "dist:mac": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg --universal",
+    "dist:mac": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder -c.productName=\"Jigar AI\" --mac dmg --universal",
     "dist:win": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win nsis --x64 --arm64",
     "dist:win-zip": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win zip --x64 -c.win.signAndEditExecutable=false -c.win.artifactName='Jigar-win.${ext}'",
     "dist:win-exe": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win nsis --x64 -c.win.signAndEditExecutable=false -c.win.artifactName='Jigar-win.${ext}'"

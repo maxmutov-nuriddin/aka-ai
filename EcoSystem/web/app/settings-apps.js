@@ -124,9 +124,9 @@ function qrBlock(data, mine) {
  */
 function siriInstaller(apiBase, authHeaders) {
   const box = el("div", "app-siri-install");
-  const button = el("button", "app-get", "Siri'ga qo'shish (\"Jigarga ayt\")");
+  const button = el("button", "app-get", "Siri'ga qo'shish (\"Hey Siri, Jigar\")");
   button.type = "button";
-  const note = el("small", "app-note", "Bir tugma: Shortcuts ochiladi — \"Добавить\" ni bosing. Keyin: \"Hey Siri, Jigarga ayt\".");
+  const note = el("small", "app-note", "Bir tugma: Shortcuts ochiladi — \"Добавить\" ni bosing. Keyin: \"Hey Siri, Jigar\".");
   button.addEventListener("click", async () => {
     button.disabled = true;
     note.textContent = "Tayyorlanyapti…";
@@ -135,7 +135,7 @@ function siriInstaller(apiBase, authHeaders) {
       const { token, error } = await res.json().catch(() => ({}));
       if (!res.ok || !token) throw new Error(error || `HTTP ${res.status}`);
       const result = await window.jigarDesktop.installSiri(token);
-      note.textContent = result.ok ? "Shortcuts ochildi — \"Добавить\" ni bosing. Keyin: \"Hey Siri, Jigarga ayt\"." : `Bo'lmadi: ${result.error}`;
+      note.textContent = result.ok ? "Shortcuts ochildi — \"Добавить\" ni bosing. Keyin: \"Hey Siri, Jigar\"." : `Bo'lmadi: ${result.error}`;
     } catch (err) {
       note.textContent = `Bo'lmadi: ${err.message}`;
     } finally {
@@ -150,7 +150,7 @@ function siriInstaller(apiBase, authHeaders) {
 function renderDesktopSiri(list, apiBase, authHeaders) {
   const siri = el("div", "app-row");
   const title = el("div", "app-title");
-  title.append(el("span", "app-name", "🎙 Siri"), el("small", "app-note", "\"Hey Siri, Jigarga ayt\""));
+  title.append(el("span", "app-name", "🎙 Siri"), el("small", "app-note", "\"Hey Siri, Jigar\""));
   const head = el("div", "app-head");
   head.append(title);
   siri.append(head, ...(window.jigarDesktop.installSiri ? [siriInstaller(apiBase, authHeaders)] : []), howTo(SIRI_MAC_STEPS, false, "Siri: Jigar tinglasin (qo'lda)"));
