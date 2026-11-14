@@ -1193,7 +1193,7 @@ function setSettingsOpen(open) {
   if (!open) return el.settingsBtn.focus();
   el.settingsPop.scrollTop = 0;
   $("settingsClose").focus();
-  if (!$("appsCard").hidden) renderApps($("appsList"), () => host.apiBase); // ilovalar holati — har ochilganda yangi
+  if (!$("appsCard").hidden) renderApps($("appsList"), () => host.apiBase, authHeaders); // ilovalar holati — har ochilganda yangi
 }
 el.settingsBtn.addEventListener("click", () => setSettingsOpen(el.settingsPop.hidden));
 $("settingsClose").addEventListener("click", () => setSettingsOpen(false));

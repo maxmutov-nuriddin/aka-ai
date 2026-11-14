@@ -13,6 +13,8 @@ const { createPermissions } = require("./permissions.js");
 const { createStatusPill } = require("./status-pill.js");
 const { isSameSite } = require("./permission-policy.js");
 const { SCHEME, deepLinkAction, deepLinkFromArgv } = require("./deep-link.js");
+const { installSiriShortcut } = require("./siri-install.js");
+const { TOKEN_RE } = require("./siri-shortcut.js");
 
 let permissions = null; // app.whenReady'da yaratiladi
 const pill = createStatusPill({ getMainWindow: () => win }); // fon holati yozuvi (ekran pastida)
@@ -266,6 +268,13 @@ app.on("before-quit", () => {
 });
 // Mikrofon: sahifa ruxsatni qayta so'raydi (tugma bosilganda) va ichki holatni oladi (jurnal uchun). Faqat Jigar oynasidan.
 ipcMain.handle("jigar:request-mic", (event) => (win && event.sender === win.webContents && permissions ? permissions.requestExplicit() : false));
+// "Jigarga ayt" Siri buyrug'ini Shortcuts'ga qo'shish (Sozlamalar → Jigar ilovalari → macOS). Faqat Jigar oynasidan va faqat
+// o'z serverimiz manzili bilan; kalit (jgr_...) sahifada yaratiladi va shu yerga uzatiladi.
+ipcMain.handle("jigar:install-siri", async (event, token) => {
+  if (!win || event.sender !== win.webContents || !isOwnPage(event.sender.getURL())) return { ok: false, error: "Ruxsat yo'q." };
+  if (!TOKEN_RE.test(String(token ?? ""))) return { ok: false, error: "Kalit noto'g'ri." };
+  return installSiriShortcut({ serverUrl: ECO_URL, token });
+});
 ipcMain.handle("jigar:mic-info", (event) =>
   (win && event.sender === win.webContents && permissions ? { ...permissions.info(event.sender.getURL()), server: ECO_URL } : null));
 

@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld("jigarDesktop", {
   requestMic: () => ipcRenderer.invoke("jigar:request-mic"),
   /** Jurnal uchun: ilova ichidagi ruxsat holati (saqlangan javob, manzil o'zimizmi). */
   micInfo: () => ipcRenderer.invoke("jigar:mic-info"),
+  /** Mac: "Jigarga ayt" Siri buyrug'ini yaratib, Shortcuts'da ochadi. token — Siri kaliti (jgr_...). */
+  installSiri: (token) => ipcRenderer.invoke("jigar:install-siri", String(token ?? "")),
   /** Siri / jigar://listen — darhol tinglash ("Hey Jigar" aytilgandek). */
   onListen: (callback) => {
     if (typeof callback !== "function") return;

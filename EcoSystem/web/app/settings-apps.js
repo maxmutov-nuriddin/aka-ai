@@ -118,8 +118,36 @@ function qrBlock(data, mine) {
   return box;
 }
 
-/** @param {HTMLElement} list @param {() => string} apiBase */
-export async function renderApps(list, apiBase) {
+/**
+ * Mac ilovasida: bir tugma bilan "Jigarga ayt" Siri buyrug'i — kalit yaratiladi, buyruq tayyorlanib Shortcuts'da ochiladi
+ * (egasi "Qo'shish"ni bosadi). Keyin: "Hey Siri, Jigarga ayt".
+ */
+function siriInstaller(apiBase, authHeaders) {
+  const box = el("div", "app-siri-install");
+  const button = el("button", "app-get", "Siri'ga qo'shish (\"Jigarga ayt\")");
+  button.type = "button";
+  const note = el("small", "app-note", "Bir tugma: Shortcuts ochiladi — \"Добавить\" ni bosing. Keyin: \"Hey Siri, Jigarga ayt\".");
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    note.textContent = "Tayyorlanyapti…";
+    try {
+      const res = await fetch(`${apiBase()}/api/tokens`, { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify({ name: "Mac Siri" }) });
+      const { token, error } = await res.json().catch(() => ({}));
+      if (!res.ok || !token) throw new Error(error || `HTTP ${res.status}`);
+      const result = await window.jigarDesktop.installSiri(token);
+      note.textContent = result.ok ? "Shortcuts ochildi — \"Добавить\" ni bosing. Keyin: \"Hey Siri, Jigarga ayt\"." : `Bo'lmadi: ${result.error}`;
+    } catch (err) {
+      note.textContent = `Bo'lmadi: ${err.message}`;
+    } finally {
+      button.disabled = false;
+    }
+  });
+  box.append(button, note);
+  return box;
+}
+
+/** @param {HTMLElement} list @param {() => string} apiBase @param {() => Record<string, string>} authHeaders */
+export async function renderApps(list, apiBase, authHeaders = () => ({})) {
   let data = { files: [], version: "", phoneUrl: null, qr: null };
   try {
     data = await (await fetch(`${apiBase()}/api/downloads`)).json();
@@ -135,7 +163,8 @@ export async function renderApps(list, apiBase) {
   const siriTitle = el("div", "app-title");
   siriTitle.append(el("span", "app-name", "🎙 Siri"), el("small", "app-note", "\"Hey Siri, Jigar\" — Mac va iPhone"));
   siriHead.append(siriTitle);
-  siri.append(siriHead, howTo(SIRI_MAC_STEPS, mine === "mac", "Mac: Jigar ilovasi tinglasin"), howTo(SIRI_STEPS(origin), false, "iPhone: Siri orqali buyruq"));
+  siri.append(siriHead, ...(window.jigarDesktop?.installSiri ? [siriInstaller(apiBase, authHeaders)] : []),
+    howTo(SIRI_MAC_STEPS, mine === "mac", "Mac: Jigar ilovasi tinglasin"), howTo(SIRI_STEPS(origin), false, "iPhone: Siri orqali buyruq"));
   list.replaceChildren(
     ...(data.version ? [el("small", "app-version", `Versiya ${data.version}`)] : []),
     ...[qrBlock(data, mine)].filter(Boolean),

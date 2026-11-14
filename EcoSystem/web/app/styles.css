@@ -682,3 +682,6 @@ html.in-background .app {
 /* Parol so'rash dialogi (confirm-dialog.js askPassword) */
 .confirm-input { width: 100%; box-sizing: border-box; margin: 4px 0 14px; padding: 10px 12px; border-radius: 10px;
   border: 1px solid rgba(124, 116, 255, .45); background: rgba(0, 0, 0, .2); color: inherit; font: inherit; }
+
+/* Mac ilovasi: Siri'ga bir tugma bilan qo'shish (settings-apps.js) */
+.app-siri-install { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 6px 0 4px; }
