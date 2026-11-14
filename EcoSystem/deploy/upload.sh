@@ -17,10 +17,11 @@ rsync -az --delete --human-readable --progress \
   --include='/server/***' --include='/web/***' --include='/prompts/***' \
   --include='/desktop/' --include='/desktop/package.json' --include='/desktop/youtube-search.js' \
   --include='/downloads/' --include='/downloads/Jigar-mac.dmg' --include='/downloads/Jigar-win.zip' \
-  --include='/downloads/Jigar-win.exe' --include='/downloads/Jigar-android.apk' \
+  --include='/downloads/Jigar-win.exe' --include='/downloads/Jigar-android.apk' --include='/downloads/versions.json' \
   --exclude='.env*' --exclude='*' \
   ./ "$TARGET:$APP_DIR/"
 
 echo
 echo "Yuklandi: $TARGET:$APP_DIR"
-echo "Serverda: cd $APP_DIR && docker compose up -d --build"
+echo "Serverda (CRM bilan bir serverda): cd $APP_DIR && docker compose -f docker-compose.yml -f deploy/shared-proxy.compose.yml up -d --build jigar"
+echo "Serverda (yolg'iz): cd $APP_DIR && docker compose up -d --build"

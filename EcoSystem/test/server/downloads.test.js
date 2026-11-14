@@ -34,6 +34,17 @@ test("/api/downloads: mavjud fayl — hajm, SHA-256, url; yo'g'i — ready: fals
   });
 });
 
+test("/api/downloads: versions.json bo'lsa har fayl versiyasi chiqadi, bo'lmasa null", async () => {
+  await withDownloads({ "Jigar-mac.dmg": "x", "versions.json": JSON.stringify({ "Jigar-mac.dmg": "2.1.0" }) }, async (s) => {
+    const data = await (await s.raw("/api/downloads")).json();
+    assert.equal(data.files.find((f) => f.platform === "mac").version, "2.1.0");
+  });
+  await withDownloads({ "Jigar-mac.dmg": "x" }, async (s) => {
+    const data = await (await s.raw("/api/downloads")).json();
+    assert.equal(data.files.find((f) => f.platform === "mac").version, null);
+  });
+});
+
 test("/downloads/:file: fayl yuklanadi (attachment); boshqa nom, traversal, yo'q fayl — 404", async () => {
   await withDownloads({ "Jigar-mac.dmg": "dmg-bayt", ".env": "SECRET" }, async (s) => {
     const ok = await s.raw("/downloads/Jigar-mac.dmg");

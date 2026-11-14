@@ -84,7 +84,7 @@ function platformRow(platform, file, mine, apiBase) {
   if (platform === "ios") {
     head.append(el("small", "app-missing", "Safari orqali"));
   } else if (file?.ready) {
-    const link = el("a", "app-get", `Yuklab olish · ${(file.size / 1024 ** 2).toFixed(0)} MB`);
+    const link = el("a", "app-get", `Yuklab olish${file.version ? ` · v${file.version}` : ""} · ${(file.size / 1024 ** 2).toFixed(0)} MB`);
     link.href = `${apiBase()}${file.url}`;
     link.setAttribute("download", file.name);
     head.append(link);
